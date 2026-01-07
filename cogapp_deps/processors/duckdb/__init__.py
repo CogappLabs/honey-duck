@@ -1,13 +1,14 @@
 """DuckDB SQL processors for efficient data transformations.
 
-All processors in this module execute DuckDB SQL queries and return DataFrames.
+All processors in this module execute DuckDB SQL queries and return pandas DataFrames.
 DuckDB provides excellent performance for analytical queries and joins.
 
 Processors:
-    - DuckDBSQLProcessor: Execute raw SQL queries with table registration
-    - DuckDBJoinProcessor: Multi-table joins with computed columns
+    - DuckDBQueryProcessor: Query tables from a configured database
+    - DuckDBSQLProcessor: Transform DataFrames with SQL (in-memory)
     - DuckDBWindowProcessor: Window functions (ranking, running totals)
     - DuckDBAggregateProcessor: Group-by aggregations
+    - DuckDBJoinProcessor: (deprecated) Use DuckDBQueryProcessor or DuckDBSQLProcessor
 
 Connection Configuration:
     By default, processors use in-memory DuckDB. To use a persistent database:

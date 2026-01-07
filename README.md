@@ -67,7 +67,7 @@ cogapp_deps/         # Processor utilities (simulates external package)
     __init__.py      # Chain class for composing processors
     pandas/          # PandasReplaceOnConditionProcessor
     polars/          # PolarsFilterProcessor, PolarsStringProcessor
-    duckdb/          # DuckDBJoinProcessor, DuckDBWindowProcessor, DuckDBAggregateProcessor
+    duckdb/          # DuckDBQueryProcessor, DuckDBSQLProcessor, DuckDBWindowProcessor
 
 data/
   input/             # Source CSV files (Wyeth auction data)
