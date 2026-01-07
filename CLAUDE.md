@@ -5,41 +5,81 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-uv run python -m honey_duck                      # Run default pipeline
-uv run python -m honey_duck --dry-run            # Show plan only
-uv run python -m honey_duck pipelines/full.py    # Run specific pipeline
-uv run python -m honey_duck --db path/to/db      # Use file-based DuckDB
-uv run pytest                                    # Run tests
+# Install dependencies
+uv sync
+
+# Set Dagster home (required for persistence)
+export DAGSTER_HOME=$(pwd)/dagster_home
+
+# Start Dagster UI
+uv run dagster dev
+
+# Run pipeline via CLI
+uv run dagster job execute -j full_pipeline
+
+# Run tests
+uv run pytest
 ```
 
 ## Structure
 
 ```
 honey_duck/
-├── base.py        # Processor ABCs (Processor, PolarsProcessor, DuckDBProcessor)
-├── pipeline.py    # DuckDBPipeline class (harvest, run, output)
-├── processors.py  # Built-in processor implementations
-└── __main__.py    # CLI runner
+├── __init__.py        # Package metadata
+└── defs/
+    ├── __init__.py    # Re-exports defs
+    ├── definitions.py # Combined Dagster Definitions
+    ├── dlt_sources.py # dlt source configuration for CSV files
+    ├── dlt_assets.py  # dagster-dlt asset wrapper
+    ├── assets.py      # Transform and output assets
+    ├── resources.py   # Path constants and configuration
+    ├── jobs.py        # Job definitions
+    └── checks.py      # Asset checks
 
-pipelines/         # Pipeline definitions (SOURCES, PROCESSORS, OUTPUT)
+cogapp_deps/           # Processor utilities (simulates external package)
+└── processors/
+    ├── __init__.py    # Chain class for composing processors
+    ├── pandas/        # PandasReplaceOnConditionProcessor
+    ├── polars/        # PolarsFilterProcessor, PolarsStringProcessor
+    └── duckdb/        # DuckDBJoinProcessor, DuckDBWindowProcessor, DuckDBAggregateProcessor
+
 data/
-├── input/         # Source data (CSV files)
-└── output/        # Generated output (JSON, DuckDB files)
+├── input/             # Source CSV files (Wyeth auction data)
+└── output/            # Generated output (dagster.duckdb, *.json)
+
+dagster_home/          # Dagster persistence directory
 ```
 
 ## Key Patterns
 
-**Pipeline definitions** are Python files with:
-- `SOURCES` - dict of `{table_name: path}`
-- `PROCESSORS` - list of processor instances
-- `OUTPUT` - output file path
-- `DB_PATH` (optional) - path to DuckDB file instead of in-memory
+**Asset graph**:
+```
+dlt_honey_duck_harvest_*_raw → sales_enriched ──┬──→ sales_output
+                                                └──→ artworks_output
+```
 
-**Processor naming**: All processors are prefixed with their type:
-- `DuckDB*` - SQL processors (DuckDBSQLProcessor, DuckDBLookupProcessor, DuckDBAggregateProcessor)
-- `Pandas*` - pandas processors (PandasFilterProcessor, PandasUppercaseProcessor)
-- `Polars*` - polars processors (PolarsAggregateProcessor, PolarsWindowProcessor)
+**Groups**:
+- `harvest` - Raw data loaded from CSV into DuckDB via dlt
+- `transform` - Joined and enriched data
+- `output` - Final outputs (sales + artworks JSON)
 
-**DuckDBProcessor** runs SQL directly without loading data into Python - use for joins/lookups.
+**DuckDBPandasIOManager**: All assets returning pd.DataFrame are automatically persisted to DuckDB tables in `main` schema.
 
-**Harvest methods** accept optional `table_name` to load lookup tables alongside main data.
+**dlt harvest**: CSV files loaded to DuckDB `raw` schema via dagster-dlt integration.
+
+**Processors**: Generic utilities in `cogapp_deps/processors/` for SQL generation, filtering, string transforms.
+
+**Chain**: Compose multiple PolarsStringProcessors with lazy evaluation optimization.
+
+## Adding New Assets
+
+1. Add asset function in `defs/assets.py`
+2. Decorate with `@dg.asset(kinds={"duckdb"}, group_name="...")`
+3. Add rich metadata via `context.add_output_metadata()`
+4. Add to `definitions.py` assets list
+
+## Adding New dlt Sources
+
+1. Add resource to `dlt_sources.py` honey_duck_source function
+2. Asset key will be auto-generated as `dlt_honey_duck_harvest_{name}`
+3. Table created in `raw` schema

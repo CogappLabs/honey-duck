@@ -19,6 +19,10 @@ uv.lock
 # Output files
 data/output/
 
+# Dagster
+dagster_home/
+!dagster_home/.gitkeep
+
 # IDE
 .idea/
 .vscode/

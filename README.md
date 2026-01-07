@@ -1,6 +1,6 @@
 # honey-duck
 
-A DuckDB-backed DataFrame pipeline supporting pandas, polars, and SQL processors.
+A DuckDB-backed DataFrame pipeline with Dagster orchestration, demonstrating the lakehouse pattern with dlt harvest and processor utilities.
 
 ## Quick Start
 
@@ -8,92 +8,104 @@ A DuckDB-backed DataFrame pipeline supporting pandas, polars, and SQL processors
 # Install dependencies
 uv sync
 
-# Run default pipeline
-uv run python -m honey_duck
+# Set Dagster home for persistence
+export DAGSTER_HOME=$(pwd)/dagster_home
 
-# Dry run (show plan only)
-uv run python -m honey_duck --dry-run
+# Start Dagster UI
+uv run dagster dev
 
-# Run specific pipeline
-uv run python -m honey_duck pipelines/full.py
-
-# Use file-based DuckDB (for debugging/inspection)
-uv run python -m honey_duck --db data/output/pipeline.duckdb
+# Or run pipeline via CLI
+uv run dagster job execute -j full_pipeline
 ```
 
 ## Architecture
 
 ```
-CSV/JSON → DuckDB table(s)
-                ↓
-        Processor 1 (SQL lookup - no data loading)
-                ↓
-           DuckDB table
-                ↓
-        Processor 2 (pandas)
-                ↓
-           DuckDB table
-                ↓
-        Processor 3 (polars)
-                ↓
-           JSON/CSV/Parquet
+CSV files → dlt harvest → Transform asset → Output assets → JSON
+                 ↓              ↓                 ↓
+             DuckDB raw    DuckDB main    DuckDB main + JSON files
+             schema        schema         (via IOManager)
 ```
 
-## Pipeline Definition
+Uses [dlt](https://dlthub.com/) (data load tool) for CSV harvesting with automatic schema inference, and [dagster-dlt](https://docs.dagster.io/integrations/dlt) for Dagster integration.
 
-Pipelines are defined in Python files with three exports:
+## Asset Graph
 
-```python
-# pipelines/full.py
-
-from honey_duck import (
-    DuckDBLookupProcessor,
-    DuckDBSQLProcessor,
-    PandasFilterProcessor,
-    PandasUppercaseProcessor,
-    PolarsWindowProcessor,
-)
-
-SOURCES = {
-    "pipeline_data": "data/input/sales.csv",
-    "artworks": "data/input/artworks.csv",
-    "artists": "data/input/artists.csv",
-}
-
-PROCESSORS = [
-    DuckDBLookupProcessor("artworks", left_on="artwork_id", right_on="artwork_id", columns=["title", "artist_id"]),
-    DuckDBLookupProcessor("artists", left_on="artist_id", right_on="artist_id", columns=["name", "nationality"]),
-    DuckDBSQLProcessor("SELECT *, sale_price_usd - price_usd as diff FROM pipeline_data"),
-    PandasUppercaseProcessor("name"),
-    PandasFilterProcessor("sale_price_usd", min_value=30_000_000),
-    PolarsWindowProcessor(partition_by="name", order_by="sale_price_usd"),
-]
-
-OUTPUT = "data/output/full.json"
-
-# Optional: use file-based DuckDB instead of in-memory
-# DB_PATH = "data/output/pipeline.duckdb"
+```
+dlt_honey_duck_harvest_sales_raw ────────┐
+                                         │
+dlt_honey_duck_harvest_artworks_raw ─────┼──→ sales_enriched ──┬──→ sales_output
+                                         │                     │
+dlt_honey_duck_harvest_artists_raw ──────┘                     └──→ artworks_output
 ```
 
-## Processor Types
+**Groups:**
+- `harvest` - Raw data loaded from CSV into DuckDB via dlt
+- `transform` - Joined and enriched data
+- `output` - Final outputs (sales + artworks JSON)
 
-| Type | Base Class | Description |
-|------|------------|-------------|
-| pandas | `Processor` | Load → process → store |
-| polars | `PolarsProcessor` | Load → process → store |
-| SQL | `DuckDBProcessor` | Runs directly in DuckDB (zero overhead) |
+**Jobs:**
+- `full_pipeline` - All assets (harvest → transform → output)
 
-## Built-in Processors
+## Project Structure
 
-**DuckDB (SQL)**
-- `DuckDBLookupProcessor` - SQL join with lookup table
-- `DuckDBSQLProcessor` - Arbitrary SQL
-- `DuckDBAggregateProcessor` - SQL GROUP BY (collapses rows)
+```
+honey_duck/
+  __init__.py        # Package metadata
+  defs/
+    __init__.py      # Re-exports defs
+    definitions.py   # Combined Dagster Definitions
+    dlt_sources.py   # dlt source configuration for CSV files
+    dlt_assets.py    # dagster-dlt asset wrapper
+    assets.py        # Transform and output assets
+    resources.py     # Path constants and configuration
+    jobs.py          # Job definitions
+    checks.py        # Asset checks
 
-**Pandas**
-- `PandasFilterProcessor` - Filter rows by column value
-- `PandasUppercaseProcessor` - Uppercase a string column
+cogapp_deps/         # Processor utilities (simulates external package)
+  processors/
+    __init__.py      # Chain class for composing processors
+    pandas/          # PandasReplaceOnConditionProcessor
+    polars/          # PolarsFilterProcessor, PolarsStringProcessor
+    duckdb/          # DuckDBJoinProcessor, DuckDBWindowProcessor, DuckDBAggregateProcessor
 
-**Polars**
-- `PolarsAggregateProcessor` - Group by with aggregations (collapses rows)
-- `PolarsWindowProcessor` - Window functions (adds rank column)
+data/
+  input/             # Source CSV files (Wyeth auction data)
+  output/            # Generated output (dagster.duckdb, *.json)
+
+dagster_home/        # Dagster persistence (run history, schedules, etc.)
+```
+
+## Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DAGSTER_HOME` | Dagster persistence directory | (required) |
+| `HONEY_DUCK_DB_PATH` | DuckDB database path | `data/output/dagster.duckdb` |
+| `HONEY_DUCK_SALES_OUTPUT` | Sales JSON output path | `data/output/sales_output.json` |
+| `HONEY_DUCK_ARTWORKS_OUTPUT` | Artworks JSON output path | `data/output/artworks_output.json` |
+
+## DuckDB Lakehouse Benefits
+
+1. **Persistence** - Data survives between runs (vs in-memory loss)
+2. **Queryable** - Inspect intermediate tables via DuckDB CLI
+3. **Scalable** - Handles larger datasets without memory pressure
+4. **Zero-copy** - Efficient pandas/polars integration
+5. **Debuggable** - Each stage persisted, restart from any point
+
+## Data Flow
+
+1. **Harvest (dlt)** - Load CSV files into DuckDB `raw` schema with automatic schema inference
+2. **Transform** - SQL joins + window aggregations via DuckDB processors, string transforms via Polars Chain
+3. **Output** - Two views: high-value sales ($30M+) and artwork catalog with sales history
+
+## Processors
+
+Generic processor utilities in `cogapp_deps/processors/`:
+
+- **DuckDBJoinProcessor** - Generate SQL for chained joins
+- **DuckDBWindowProcessor** - Generate window function expressions
+- **DuckDBAggregateProcessor** - Generate GROUP BY aggregations
+- **PolarsFilterProcessor** - Filter rows by condition (with lazy evaluation)
+- **PolarsStringProcessor** - String transformations (strip, upper, lower)
+- **Chain** - Compose multiple processors with Polars lazy optimization

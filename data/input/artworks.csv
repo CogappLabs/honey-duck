@@ -1,13 +1,74 @@
 artwork_id,title,artist_id,year,medium,price_usd
-1,Starry Night,1,1889,Oil on canvas,100000000
-2,Sunflowers,1,1888,Oil on canvas,39000000
-3,Water Lilies,2,1906,Oil on canvas,54000000
-4,Impression Sunrise,2,1872,Oil on canvas,30000000
-5,Guernica,3,1937,Oil on canvas,200000000
-6,Les Demoiselles d'Avignon,3,1907,Oil on canvas,150000000
-7,The Two Fridas,4,1939,Oil on canvas,35000000
-8,Self-Portrait with Thorn Necklace,4,1940,Oil on masonite,25000000
-9,Black Iris,5,1926,Oil on canvas,9000000
-10,Jimson Weed,5,1936,Oil on canvas,44000000
-11,The Bedroom,1,1888,Oil on canvas,80000000
-12,Rouen Cathedral,2,1894,Oil on canvas,25000000
+1,In the Orchard,1,1972,watercolor and pencil on paper,600000
+2,Day Dream,1,1980,tempera on panel,3000000
+3,Above the Narrows,1,1960,tempera on panel,5000000
+4,Off Shore,1,1967,tempera on masonite,1800000
+5,Spring Fed,1,1967,tempera on panel,6000000
+6,Oliver's Cap,1,1981,tempera on panel,5000000
+7,The Sexton,1,1950,tempera on panel,3000000
+8,Blackberry Picker,1,1943,tempera on masonite,800000
+9,Ice Storm,1,1971,"drybrush, watercolor and gouache on paper",800000
+10,Snowy Morning,1,,tempera on panel,350000
+11,Crescent,1,1987,tempera on panel,800000
+12,Cider Barrel,1,1969,watercolor and pencil on paper,700000
+13,Circus Day,1,1973,"drybrush, watercolor, gouache and graphite on paper laid down on paperboard",1000000
+14,Hay Day,1,1980,tempera on panel,600000
+15,Silver Cove,1,1937,tempera on panel,700000
+16,Lighthouse,1,1983,watercolor on paper,250000
+17,Winter Carnival,1,1985,"drybrush, watercolor, gouache and pencil on paper",500000
+18,Flat Boat,1,1988,"watercolor, drybrush and pencil on paper",350000
+19,Heavy Snow,1,1967,drybrush and watercolor on paper,500000
+20,Chain Hoist,1,1965,"watercolor, gouache and pencil on paper",300000
+21,Deserted Light,1,1977,watercolor and pencil on paper,300000
+22,Tracks,1,1999,watercolor and pencil on paper,350000
+23,Hoffman's Barn,1,1933,oil on canvas,350000
+24,Storm Signal,1,1972,"watercolor, gouache, drybrush and pencil on paper",150000
+25,Dam Breast,1,1970,watercolor and pencil on paper,300000
+26,Study for &quot;Barracoon&quot;,1,1976,pencil on paper,180000
+27,Front Door,1,1946,"watercolor, gouache and pencil on paper",180000
+28,Five and a Half and Study for 'Oliver's Cap': A Double-Sided Work,1,1981,watercolor on paper,120000
+29,Below the Kitchen,1,1960,drybrush and watercolor on paper laid down on paper,150000
+30,Lobster Buoy,1,1940,watercolor and pencil on paper laid down on board,120000
+31,Stair Door,1,1955,watercolor and gouache on paper laid down on board,80000
+32,Blue Day,1,1942,watercolor and pencil on paper,80000
+33,Game Warden,1,1952,watercolor and charcoal on paper laid down on board,150000
+34,Pumpkin in Doorway,1,,watercolor and pencil on paper,120000
+35,Trawler Aground,1,1940,watercolor on paper laid down on paper,120000
+36,Olsons in the Snow,1,1975,watercolor and pencil on paper,180000
+37,Pumpkin Hill,1,1977,watercolor and drybrush on paper laid down on board,150000
+38,Halyards,1,1986,watercolor and pencil on paper,100000
+39,The Inlet,1,1950,watercolor and pencil on paper,80000
+40,Harbor House,1,1985,watercolor and pencil on paper,150000
+41,Race Bridge,1,1984,gouache and watercolor on paper,180000
+42,Hill Farm,1,1939,"watercolor, gouache and pencil on paper",80000
+43,Fishermen Coming Ashore,1,1939,watercolor and gouache on paper,80000
+44,Picking Apples,1,1945,watercolor and charcoal on paper laid down on board,120000
+45,Chester County Farm,1,1947,"watercolor on paper laid down on paperboard sight,",80000
+46,After Lunch,1,,"watercolor, drybrush and pencil on paper",120000
+47,Front Door at Teel's,1,1954,watercolor on paper laid down on board,70000
+48,Sun and Stucco,1,1948,"watercolor, gouache and pencil on paper",80000
+49,Messersmith's,1,1994,watercolor and pencil on paper,120000
+50,Thawing,1,1958,mixed media on paper,70000
+51,Wood Choppers,1,1944,"watercolor on paper laid down on paperboard sheet,",70000
+52,Cushman House,1,1941,watercolor on paper laid down on paperboard,35000
+53,Shredded Wheat,1,1982,watercolor and pencil on paper,100000
+54,Study for 'Heat Lightning',1,1977,pencil on paper,18000
+55,The Falls of Brandywine,1,1943,watercolor and pencil on paper,120000
+56,Hand Lines Study,1,1997,watercolor and pencil on paper,70000
+57,Fishermen in Dory,1,1936,watercolor and pencil on paper laid down on board,35000
+58,The Lone Gull,1,1948,watercolor on paper laid down on board,60000
+59,Lily Pads,1,,watercolor and pencil on paper,35000
+60,Sarita,1,1978,watercolor and pencil on paper,65000
+61,Stove Coal,1,1970,watercolor and pencil on paper,50000
+62,Farm Machine,1,1956,watercolor on paper,35000
+63,Knyphausen's Artillery,1,1945,watercolor and pencil on paper,60000
+64,The Mill at Brinton's Bridge,1,1936,ink on paper,35000
+65,Close Hauled,1,1935,watercolor and pencil on paper laid down on paper,25000
+66,Siri Erickson,1,,pencil on paper,25000
+67,Portrait of Anthony,1,2004,watercolor and pencil on paper,18000
+68,Sir William Howe at Birmingham,1,,watercolor and pencil on paper,30000
+69,Helga,1,1971,pencil on paper,35000
+70,Lord Nelson Overseeing the Battle of the Nile,1,,watercolor and gouache on paper,50000
+71,His Mark,1,,"watercolor, pencil and ink on paper and cardboard",5000
+72,Dr. H. Harrison McAllister,1,1982,pencil on paper,8000
+73,Snow Shoe,1,1960,watercolor on paper,150000
