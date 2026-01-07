@@ -58,6 +58,11 @@ from cogapp_deps.processors.duckdb import (
 )
 from cogapp_deps.processors.polars import PolarsFilterProcessor, PolarsStringProcessor
 
+from .constants import (
+    MIN_SALE_VALUE_USD,
+    PRICE_TIER_BUDGET_MAX_USD,
+    PRICE_TIER_MID_MAX_USD,
+)
 from .resources import (
     ARTWORKS_OUTPUT_PATH,
     DUCKDB_PATH,
@@ -67,18 +72,6 @@ from .resources import (
 # Configure DuckDB processors to use the main database for reading raw tables
 # Use read_only=True to avoid lock conflicts with the IO manager
 configure_duckdb(db_path=DUCKDB_PATH, read_only=True)
-
-
-# -----------------------------------------------------------------------------
-# Business Rules
-# -----------------------------------------------------------------------------
-
-# Sales filtering threshold
-MIN_SALE_VALUE_USD = 30_000_000
-
-# Price tier boundaries
-PRICE_TIER_BUDGET_MAX_USD = 500_000
-PRICE_TIER_MID_MAX_USD = 3_000_000
 
 
 # -----------------------------------------------------------------------------

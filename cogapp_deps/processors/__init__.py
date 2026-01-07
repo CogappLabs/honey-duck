@@ -1,27 +1,54 @@
 """Cogapp data processors organized by engine type.
 
-Subpackages:
-    - pandas/  : Standard pandas operations (widest compatibility)
-    - polars/  : High-performance operations (2-10x faster for strings, filtering)
-    - duckdb/  : SQL-based operations (best for joins, aggregations, window functions)
+Processor Selection Guide
+-------------------------
 
-Processor Selection Guide:
-    - Simple transformations: Use pandas (most familiar)
-    - Large datasets + strings/filtering: Use polars (faster)
-    - Joins, aggregations, window functions: Use duckdb (most efficient)
-    - Persisted intermediate results: DuckDB via Dagster IO manager
+┌─────────────────────────┬──────────────────────────────────────────────────┐
+│ Use case                │ Processor                                        │
+├─────────────────────────┼──────────────────────────────────────────────────┤
+│ Query database tables   │ DuckDBQueryProcessor (reads from configured DB)  │
+│ Transform DataFrame SQL │ DuckDBSQLProcessor (in-memory, needs df input)   │
+│ Multi-table joins       │ DuckDBSQLProcessor with tables={...} parameter   │
+│ Window functions        │ DuckDBWindowProcessor or DuckDBSQLProcessor      │
+│ Aggregations (GROUP BY) │ DuckDBAggregateProcessor or DuckDBSQLProcessor   │
+│ String transforms       │ PolarsStringProcessor (upper, lower, strip)      │
+│ Numeric filtering       │ PolarsFilterProcessor (>, <, >=, ==, etc.)       │
+│ Chain Polars operations │ Chain([...]) for single optimized query          │
+└─────────────────────────┴──────────────────────────────────────────────────┘
 
-Chaining:
-    Use Chain to combine multiple processors with lazy optimization (for Polars):
+Return Types:
+    - DuckDB processors return pandas DataFrames
+    - Polars processors return Polars DataFrames
+    - Chain returns Polars DataFrames
+    - The DuckDBPandasPolarsIOManager handles both seamlessly
 
-        from cogapp_deps.processors import Chain
-        from cogapp_deps.processors.polars import PolarsStringProcessor, PolarsFilterProcessor
+Examples
+--------
 
-        chain = Chain([
-            PolarsStringProcessor("name", "upper"),
-            PolarsFilterProcessor("price", 1000, ">="),
-        ])
-        result = chain.process(df)  # single optimized query
+Query from database:
+
+    from cogapp_deps.processors.duckdb import DuckDBQueryProcessor, configure
+    configure(db_path="data.duckdb", read_only=True)
+
+    df = DuckDBQueryProcessor(sql="SELECT * FROM raw.sales").process()
+
+Transform a DataFrame with SQL:
+
+    from cogapp_deps.processors.duckdb import DuckDBSQLProcessor
+
+    result = DuckDBSQLProcessor(sql=\"\"\"
+        SELECT *, price * 1.1 AS price_with_tax FROM _input
+    \"\"\").process(df)
+
+Chain Polars processors:
+
+    from cogapp_deps.processors import Chain
+    from cogapp_deps.processors.polars import PolarsStringProcessor, PolarsFilterProcessor
+
+    result = Chain([
+        PolarsStringProcessor("name", "upper"),
+        PolarsFilterProcessor("price", 1000, ">="),
+    ]).process(df)  # single optimized query
 """
 
 from . import duckdb, pandas

@@ -103,9 +103,59 @@ dagster_home/        # Dagster persistence (run history, schedules, etc.)
 
 Generic processor utilities in `cogapp_deps/processors/`:
 
-- **DuckDBJoinProcessor** - Generate SQL for chained joins
-- **DuckDBWindowProcessor** - Generate window function expressions
-- **DuckDBAggregateProcessor** - Generate GROUP BY aggregations
-- **PolarsFilterProcessor** - Filter rows by condition (with lazy evaluation)
+- **DuckDBQueryProcessor** - Query tables from the configured database
+- **DuckDBSQLProcessor** - Transform DataFrames with SQL (in-memory)
+- **DuckDBWindowProcessor** - Add window function columns
+- **DuckDBAggregateProcessor** - GROUP BY aggregations
+- **PolarsFilterProcessor** - Filter rows by condition
 - **PolarsStringProcessor** - String transformations (strip, upper, lower)
-- **Chain** - Compose multiple processors with Polars lazy optimization
+- **Chain** - Compose Polars processors with lazy optimization
+
+## Adding a New Asset
+
+1. **Define the asset** in `honey_duck/defs/assets.py`:
+
+```python
+@dg.asset(
+    kinds={"duckdb"},           # Shows up in UI as DuckDB asset
+    deps=HARVEST_DEPS,          # Depends on raw tables
+    group_name="transform",     # Groups in UI
+)
+def my_new_transform(context: dg.AssetExecutionContext):
+    """Docstring shown in Dagster UI."""
+    # Query raw tables
+    result = DuckDBQueryProcessor(sql="""
+        SELECT * FROM raw.my_table
+    """).process()
+
+    # Transform with Polars
+    result = PolarsStringProcessor("name", "upper").process(result)
+
+    # Add metadata for UI
+    context.add_output_metadata({
+        "record_count": len(result),
+        "preview": dg.MetadataValue.md(result.head(5).to_pandas().to_markdown()),
+    })
+    return result
+```
+
+2. **Register it** in `honey_duck/defs/definitions.py`:
+
+```python
+from .assets import my_new_transform
+
+defs = dg.Definitions(
+    assets=[
+        # ... existing assets
+        my_new_transform,
+    ],
+    # ...
+)
+```
+
+3. **Add to job** (optional) in `honey_duck/defs/jobs.py` if you want a separate execution target.
+
+**Tips:**
+- Return `pl.DataFrame` for Polars output, `pd.DataFrame` for pandas - the IO manager handles both
+- Use `pl.DataFrame` type hints on input parameters so the IO manager knows what to load
+- Add business constants to `honey_duck/defs/constants.py`

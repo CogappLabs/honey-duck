@@ -17,6 +17,7 @@ from .assets import (
     sales_output,
     sales_transform,
 )
+from .constants import MIN_SALE_VALUE_USD, PRICE_TIERS
 from .schemas import ArtworksTransformSchema, SalesTransformSchema
 
 
@@ -84,9 +85,7 @@ def check_artworks_transform_schema(
 
 @dg.asset_check(asset=sales_output)
 def check_sales_above_threshold(sales_output: pd.DataFrame) -> dg.AssetCheckResult:
-    """Check that all sales in output meet the $30M threshold."""
-    from .assets import MIN_SALE_VALUE_USD
-
+    """Check that all sales in output meet the minimum threshold."""
     below_threshold = (sales_output["sale_price_usd"] < MIN_SALE_VALUE_USD).sum()
     passed = bool(below_threshold == 0)
 
@@ -105,8 +104,7 @@ def check_sales_above_threshold(sales_output: pd.DataFrame) -> dg.AssetCheckResu
 @dg.asset_check(asset=artworks_output)
 def check_valid_price_tiers(artworks_output: pd.DataFrame) -> dg.AssetCheckResult:
     """Check that all artworks have a valid price tier."""
-    valid_tiers = {"budget", "mid", "premium"}
-    invalid_tiers = ~artworks_output["price_tier"].isin(valid_tiers)
+    invalid_tiers = ~artworks_output["price_tier"].isin(PRICE_TIERS)
     invalid_count = invalid_tiers.sum()
     passed = bool(invalid_count == 0)
 
