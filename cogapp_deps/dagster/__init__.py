@@ -14,6 +14,10 @@ except ImportError as e:
         "Install with: pip install cogapp-deps[dagster]"
     ) from e
 
-from cogapp_deps.dagster.io import read_table, write_json_output
+from cogapp_deps.dagster.io import (
+    DuckDBPandasPolarsIOManager,
+    read_table,
+    write_json_output,
+)
 
-__all__ = ["read_table", "write_json_output"]
+__all__ = ["DuckDBPandasPolarsIOManager", "read_table", "write_json_output"]

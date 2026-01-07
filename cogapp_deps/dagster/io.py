@@ -6,15 +6,42 @@ Provides common patterns for reading from DuckDB and writing outputs.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 import dagster as dg
 import pandas as pd
+from dagster_duckdb import DuckDBIOManager
+from dagster_duckdb.io_manager import DbTypeHandler
+from dagster_duckdb_pandas import DuckDBPandasTypeHandler
+from dagster_duckdb_polars import DuckDBPolarsTypeHandler
 
 from cogapp_deps.processors.duckdb import get_connection
 
 if TYPE_CHECKING:
     import polars as pl
+
+
+class DuckDBPandasPolarsIOManager(DuckDBIOManager):
+    """DuckDB IO manager that handles both Pandas and Polars DataFrames.
+
+    Use this when your pipeline mixes pandas and polars operations.
+    The IO manager will store/load the appropriate type based on type hints.
+
+    Example:
+        defs = dg.Definitions(
+            resources={
+                "io_manager": DuckDBPandasPolarsIOManager(
+                    database="path/to/db.duckdb",
+                    schema="main",
+                ),
+            },
+            ...
+        )
+    """
+
+    @staticmethod
+    def type_handlers() -> Sequence[DbTypeHandler]:
+        return [DuckDBPandasTypeHandler(), DuckDBPolarsTypeHandler()]
 
 
 def read_table(table_name: str, schema: str = "main") -> pd.DataFrame:
