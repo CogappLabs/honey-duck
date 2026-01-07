@@ -1,0 +1,13 @@
+sale_id,artwork_id,sale_date,sale_price_usd,buyer_country
+1,1,2023-05-15,95000000,United States
+2,2,2022-11-20,37500000,Japan
+3,3,2023-03-10,52000000,United Kingdom
+4,5,2021-09-05,180000000,Qatar
+5,10,2023-08-22,42000000,United States
+6,11,2022-06-30,78000000,China
+7,6,2023-01-18,145000000,United Arab Emirates
+8,4,2022-08-12,28000000,France
+9,7,2023-07-04,33000000,Mexico
+10,2,2023-12-01,41000000,Switzerland
+11,1,2024-02-14,102000000,United Kingdom
+12,3,2024-01-08,58000000,Germany

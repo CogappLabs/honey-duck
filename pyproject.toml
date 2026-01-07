@@ -1,0 +1,19 @@
+[project]
+name = "honey-duck"
+version = "0.1.0"
+description = "DuckDB-backed DataFrame pipeline example"
+requires-python = ">=3.12"
+dependencies = [
+    "duckdb>=1.1",
+    "pandas>=2.2",
+    "polars>=1.0",
+    "pyarrow>=18.0",
+]
+
+[project.scripts]
+honey-duck = "honey_duck.__main__:main"
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.0",
+]

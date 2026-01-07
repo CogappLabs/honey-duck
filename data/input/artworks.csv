@@ -1,0 +1,13 @@
+artwork_id,title,artist_id,year,medium,price_usd
+1,Starry Night,1,1889,Oil on canvas,100000000
+2,Sunflowers,1,1888,Oil on canvas,39000000
+3,Water Lilies,2,1906,Oil on canvas,54000000
+4,Impression Sunrise,2,1872,Oil on canvas,30000000
+5,Guernica,3,1937,Oil on canvas,200000000
+6,Les Demoiselles d'Avignon,3,1907,Oil on canvas,150000000
+7,The Two Fridas,4,1939,Oil on canvas,35000000
+8,Self-Portrait with Thorn Necklace,4,1940,Oil on masonite,25000000
+9,Black Iris,5,1926,Oil on canvas,9000000
+10,Jimson Weed,5,1936,Oil on canvas,44000000
+11,The Bedroom,1,1888,Oil on canvas,80000000
+12,Rouen Cathedral,2,1894,Oil on canvas,25000000
