@@ -1,6 +1,8 @@
-"""Generic DuckDB SQL processor for executing raw SQL queries.
+"""DuckDB SQL processors for executing raw SQL queries.
 
-Use this for custom SQL that doesn't fit the specific processors (join, window, aggregate).
+Two processors for different use cases:
+- DuckDBSQLProcessor: Transform DataFrames with SQL (in-memory)
+- DuckDBQueryProcessor: Query configured database tables (persistent)
 """
 
 from __future__ import annotations
@@ -14,29 +16,34 @@ if TYPE_CHECKING:
 
 
 class DuckDBSQLProcessor:
-    """Execute raw SQL queries against DataFrames.
+    """Transform DataFrames using SQL queries.
 
-    Registers the input DataFrame as "_input" table and executes the provided SQL.
-    Use for complex queries that don't fit the specific processors.
+    Registers input DataFrame as "_input" table and executes SQL in-memory.
+    Use for transforming DataFrames with complex SQL logic.
 
     Example:
-        >>> processor = DuckDBSQLProcessor(
-        ...     sql=\"\"\"
-        ...         SELECT *,
-        ...             sale_price_usd - list_price_usd AS price_diff,
-        ...             ROUND((sale_price_usd - list_price_usd) * 100.0 / list_price_usd, 1) AS pct_change
-        ...         FROM _input
-        ...         ORDER BY sale_date DESC
-        ...     \"\"\"
-        ... )
+        >>> processor = DuckDBSQLProcessor(sql=\"\"\"
+        ...     SELECT *,
+        ...         price * 1.1 AS price_with_tax
+        ...     FROM _input
+        ...     WHERE status = 'active'
+        ... \"\"\")
         >>> result = processor.process(input_df)
+
+    For multi-table operations, pass additional DataFrames via `tables`:
+        >>> processor = DuckDBSQLProcessor(sql=\"\"\"
+        ...     SELECT a.*, b.category_name
+        ...     FROM _input a
+        ...     LEFT JOIN categories b ON a.category_id = b.id
+        ... \"\"\")
+        >>> result = processor.process(products_df, tables={"categories": categories_df})
     """
 
     def __init__(self, sql: str):
         """Initialize SQL processor.
 
         Args:
-            sql: SQL query to execute. Use "_input" to reference the input DataFrame.
+            sql: SQL query to execute. Use "_input" to reference input DataFrame.
         """
         self.sql = sql
 
@@ -67,6 +74,54 @@ class DuckDBSQLProcessor:
             conn.close()
 
     def __repr__(self) -> str:
-        # Show first 50 chars of SQL
         preview = self.sql.strip()[:50].replace("\n", " ")
         return f"DuckDBSQLProcessor({preview}...)"
+
+
+class DuckDBQueryProcessor:
+    """Query tables in the configured DuckDB database.
+
+    Executes SQL against persistent database tables. Requires configure() first.
+    Use for extracting data from the database without DataFrame input.
+
+    Example:
+        >>> from cogapp_deps.processors.duckdb import configure
+        >>> configure(db_path="warehouse.duckdb", read_only=True)
+        >>>
+        >>> processor = DuckDBQueryProcessor(sql=\"\"\"
+        ...     SELECT s.*, a.title
+        ...     FROM raw.sales s
+        ...     JOIN raw.artworks a ON s.artwork_id = a.artwork_id
+        ...     WHERE s.sale_date > '2024-01-01'
+        ... \"\"\")
+        >>> result = processor.process()
+    """
+
+    def __init__(self, sql: str):
+        """Initialize query processor.
+
+        Args:
+            sql: SQL query to execute against configured database.
+        """
+        self.sql = sql
+
+    def process(self) -> pd.DataFrame:
+        """Execute the SQL against configured database and return result.
+
+        Returns:
+            DataFrame with query results.
+
+        Raises:
+            RuntimeError: If database is not configured or connection fails.
+        """
+        from . import get_connection
+
+        conn = get_connection()
+        try:
+            return conn.sql(self.sql).df()
+        finally:
+            conn.close()
+
+    def __repr__(self) -> str:
+        preview = self.sql.strip()[:50].replace("\n", " ")
+        return f"DuckDBQueryProcessor({preview}...)"

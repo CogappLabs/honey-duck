@@ -38,34 +38,27 @@ class Chain:
 
         self.processors = processors
 
-    def process(self, df: pd.DataFrame | pl.DataFrame) -> pd.DataFrame | pl.DataFrame:
+    def process(self, df: pd.DataFrame | pl.DataFrame) -> pl.DataFrame:
         """Execute the processor chain with lazy optimization.
 
         Args:
             df: Input DataFrame (pandas or polars)
 
         Returns:
-            Processed DataFrame (same type as input)
+            Processed Polars DataFrame
         """
         # Convert pandas to polars LazyFrame
         if isinstance(df, pd.DataFrame):
             lf = pl.from_pandas(df).lazy()
-            return_pandas = True
         else:
             lf = df.lazy()
-            return_pandas = False
 
         # Apply all processors as lazy operations
         for processor in self.processors:
             lf = processor._apply(lf)
 
         # Collect (single optimized execution)
-        result = lf.collect()
-
-        # Convert back to pandas if input was pandas
-        if return_pandas:
-            return result.to_pandas()
-        return result
+        return lf.collect()
 
     def __repr__(self) -> str:
         names = [type(p).__name__ for p in self.processors]

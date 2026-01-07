@@ -67,30 +67,23 @@ class PolarsStringProcessor:
             return lf.with_columns(pl.col(self.column).str.strip_chars())
         return lf
 
-    def process(self, df: pd.DataFrame | "pl.DataFrame") -> pd.DataFrame:
+    def process(self, df: pd.DataFrame | "pl.DataFrame") -> "pl.DataFrame":
         """Apply the string transformation.
 
         Args:
             df: Input DataFrame (pandas or polars)
 
         Returns:
-            Transformed pandas DataFrame
+            Transformed Polars DataFrame
         """
         # Convert pandas to polars if needed
         if isinstance(df, pd.DataFrame):
             pl_df = pl.from_pandas(df)
-            return_pandas = True
         else:
             pl_df = df
-            return_pandas = False
 
-        # Apply transformation via lazy for consistency
-        result = self._apply(pl_df.lazy()).collect()
-
-        # Convert back to pandas if input was pandas
-        if return_pandas:
-            return result.to_pandas()
-        return result
+        # Apply transformation via lazy for optimization
+        return self._apply(pl_df.lazy()).collect()
 
     def __repr__(self) -> str:
         return f"PolarsStringProcessor({self.column}, {self.transform})"

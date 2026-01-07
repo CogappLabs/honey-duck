@@ -22,11 +22,26 @@ Checks
 - Freshness checks alert if outputs haven't been updated in 24 hours
 """
 
+from typing import Sequence
+
 import dagster as dg
 from dagster_dlt import DagsterDltResource
-from dagster_duckdb_pandas import DuckDBPandasIOManager
+from dagster_duckdb import DuckDBIOManager
+from dagster_duckdb.io_manager import DbTypeHandler
+from dagster_duckdb_pandas import DuckDBPandasTypeHandler
+from dagster_duckdb_polars import DuckDBPolarsTypeHandler
 
 from .assets import artworks_output, artworks_transform, sales_output, sales_transform
+
+
+class DuckDBPandasPolarsIOManager(DuckDBIOManager):
+    """DuckDB IO manager that handles both Pandas and Polars DataFrames."""
+
+    @staticmethod
+    def type_handlers() -> Sequence[DbTypeHandler]:
+        return [DuckDBPandasTypeHandler(), DuckDBPolarsTypeHandler()]
+
+
 from .checks import (
     check_artworks_transform_schema,
     check_sales_above_threshold,
@@ -59,7 +74,7 @@ defs = dg.Definitions(
         check_valid_price_tiers,
     ],
     resources={
-        "io_manager": DuckDBPandasIOManager(
+        "io_manager": DuckDBPandasPolarsIOManager(
             database=DUCKDB_PATH,
             schema="main",
         ),

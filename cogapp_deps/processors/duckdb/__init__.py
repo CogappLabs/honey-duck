@@ -62,7 +62,7 @@ def get_connection(read_only: bool | None = None) -> duckdb.DuckDBPyConnection:
 
 from .aggregate import DuckDBAggregateProcessor
 from .join import DuckDBJoinProcessor
-from .sql import DuckDBSQLProcessor
+from .sql import DuckDBQueryProcessor, DuckDBSQLProcessor
 from .window import DuckDBWindowProcessor
 
 __all__ = [
@@ -70,6 +70,7 @@ __all__ = [
     "get_connection",
     "DuckDBAggregateProcessor",
     "DuckDBJoinProcessor",
+    "DuckDBQueryProcessor",
     "DuckDBSQLProcessor",
     "DuckDBWindowProcessor",
 ]

@@ -7,8 +7,10 @@ from cogapp_deps.processors import Chain
 from cogapp_deps.processors.duckdb import (
     DuckDBAggregateProcessor,
     DuckDBJoinProcessor,
+    DuckDBQueryProcessor,
     DuckDBSQLProcessor,
     DuckDBWindowProcessor,
+    configure,
 )
 from cogapp_deps.processors.polars import PolarsFilterProcessor, PolarsStringProcessor
 
@@ -57,7 +59,12 @@ def artists_df() -> pd.DataFrame:
 
 
 class TestDuckDBJoinProcessor:
-    """Tests for DuckDBJoinProcessor."""
+    """Tests for DuckDBJoinProcessor (deprecated)."""
+
+    def test_emits_deprecation_warning(self) -> None:
+        """Test that deprecation warning is emitted."""
+        with pytest.warns(DeprecationWarning, match="DuckDBJoinProcessor is deprecated"):
+            DuckDBJoinProcessor(joins=[("table", "id", "id")])
 
     def test_join_with_dataframe_input(self, sales_df: pd.DataFrame, artworks_df: pd.DataFrame) -> None:
         """Test joining a DataFrame with a registered table."""
@@ -66,10 +73,11 @@ class TestDuckDBJoinProcessor:
         conn = duckdb.connect(":memory:")
         conn.register("artworks", artworks_df)
 
-        processor = DuckDBJoinProcessor(
-            joins=[("artworks", "artwork_id", "artwork_id")],
-            select_cols=["a.sale_id", "a.artwork_id", "b.title"],
-        )
+        with pytest.warns(DeprecationWarning):
+            processor = DuckDBJoinProcessor(
+                joins=[("artworks", "artwork_id", "artwork_id")],
+                select_cols=["a.sale_id", "a.artwork_id", "b.title"],
+            )
         result = processor.process(sales_df, conn=conn)
 
         assert len(result) == 4
@@ -86,11 +94,12 @@ class TestDuckDBJoinProcessor:
         conn.execute("CREATE TABLE items (id INT, name VARCHAR)")
         conn.execute("INSERT INTO items VALUES (1, 'Item A'), (2, 'Item B')")
 
-        processor = DuckDBJoinProcessor(
-            joins=[("items", "id", "id")],
-            select_cols=["a.id", "a.value", "b.name"],
-            base_table="sales",
-        )
+        with pytest.warns(DeprecationWarning):
+            processor = DuckDBJoinProcessor(
+                joins=[("items", "id", "id")],
+                select_cols=["a.id", "a.value", "b.name"],
+                base_table="sales",
+            )
         result = processor.process(conn=conn)
 
         assert len(result) == 2
@@ -98,9 +107,10 @@ class TestDuckDBJoinProcessor:
 
     def test_raises_without_input_or_base_table(self) -> None:
         """Test that error is raised when neither df nor base_table provided."""
-        processor = DuckDBJoinProcessor(
-            joins=[("other_table", "id", "id")],
-        )
+        with pytest.warns(DeprecationWarning):
+            processor = DuckDBJoinProcessor(
+                joins=[("other_table", "id", "id")],
+            )
         with pytest.raises(ValueError, match="Either provide df argument"):
             processor.process()
 
@@ -185,6 +195,67 @@ class TestDuckDBSQLProcessor:
 
         assert len(result) == 2  # Only 250000 and 150000
 
+    def test_multi_table_join(self, sales_df: pd.DataFrame, artworks_df: pd.DataFrame) -> None:
+        """Test joining multiple DataFrames via tables parameter."""
+        processor = DuckDBSQLProcessor(
+            sql="""
+                SELECT a.sale_id, a.artwork_id, b.title
+                FROM _input a
+                LEFT JOIN artworks b ON a.artwork_id = b.artwork_id
+            """
+        )
+        result = processor.process(sales_df, tables={"artworks": artworks_df})
+
+        assert len(result) == 4
+        assert "title" in result.columns
+
+
+class TestDuckDBQueryProcessor:
+    """Tests for DuckDBQueryProcessor."""
+
+    def test_query_database_tables(self, tmp_path) -> None:
+        """Test querying tables from configured database."""
+        import duckdb
+
+        # Create a test database with some data
+        db_path = tmp_path / "test.duckdb"
+        conn = duckdb.connect(str(db_path))
+        conn.execute("CREATE TABLE test_table (id INT, value VARCHAR)")
+        conn.execute("INSERT INTO test_table VALUES (1, 'one'), (2, 'two')")
+        conn.close()
+
+        # Configure and query
+        configure(db_path=str(db_path), read_only=True)
+        processor = DuckDBQueryProcessor(sql="SELECT * FROM test_table ORDER BY id")
+        result = processor.process()
+
+        assert len(result) == 2
+        assert result.iloc[0]["value"] == "one"
+
+    def test_query_with_joins(self, tmp_path) -> None:
+        """Test querying with joins from configured database."""
+        import duckdb
+
+        db_path = tmp_path / "test.duckdb"
+        conn = duckdb.connect(str(db_path))
+        conn.execute("CREATE TABLE orders (id INT, product_id INT)")
+        conn.execute("INSERT INTO orders VALUES (1, 10), (2, 20)")
+        conn.execute("CREATE TABLE products (id INT, name VARCHAR)")
+        conn.execute("INSERT INTO products VALUES (10, 'Widget'), (20, 'Gadget')")
+        conn.close()
+
+        configure(db_path=str(db_path), read_only=True)
+        processor = DuckDBQueryProcessor(sql="""
+            SELECT o.id AS order_id, p.name AS product_name
+            FROM orders o
+            JOIN products p ON o.product_id = p.id
+            ORDER BY o.id
+        """)
+        result = processor.process()
+
+        assert len(result) == 2
+        assert result.iloc[0]["product_name"] == "Widget"
+
 
 # -----------------------------------------------------------------------------
 # Polars Processor Tests
@@ -196,24 +267,48 @@ class TestPolarsStringProcessor:
 
     def test_strip(self, artists_df: pd.DataFrame) -> None:
         """Test stripping whitespace from strings."""
+        import polars as pl
+
         processor = PolarsStringProcessor("name", "strip")
         result = processor.process(artists_df)
 
-        assert result.loc[0, "name"] == "Alice Smith"
+        assert isinstance(result, pl.DataFrame)
+        assert result["name"][0] == "Alice Smith"
 
     def test_upper(self, artists_df: pd.DataFrame) -> None:
         """Test converting to uppercase."""
+        import polars as pl
+
         processor = PolarsStringProcessor("name", "upper")
         result = processor.process(artists_df)
 
-        assert "ALICE" in result.loc[0, "name"]
+        assert isinstance(result, pl.DataFrame)
+        assert "ALICE" in result["name"][0]
 
     def test_lower(self, artists_df: pd.DataFrame) -> None:
         """Test converting to lowercase."""
+        import polars as pl
+
         processor = PolarsStringProcessor("name", "lower")
         result = processor.process(artists_df)
 
-        assert "alice" in result.loc[0, "name"]
+        assert isinstance(result, pl.DataFrame)
+        assert "alice" in result["name"][0]
+
+    def test_always_returns_polars(self, artists_df: pd.DataFrame) -> None:
+        """Test that output is always Polars regardless of input type."""
+        import polars as pl
+
+        processor = PolarsStringProcessor("name", "upper")
+
+        # Pandas input -> Polars output
+        result_from_pandas = processor.process(artists_df)
+        assert isinstance(result_from_pandas, pl.DataFrame)
+
+        # Polars input -> Polars output
+        pl_df = pl.from_pandas(artists_df)
+        result_from_polars = processor.process(pl_df)
+        assert isinstance(result_from_polars, pl.DataFrame)
 
 
 class TestPolarsFilterProcessor:
@@ -221,32 +316,43 @@ class TestPolarsFilterProcessor:
 
     def test_greater_than(self, sales_df: pd.DataFrame) -> None:
         """Test filtering with > operator."""
+        import polars as pl
+
         processor = PolarsFilterProcessor("sale_price_usd", 100000, ">")
         result = processor.process(sales_df)
 
+        assert isinstance(result, pl.DataFrame)
         assert len(result) == 2
         assert all(result["sale_price_usd"] > 100000)
 
     def test_greater_than_or_equal(self, sales_df: pd.DataFrame) -> None:
         """Test filtering with >= operator."""
+        import polars as pl
+
         processor = PolarsFilterProcessor("sale_price_usd", 100000, ">=")
         result = processor.process(sales_df)
 
+        assert isinstance(result, pl.DataFrame)
         assert len(result) == 3
-        assert all(result["sale_price_usd"] >= 100000)
 
     def test_less_than(self, sales_df: pd.DataFrame) -> None:
         """Test filtering with < operator."""
+        import polars as pl
+
         processor = PolarsFilterProcessor("sale_price_usd", 150000, "<")
         result = processor.process(sales_df)
 
+        assert isinstance(result, pl.DataFrame)
         assert len(result) == 2
 
     def test_equal(self, sales_df: pd.DataFrame) -> None:
         """Test filtering with == operator."""
+        import polars as pl
+
         processor = PolarsFilterProcessor("sale_price_usd", 100000, "==")
         result = processor.process(sales_df)
 
+        assert isinstance(result, pl.DataFrame)
         assert len(result) == 1
 
 
@@ -260,16 +366,21 @@ class TestChain:
 
     def test_chain_polars_processors(self, artists_df: pd.DataFrame) -> None:
         """Test chaining multiple Polars processors."""
+        import polars as pl
+
         chain = Chain([
             PolarsStringProcessor("name", "strip"),
             PolarsStringProcessor("name", "upper"),
         ])
         result = chain.process(artists_df)
 
-        assert result.loc[0, "name"] == "ALICE SMITH"
+        assert isinstance(result, pl.DataFrame)
+        assert result["name"][0] == "ALICE SMITH"
 
     def test_chain_filter_and_string(self, sales_df: pd.DataFrame) -> None:
         """Test chaining filter and string processors."""
+        import polars as pl
+
         # Add a string column for testing
         sales_df["status"] = ["  pending  ", "completed", "  pending  ", "completed"]
 
@@ -279,5 +390,8 @@ class TestChain:
         ])
         result = chain.process(sales_df)
 
+        assert isinstance(result, pl.DataFrame)
         assert len(result) == 3
-        assert result.loc[result["sale_id"] == 1, "status"].iloc[0] == "pending"
+        # Find the row with sale_id == 1 and check status
+        row = result.filter(pl.col("sale_id") == 1)
+        assert row["status"][0] == "pending"

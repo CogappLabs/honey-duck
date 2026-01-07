@@ -85,13 +85,15 @@ def check_artworks_transform_schema(
 @dg.asset_check(asset=sales_output)
 def check_sales_above_threshold(sales_output: pd.DataFrame) -> dg.AssetCheckResult:
     """Check that all sales in output meet the $30M threshold."""
-    min_threshold = 30_000_000
-    below_threshold = (sales_output["sale_price_usd"] < min_threshold).sum()
+    from .assets import MIN_SALE_VALUE_USD
+
+    below_threshold = (sales_output["sale_price_usd"] < MIN_SALE_VALUE_USD).sum()
     passed = bool(below_threshold == 0)
 
     return dg.AssetCheckResult(
         passed=passed,
         metadata={
+            "threshold": dg.MetadataValue.text(f"${MIN_SALE_VALUE_USD:,}"),
             "min_sale_price": dg.MetadataValue.float(
                 float(sales_output["sale_price_usd"].min())
             ),

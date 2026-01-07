@@ -1,10 +1,14 @@
 """DuckDB join processor for multi-table joins.
 
 Execute SQL joins and return DataFrames.
+
+DEPRECATED: Use DuckDBQueryProcessor or DuckDBSQLProcessor with explicit SQL instead.
+Explicit SQL is more readable and doesn't require learning alias conventions.
 """
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING
 
 import pandas as pd
@@ -16,26 +20,30 @@ if TYPE_CHECKING:
 class DuckDBJoinProcessor:
     """Execute multi-table joins and return DataFrame.
 
-    Supports both simple joins (all from base table) and chained joins
-    (each join references the previous table).
+    .. deprecated::
+        Use DuckDBQueryProcessor (for database queries) or DuckDBSQLProcessor
+        (for DataFrame transforms) with explicit SQL instead. Explicit SQL is
+        more readable and universally understood.
 
-    Example (join tables from database):
-        >>> from cogapp_deps.processors.duckdb import configure
-        >>> configure(db_path="path/to/db.duckdb", read_only=True)
-        >>>
-        >>> processor = DuckDBJoinProcessor(
-        ...     base_table="sales",
-        ...     joins=[("artworks", "a.artwork_id", "artwork_id")],
-        ...     select_cols=["a.*", "b.title"],
-        ... )
-        >>> df = processor.process()
+        Instead of:
+            DuckDBJoinProcessor(
+                base_table="sales",
+                joins=[("artworks", "a.artwork_id", "artwork_id")],
+                select_cols=["a.*", "b.title"],
+            ).process()
 
-    Example (join DataFrame with database tables):
-        >>> processor = DuckDBJoinProcessor(
-        ...     joins=[("artworks", "a.artwork_id", "artwork_id")],
-        ...     select_cols=["a.*", "b.title"],
-        ... )
-        >>> df = processor.process(sales_df)  # sales_df becomes base table
+        Use:
+            DuckDBQueryProcessor(sql='''
+                SELECT s.*, a.title
+                FROM sales s
+                LEFT JOIN artworks a ON s.artwork_id = a.artwork_id
+            ''').process()
+
+    Alias convention (if you must use this class):
+        - Base table: aliased as 'a'
+        - First join: aliased as 'b'
+        - Second join: aliased as 'c'
+        - And so on...
     """
 
     def __init__(
@@ -56,6 +64,12 @@ class DuckDBJoinProcessor:
             base_table: Name of base table (aliased as 'a'). If None, expects
                        DataFrame input in process().
         """
+        warnings.warn(
+            "DuckDBJoinProcessor is deprecated. Use DuckDBQueryProcessor or "
+            "DuckDBSQLProcessor with explicit SQL instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.base_table = base_table
         self.joins = joins
         self.select_cols = select_cols or ["*"]
