@@ -5,6 +5,9 @@ A DuckDB-backed DataFrame pipeline supporting pandas, polars, and SQL processors
 ## Quick Start
 
 ```bash
+# Install dependencies
+uv sync
+
 # Run default pipeline
 uv run python -m honey_duck
 
