@@ -1,6 +1,6 @@
 """Resource registration for the honey-duck pipeline.
 
-This module configures the DuckDBPandasIOManager which handles:
+This module configures the DuckDBPandasPolarsIOManager which handles:
 - Storing DataFrames as DuckDB tables between assets
 - Loading upstream asset data automatically
 - Persisting final outputs
