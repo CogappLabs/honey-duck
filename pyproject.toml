@@ -13,6 +13,8 @@ dependencies = [
     "dagster-duckdb-pandas>=0.28",
     "dlt>=1.20.0",
     "dagster-dlt>=0.28.8",
+    "pandera>=0.28.0",
+    "dagster-pandera>=0.28.8",
 ]
 
 [build-system]
@@ -26,7 +28,16 @@ packages = ["honey_duck", "cogapp_deps"]
 dev-dependencies = [
     "pytest>=8.0",
     "ruff",
+    "mypy>=1.11",
+    "pandas-stubs>=2.0",
 ]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
 
 [tool.ruff]
 line-length = 100

@@ -6,18 +6,12 @@ This module configures the DuckDBPandasIOManager which handles:
 - Persisting final outputs
 
 The DuckDB database file is stored in data/output/ alongside other outputs.
-
-Processor DuckDB:
-- By default, inline DuckDB SQL in assets uses in-memory mode
-- Set HONEY_DUCK_PROCESSOR_DB_PATH to use a file-based DB for debugging
-- This allows inspecting intermediate query results
 """
 
 import os
 from pathlib import Path
 
 import dagster as dg
-import duckdb
 
 # Resolve paths relative to project root
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -31,10 +25,6 @@ DUCKDB_PATH = os.environ.get(
     str(OUTPUT_DIR / "dagster.duckdb"),
 )
 
-# Processor database path - for inline DuckDB SQL in transforms
-# Set to a file path to persist intermediate results, or leave unset for in-memory
-PROCESSOR_DB_PATH = os.environ.get("HONEY_DUCK_PROCESSOR_DB_PATH", ":memory:")
-
 # Output file paths (configurable via environment variables)
 SALES_OUTPUT_PATH = Path(
     os.environ.get("HONEY_DUCK_SALES_OUTPUT", str(OUTPUT_DIR / "sales_output.json"))
@@ -42,18 +32,6 @@ SALES_OUTPUT_PATH = Path(
 ARTWORKS_OUTPUT_PATH = Path(
     os.environ.get("HONEY_DUCK_ARTWORKS_OUTPUT", str(OUTPUT_DIR / "artworks_output.json"))
 )
-
-
-def get_processor_connection() -> duckdb.DuckDBPyConnection:
-    """Get a DuckDB connection for processor operations.
-
-    Returns a connection to either:
-    - In-memory database (default, fast but transient)
-    - File-based database (if HONEY_DUCK_PROCESSOR_DB_PATH is set)
-
-    Using a file-based database allows debugging intermediate results.
-    """
-    return duckdb.connect(PROCESSOR_DB_PATH)
 
 
 # -----------------------------------------------------------------------------

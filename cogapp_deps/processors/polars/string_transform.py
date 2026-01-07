@@ -9,9 +9,14 @@ Use for large datasets where string transformations are a bottleneck.
 Supports lazy evaluation for query optimization when chained.
 """
 
-from typing import Literal
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Literal
 
 import pandas as pd
+
+if TYPE_CHECKING:
+    import polars as pl
 
 try:
     import polars as pl
@@ -19,7 +24,6 @@ try:
     POLARS_AVAILABLE = True
 except ImportError:
     POLARS_AVAILABLE = False
-    pl = None
 
 TransformType = Literal["upper", "lower", "title", "strip"]
 
