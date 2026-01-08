@@ -25,6 +25,9 @@ DUCKDB_PATH = os.environ.get(
     str(OUTPUT_DIR / "dagster.duckdb"),
 )
 
+# SQLite media database path
+MEDIA_DB_PATH = INPUT_DIR / "media.db"
+
 # Output file paths (configurable via environment variables)
 SALES_OUTPUT_PATH = Path(
     os.environ.get("HONEY_DUCK_SALES_OUTPUT", str(OUTPUT_DIR / "sales_output.json"))
@@ -61,6 +64,14 @@ csv_artists = dg.AssetSpec(
     description="Artists reference CSV file",
     metadata={"path": str(INPUT_DIR / "artists.csv")},
     kinds={"csv"},
+    group_name="source",
+)
+
+sqlite_media = dg.AssetSpec(
+    key="sqlite_media",
+    description="Media references SQLite database",
+    metadata={"path": str(MEDIA_DB_PATH)},
+    kinds={"sqlite"},
     group_name="source",
 )
 

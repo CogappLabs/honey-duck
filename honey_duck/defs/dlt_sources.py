@@ -18,10 +18,7 @@ import dlt
 from dlt.sources.filesystem import filesystem, read_csv
 from dlt.sources.sql_database import sql_database
 
-from .resources import DUCKDB_PATH, INPUT_DIR
-
-# SQLite media database path
-MEDIA_DB_PATH = INPUT_DIR / "media.db"
+from .resources import DUCKDB_PATH, INPUT_DIR, MEDIA_DB_PATH
 
 
 @dlt.source(name="harvest")
