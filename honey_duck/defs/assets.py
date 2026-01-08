@@ -47,7 +47,6 @@ import time
 from datetime import timedelta
 
 import dagster as dg
-import pandas as pd
 import polars as pl
 
 from cogapp_deps.dagster import read_table, write_json_output
@@ -98,7 +97,7 @@ HARVEST_DEPS = [
     deps=HARVEST_DEPS,
     group_name="transform",
 )
-def sales_transform(context: dg.AssetExecutionContext):
+def sales_transform(context: dg.AssetExecutionContext) -> pl.DataFrame:
     """Join sales with artworks and artists, add sale-focused metrics."""
     start_time = time.perf_counter()
 
@@ -134,8 +133,8 @@ def sales_transform(context: dg.AssetExecutionContext):
         ORDER BY sale_date DESC, sale_id
     """).process(result)
 
-    # Transform: normalize artist names
-    result = Chain([
+    # Transform: normalize artist names (Chain converts to Polars)
+    result: pl.DataFrame = Chain([  # type: ignore[no-redef]
         PolarsStringProcessor("artist_name", "strip"),
         PolarsStringProcessor("artist_name", "upper"),
     ]).process(result)
@@ -145,14 +144,16 @@ def sales_transform(context: dg.AssetExecutionContext):
     context.add_output_metadata({
         "record_count": len(result),
         "columns": result.columns,
-        "preview": dg.MetadataValue.md(result.head(5).to_pandas().to_markdown(index=False)),
+        "preview": dg.MetadataValue.md(
+            result.head(5).to_pandas().to_markdown(index=False)  # type: ignore[operator]
+        ),
         "unique_artworks": result["artwork_id"].n_unique(),
         "total_sales_value": float(result["sale_price_usd"].sum()),
-        "date_range": f"{result['sale_date'].min()} to {result['sale_date'].max()}",
+        "date_range": f"{str(result['sale_date'].min())} to {str(result['sale_date'].max())}",
         "processing_time_ms": round(elapsed_ms, 2),
     })
     context.log.info(f"Transformed {len(result)} sales records in {elapsed_ms:.1f}ms")
-    return result
+    return result  # type: ignore[return-value]
 
 
 @dg.asset(
@@ -166,7 +167,7 @@ def sales_transform(context: dg.AssetExecutionContext):
 def sales_output(
     context: dg.AssetExecutionContext,
     sales_transform: pl.DataFrame,
-):
+) -> pl.DataFrame:
     """Filter high-value sales and output to JSON."""
     start_time = time.perf_counter()
     total_count = len(sales_transform)
@@ -198,7 +199,7 @@ def sales_output(
     deps=HARVEST_DEPS,
     group_name="transform",
 )
-def artworks_transform(context: dg.AssetExecutionContext):
+def artworks_transform(context: dg.AssetExecutionContext) -> pl.DataFrame:
     """Join artworks with artists, media, and aggregate sales history per artwork."""
     start_time = time.perf_counter()
 
@@ -282,8 +283,8 @@ def artworks_transform(context: dg.AssetExecutionContext):
         "all_media": all_media,
     })
 
-    # Transform: normalize artist names
-    result = PolarsStringProcessor("artist_name", "upper").process(result)
+    # Transform: normalize artist names (converts to Polars)
+    result: pl.DataFrame = PolarsStringProcessor("artist_name", "upper").process(result)  # type: ignore[no-redef]
 
     # Report
     elapsed_ms = (time.perf_counter() - start_time) * 1000
@@ -293,11 +294,13 @@ def artworks_transform(context: dg.AssetExecutionContext):
         "artworks_unsold": int((~result["has_sold"]).sum()),
         "artworks_with_media": int((result["media_count"] > 0).sum()),
         "total_catalog_value": float(result["list_price_usd"].sum()),
-        "preview": dg.MetadataValue.md(result.head(5).to_pandas().to_markdown(index=False)),
+        "preview": dg.MetadataValue.md(
+            result.head(5).to_pandas().to_markdown(index=False)  # type: ignore[operator]
+        ),
         "processing_time_ms": round(elapsed_ms, 2),
     })
     context.log.info(f"Transformed {len(result)} artworks in {elapsed_ms:.1f}ms")
-    return result
+    return result  # type: ignore[return-value]
 
 
 @dg.asset(
@@ -308,7 +311,7 @@ def artworks_transform(context: dg.AssetExecutionContext):
 def artworks_output(
     context: dg.AssetExecutionContext,
     artworks_transform: pl.DataFrame,
-):
+) -> pl.DataFrame:
     """Output artwork catalog to JSON."""
     start_time = time.perf_counter()
 
