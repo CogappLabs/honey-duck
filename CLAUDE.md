@@ -25,51 +25,59 @@ uv run pytest
 
 ```
 honey_duck/
-├── __init__.py        # Package metadata
+├── __init__.py           # Package metadata
 └── defs/
-    ├── __init__.py    # Re-exports defs
-    ├── definitions.py # Combined Dagster Definitions
-    ├── dlt_sources.py # dlt source configuration for CSV files
-    ├── dlt_assets.py  # dagster-dlt asset wrapper
-    ├── assets.py      # Transform and output assets
-    ├── resources.py   # Path constants and configuration
-    ├── jobs.py        # Job definitions
-    └── checks.py      # Asset checks
+    ├── definitions.py    # Combined Dagster Definitions
+    ├── dlt_sources.py    # dlt source configuration
+    ├── dlt_assets.py     # dagster-dlt asset wrapper
+    ├── assets.py         # Original transform/output (processor classes)
+    ├── assets_polars.py  # Pure Polars implementation
+    ├── assets_pandas.py  # Pure Pandas implementation
+    ├── assets_duckdb.py  # Pure DuckDB SQL implementation
+    ├── assets_polars_fs.py # Polars with FilesystemIOManager
+    ├── resources.py      # Path constants and configuration
+    ├── constants.py      # Business constants (thresholds, tiers)
+    ├── schemas.py        # Pandera validation schemas
+    ├── jobs.py           # Job definitions
+    └── checks.py         # Asset checks
 
-cogapp_deps/           # Processor utilities (simulates external package)
-└── processors/
-    ├── __init__.py    # Chain class for composing processors
-    ├── pandas/        # PandasReplaceOnConditionProcessor
-    ├── polars/        # PolarsFilterProcessor, PolarsStringProcessor
-    └── duckdb/        # DuckDBJoinProcessor, DuckDBWindowProcessor, DuckDBAggregateProcessor
+cogapp_deps/              # Utilities (simulates external package)
+├── dagster/              # Dagster helpers
+│   └── io.py             # DuckDBPandasPolarsIOManager
+└── processors/           # DataFrame processors
+    ├── pandas/           # PandasReplaceOnConditionProcessor
+    ├── polars/           # PolarsFilterProcessor, PolarsStringProcessor
+    └── duckdb/           # DuckDBJoinProcessor, DuckDBWindowProcessor
 
 data/
-├── input/             # Source CSV files (Wyeth auction data)
-└── output/            # Generated output (dagster.duckdb, *.json)
+├── input/                # Source CSV files
+└── output/               # Generated output (*.duckdb, *.json)
 
-dagster_home/          # Dagster persistence directory
+dagster_home/             # Dagster persistence directory
 ```
 
 ## Key Patterns
 
-**Asset graph**:
+**Asset graph** (5 parallel implementations sharing harvest layer):
 ```
-dlt_honey_duck_harvest_*_raw → sales_enriched ──┬──→ sales_output
-                                                └──→ artworks_output
+dlt_harvest_* (shared) ──→ sales_transform_<impl> ──→ sales_output_<impl>
+                       └──→ artworks_transform_<impl> ──→ artworks_output_<impl>
 ```
 
-**Groups**:
-- `harvest` - Raw data loaded from CSV into DuckDB via dlt
-- `transform` - Joined and enriched data
-- `output` - Final outputs (sales + artworks JSON)
+**Implementations**: original (processor classes), polars, pandas, duckdb, polars_fs
 
-**DuckDBPandasIOManager**: All assets returning pd.DataFrame are automatically persisted to DuckDB tables in `main` schema.
+**Jobs**:
+- `full_pipeline` - Original implementation
+- `polars_pipeline` - Pure Polars expressions
+- `pandas_pipeline` - Pure Pandas expressions
+- `duckdb_pipeline` - Pure DuckDB SQL
+- `polars_fs_pipeline` - Polars with FilesystemIOManager
+
+**IO Managers**:
+- `io_manager` (default): DuckDBPandasPolarsIOManager - stores DataFrames as DuckDB tables
+- `fs_io_manager`: FilesystemIOManager - pickles DataFrames to files
 
 **dlt harvest**: CSV files loaded to DuckDB `raw` schema via dagster-dlt integration.
-
-**Processors**: Generic utilities in `cogapp_deps/processors/` for SQL generation, filtering, string transforms.
-
-**Chain**: Compose multiple PolarsStringProcessors with lazy evaluation optimization.
 
 ## Adding New Assets
 

@@ -110,7 +110,7 @@ def sales_transform_polars(context: dg.AssetExecutionContext) -> pl.DataFrame:
         "preview": dg.MetadataValue.md(result.head(5).to_pandas().to_markdown(index=False)),
         "unique_artworks": result["artwork_id"].n_unique(),
         "total_sales_value": float(result["sale_price_usd"].sum()),
-        "date_range": f"{result['sale_date'].min()} to {result['sale_date'].max()}",
+        "date_range": f"{str(result['sale_date'].min())} to {str(result['sale_date'].max())}",
         "processing_time_ms": round(elapsed_ms, 2),
     })
     context.log.info(f"Transformed {len(result)} sales records (Polars lazy) in {elapsed_ms:.1f}ms")

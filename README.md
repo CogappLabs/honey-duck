@@ -32,49 +32,62 @@ Uses [dlt](https://dlthub.com/) (data load tool) for CSV harvesting with automat
 
 ## Asset Graph
 
+5 parallel implementations sharing the harvest layer:
+
 ```
-dlt_honey_duck_harvest_sales_raw ────────┐
-                                         │
-dlt_honey_duck_harvest_artworks_raw ─────┼──→ sales_enriched ──┬──→ sales_output
-                                         │                     │
-dlt_honey_duck_harvest_artists_raw ──────┘                     └──→ artworks_output
+dlt_harvest_* (shared) ──→ sales_transform_<impl> ──→ sales_output_<impl>
+                       └──→ artworks_transform_<impl> ──→ artworks_output_<impl>
 ```
 
-**Groups:**
-- `harvest` - Raw data loaded from CSV into DuckDB via dlt
-- `transform` - Joined and enriched data
-- `output` - Final outputs (sales + artworks JSON)
+**Implementations:**
+| Suffix | Description | IO Manager |
+|--------|-------------|------------|
+| (none) | Original with processor classes | DuckDB |
+| `_polars` | Pure Polars expressions | DuckDB |
+| `_pandas` | Pure Pandas expressions | DuckDB |
+| `_duckdb` | Pure DuckDB SQL queries | DuckDB |
+| `_polars_fs` | Pure Polars expressions | Filesystem (pickle) |
 
 **Jobs:**
-- `full_pipeline` - All assets (harvest → transform → output)
+- `full_pipeline` - Original implementation
+- `polars_pipeline` - Pure Polars
+- `pandas_pipeline` - Pure Pandas
+- `duckdb_pipeline` - Pure DuckDB SQL
+- `polars_fs_pipeline` - Polars with FilesystemIOManager
 
 ## Project Structure
 
 ```
 honey_duck/
-  __init__.py        # Package metadata
+  __init__.py           # Package metadata
   defs/
-    __init__.py      # Re-exports defs
-    definitions.py   # Combined Dagster Definitions
-    dlt_sources.py   # dlt source configuration for CSV files
-    dlt_assets.py    # dagster-dlt asset wrapper
-    assets.py        # Transform and output assets
-    resources.py     # Path constants and configuration
-    jobs.py          # Job definitions
-    checks.py        # Asset checks
+    definitions.py      # Combined Dagster Definitions
+    dlt_sources.py      # dlt source configuration
+    dlt_assets.py       # dagster-dlt asset wrapper
+    assets.py           # Original transform/output (processor classes)
+    assets_polars.py    # Pure Polars implementation
+    assets_pandas.py    # Pure Pandas implementation
+    assets_duckdb.py    # Pure DuckDB SQL implementation
+    assets_polars_fs.py # Polars with FilesystemIOManager
+    resources.py        # Path constants and configuration
+    constants.py        # Business constants (thresholds, tiers)
+    schemas.py          # Pandera validation schemas
+    jobs.py             # Job definitions
+    checks.py           # Asset checks
 
-cogapp_deps/         # Processor utilities (simulates external package)
-  processors/
-    __init__.py      # Chain class for composing processors
-    pandas/          # PandasReplaceOnConditionProcessor
-    polars/          # PolarsFilterProcessor, PolarsStringProcessor
-    duckdb/          # DuckDBQueryProcessor, DuckDBSQLProcessor, DuckDBWindowProcessor
+cogapp_deps/            # Utilities (simulates external package)
+  dagster/              # Dagster helpers
+    io.py               # DuckDBPandasPolarsIOManager
+  processors/           # DataFrame processors
+    pandas/             # PandasReplaceOnConditionProcessor
+    polars/             # PolarsFilterProcessor, PolarsStringProcessor
+    duckdb/             # DuckDBJoinProcessor, DuckDBWindowProcessor
 
 data/
-  input/             # Source CSV files (Wyeth auction data)
-  output/            # Generated output (dagster.duckdb, *.json)
+  input/                # Source CSV files
+  output/               # Generated output (*.duckdb, *.json)
 
-dagster_home/        # Dagster persistence (run history, schedules, etc.)
+dagster_home/           # Dagster persistence (run history, schedules, etc.)
 ```
 
 ## Environment Variables

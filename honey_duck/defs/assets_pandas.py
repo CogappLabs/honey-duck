@@ -204,7 +204,7 @@ def artworks_transform_pandas(context: dg.AssetExecutionContext) -> pd.DataFrame
     all_media = (
         media_sorted
         .groupby("artwork_id")[media_cols]
-        .apply(lambda g: g.to_dict("records"), include_groups=False)
+        .apply(lambda g: g.to_dict("records"), include_groups=False)  # type: ignore[call-overload]
         .reset_index(name="media")
     )
 

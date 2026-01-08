@@ -84,7 +84,7 @@ def sales_transform_duckdb(
     start_time = time.perf_counter()
 
     with duckdb.get_connection() as conn:
-        result = conn.sql(SALES_TRANSFORM_SQL).pl()
+        result: pl.DataFrame = conn.sql(SALES_TRANSFORM_SQL).pl()
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
     context.add_output_metadata({
@@ -93,7 +93,7 @@ def sales_transform_duckdb(
         "preview": dg.MetadataValue.md(result.head(5).to_pandas().to_markdown(index=False)),
         "unique_artworks": result["artwork_id"].n_unique(),
         "total_sales_value": float(result["sale_price_usd"].sum()),
-        "date_range": f"{result['sale_date'].min()} to {result['sale_date'].max()}",
+        "date_range": f"{str(result['sale_date'].min())} to {str(result['sale_date'].max())}",
         "processing_time_ms": round(elapsed_ms, 2),
     })
     context.log.info(f"Transformed {len(result)} sales records (DuckDB SQL) in {elapsed_ms:.1f}ms")
@@ -118,7 +118,7 @@ def sales_output_duckdb(
     with duckdb.get_connection() as conn:
         # Register DataFrame and filter using SQL
         conn.register("sales", sales_transform_duckdb)
-        result = conn.sql(f"""
+        result: pl.DataFrame = conn.sql(f"""
             SELECT * FROM sales
             WHERE sale_price_usd >= {MIN_SALE_VALUE_USD}
         """).pl()
@@ -237,7 +237,7 @@ def artworks_transform_duckdb(
     start_time = time.perf_counter()
 
     with duckdb.get_connection() as conn:
-        result = conn.sql(ARTWORKS_TRANSFORM_SQL).pl()
+        result: pl.DataFrame = conn.sql(ARTWORKS_TRANSFORM_SQL).pl()
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
     context.add_output_metadata({
