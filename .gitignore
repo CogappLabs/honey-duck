@@ -30,3 +30,6 @@ dagster_home/
 
 # OS
 .DS_Store
+
+# Environment
+.env

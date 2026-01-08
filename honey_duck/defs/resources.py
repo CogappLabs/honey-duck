@@ -36,6 +36,38 @@ ARTWORKS_OUTPUT_PATH = Path(
     os.environ.get("HONEY_DUCK_ARTWORKS_OUTPUT", str(OUTPUT_DIR / "artworks_output.json"))
 )
 
+# Polars implementation output paths
+SALES_OUTPUT_PATH_POLARS = Path(
+    os.environ.get("HONEY_DUCK_SALES_OUTPUT_POLARS", str(OUTPUT_DIR / "sales_output_polars.json"))
+)
+ARTWORKS_OUTPUT_PATH_POLARS = Path(
+    os.environ.get("HONEY_DUCK_ARTWORKS_OUTPUT_POLARS", str(OUTPUT_DIR / "artworks_output_polars.json"))
+)
+
+# Pandas implementation output paths
+SALES_OUTPUT_PATH_PANDAS = Path(
+    os.environ.get("HONEY_DUCK_SALES_OUTPUT_PANDAS", str(OUTPUT_DIR / "sales_output_pandas.json"))
+)
+ARTWORKS_OUTPUT_PATH_PANDAS = Path(
+    os.environ.get("HONEY_DUCK_ARTWORKS_OUTPUT_PANDAS", str(OUTPUT_DIR / "artworks_output_pandas.json"))
+)
+
+# DuckDB SQL implementation output paths
+SALES_OUTPUT_PATH_DUCKDB = Path(
+    os.environ.get("HONEY_DUCK_SALES_OUTPUT_DUCKDB", str(OUTPUT_DIR / "sales_output_duckdb.json"))
+)
+ARTWORKS_OUTPUT_PATH_DUCKDB = Path(
+    os.environ.get("HONEY_DUCK_ARTWORKS_OUTPUT_DUCKDB", str(OUTPUT_DIR / "artworks_output_duckdb.json"))
+)
+
+# Polars filesystem IO manager implementation output paths
+SALES_OUTPUT_PATH_POLARS_FS = Path(
+    os.environ.get("HONEY_DUCK_SALES_OUTPUT_POLARS_FS", str(OUTPUT_DIR / "sales_output_polars_fs.json"))
+)
+ARTWORKS_OUTPUT_PATH_POLARS_FS = Path(
+    os.environ.get("HONEY_DUCK_ARTWORKS_OUTPUT_POLARS_FS", str(OUTPUT_DIR / "artworks_output_polars_fs.json"))
+)
+
 
 # -----------------------------------------------------------------------------
 # External Source Assets (CSV files)

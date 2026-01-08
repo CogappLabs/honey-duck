@@ -3,18 +3,26 @@
 This module creates the single Definitions object that Dagster uses.
 All assets, jobs, and resources are combined here.
 
-Asset Graph
------------
-    dlt_harvest_sales_raw ────────┐
-    dlt_harvest_artworks_raw ─────┼──→ sales_transform ──[blocking]──→ sales_output
-    dlt_harvest_artists_raw ──────┤
-    dlt_harvest_media ────────────┼──→ artworks_transform ──[blocking]──→ artworks_output
+Asset Graph (Original + 4 Implementation Variants)
+--------------------------------------------------
+Each implementation follows this pattern:
+
+    dlt_harvest_* (shared) --> sales_transform_<impl> --> sales_output_<impl>
+                           └--> artworks_transform_<impl> --> artworks_output_<impl>
 
 Groups
 ------
-- harvest: Raw data loaded from CSV/SQLite into DuckDB via dlt
-- transform: Joined and enriched data (with Pandera schema validation)
-- output: Final JSON outputs (with freshness checks)
+- harvest: Raw data loaded from CSV/SQLite into DuckDB via dlt (shared)
+- transform/output: Original implementation with processor classes
+- transform_polars/output_polars: Pure Polars expressions (DuckDB IO manager)
+- transform_pandas/output_pandas: Pure Pandas expressions (DuckDB IO manager)
+- transform_duckdb/output_duckdb: Pure DuckDB SQL queries (DuckDB IO manager)
+- transform_polars_fs/output_polars_fs: Pure Polars expressions (Filesystem IO manager)
+
+IO Managers
+-----------
+- io_manager (default): DuckDBPandasPolarsIOManager - stores DataFrames as DuckDB tables
+- fs_io_manager: FilesystemIOManager - pickles DataFrames to files
 
 Checks
 ------
@@ -23,11 +31,47 @@ Checks
 """
 
 import dagster as dg
+from dagster import FilesystemIOManager
 from dagster_dlt import DagsterDltResource
+from dagster_duckdb import DuckDBResource
 
 from cogapp_deps.dagster import DuckDBPandasPolarsIOManager
 
+# Original implementation
 from .assets import artworks_output, artworks_transform, sales_output, sales_transform
+
+# Pure Polars implementation
+from .assets_polars import (
+    artworks_output_polars,
+    artworks_transform_polars,
+    sales_output_polars,
+    sales_transform_polars,
+)
+
+# Pure Pandas implementation
+from .assets_pandas import (
+    artworks_output_pandas,
+    artworks_transform_pandas,
+    sales_output_pandas,
+    sales_transform_pandas,
+)
+
+# Pure DuckDB SQL implementation
+from .assets_duckdb import (
+    artworks_output_duckdb,
+    artworks_transform_duckdb,
+    sales_output_duckdb,
+    sales_transform_duckdb,
+)
+
+# Polars with filesystem IO manager
+from .assets_polars_fs import (
+    artworks_output_polars_fs,
+    artworks_transform_polars_fs,
+    sales_output_polars_fs,
+    sales_transform_polars_fs,
+)
+
 from .checks import (
     check_artworks_transform_schema,
     check_sales_above_threshold,
@@ -35,22 +79,53 @@ from .checks import (
     check_valid_price_tiers,
 )
 from .dlt_assets import dlt_harvest_assets
-from .jobs import full_pipeline_job
+from .jobs import (
+    duckdb_pipeline_job,
+    full_pipeline_job,
+    pandas_pipeline_job,
+    polars_fs_pipeline_job,
+    polars_pipeline_job,
+)
 from .resources import DUCKDB_PATH
 
 
 defs = dg.Definitions(
     assets=[
-        # Harvest assets (dlt-based: CSV + SQLite in single source)
+        # Harvest assets (dlt-based: CSV + SQLite in single source) - shared
         dlt_harvest_assets,
-        # Transform assets
+        # Original implementation (with processor classes)
         sales_transform,
         artworks_transform,
-        # Output assets
         sales_output,
         artworks_output,
+        # Pure Polars implementation
+        sales_transform_polars,
+        artworks_transform_polars,
+        sales_output_polars,
+        artworks_output_polars,
+        # Pure Pandas implementation
+        sales_transform_pandas,
+        artworks_transform_pandas,
+        sales_output_pandas,
+        artworks_output_pandas,
+        # Pure DuckDB SQL implementation
+        sales_transform_duckdb,
+        artworks_transform_duckdb,
+        sales_output_duckdb,
+        artworks_output_duckdb,
+        # Polars with filesystem IO manager
+        sales_transform_polars_fs,
+        artworks_transform_polars_fs,
+        sales_output_polars_fs,
+        artworks_output_polars_fs,
     ],
-    jobs=[full_pipeline_job],
+    jobs=[
+        full_pipeline_job,
+        polars_pipeline_job,
+        pandas_pipeline_job,
+        duckdb_pipeline_job,
+        polars_fs_pipeline_job,
+    ],
     asset_checks=[
         # Blocking Pandera schema checks (prevent downstream on failure)
         check_sales_transform_schema,
@@ -64,6 +139,10 @@ defs = dg.Definitions(
             database=DUCKDB_PATH,
             schema="main",
         ),
+        "fs_io_manager": FilesystemIOManager(),
         "dlt": DagsterDltResource(),
+        "duckdb": DuckDBResource(
+            database=DUCKDB_PATH,
+        ),
     },
 )

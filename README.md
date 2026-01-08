@@ -8,8 +8,9 @@ A DuckDB-backed DataFrame pipeline with Dagster orchestration, demonstrating the
 # Install dependencies
 uv sync
 
-# Set Dagster home for persistence
-export DAGSTER_HOME=$(pwd)/dagster_home
+# Optional: Enable persistent run history
+cp .env.example .env
+# Edit .env with your absolute path
 
 # Start Dagster UI
 uv run dagster dev
@@ -80,10 +81,12 @@ dagster_home/        # Dagster persistence (run history, schedules, etc.)
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `DAGSTER_HOME` | Dagster persistence directory | (required) |
+| `DAGSTER_HOME` | Dagster persistence directory (absolute path). Without this, run history uses temp storage. | (optional) |
 | `HONEY_DUCK_DB_PATH` | DuckDB database path | `data/output/dagster.duckdb` |
 | `HONEY_DUCK_SALES_OUTPUT` | Sales JSON output path | `data/output/sales_output.json` |
 | `HONEY_DUCK_ARTWORKS_OUTPUT` | Artworks JSON output path | `data/output/artworks_output.json` |
+
+Copy `.env.example` to `.env` and set `DAGSTER_HOME` to persist run history between sessions.
 
 ## DuckDB Lakehouse Benefits
 

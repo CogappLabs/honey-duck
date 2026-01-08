@@ -43,6 +43,7 @@ Asset Graph:
     dlt_harvest_media ────────────┘
 """
 
+import time
 from datetime import timedelta
 
 import dagster as dg
@@ -99,6 +100,8 @@ HARVEST_DEPS = [
 )
 def sales_transform(context: dg.AssetExecutionContext):
     """Join sales with artworks and artists, add sale-focused metrics."""
+    start_time = time.perf_counter()
+
     # Extract: join sales → artworks → artists (from database)
     result = DuckDBQueryProcessor(sql="""
         SELECT
@@ -128,7 +131,7 @@ def sales_transform(context: dg.AssetExecutionContext):
                 ELSE ROUND((sale_price_usd - list_price_usd) * 100.0 / list_price_usd, 1)
             END AS pct_change
         FROM _input
-        ORDER BY sale_date DESC
+        ORDER BY sale_date DESC, sale_id
     """).process(result)
 
     # Transform: normalize artist names
@@ -138,6 +141,7 @@ def sales_transform(context: dg.AssetExecutionContext):
     ]).process(result)
 
     # Report
+    elapsed_ms = (time.perf_counter() - start_time) * 1000
     context.add_output_metadata({
         "record_count": len(result),
         "columns": result.columns,
@@ -145,8 +149,9 @@ def sales_transform(context: dg.AssetExecutionContext):
         "unique_artworks": result["artwork_id"].n_unique(),
         "total_sales_value": float(result["sale_price_usd"].sum()),
         "date_range": f"{result['sale_date'].min()} to {result['sale_date'].max()}",
+        "processing_time_ms": round(elapsed_ms, 2),
     })
-    context.log.info(f"Transformed {len(result)} sales records")
+    context.log.info(f"Transformed {len(result)} sales records in {elapsed_ms:.1f}ms")
     return result
 
 
@@ -163,6 +168,7 @@ def sales_output(
     sales_transform: pl.DataFrame,
 ):
     """Filter high-value sales and output to JSON."""
+    start_time = time.perf_counter()
     total_count = len(sales_transform)
 
     # Transform: filter high-value sales
@@ -171,12 +177,14 @@ def sales_output(
     ).process(sales_transform)
 
     # Output
+    elapsed_ms = (time.perf_counter() - start_time) * 1000
     write_json_output(result, SALES_OUTPUT_PATH, context, extra_metadata={
         "filtered_from": total_count,
         "filter_threshold": f"${MIN_SALE_VALUE_USD:,}",
         "total_value": float(result["sale_price_usd"].sum()),
+        "processing_time_ms": round(elapsed_ms, 2),
     })
-    context.log.info(f"Output {len(result)} high-value sales to {SALES_OUTPUT_PATH}")
+    context.log.info(f"Output {len(result)} high-value sales to {SALES_OUTPUT_PATH} in {elapsed_ms:.1f}ms")
     return result
 
 
@@ -192,6 +200,8 @@ def sales_output(
 )
 def artworks_transform(context: dg.AssetExecutionContext):
     """Join artworks with artists, media, and aggregate sales history per artwork."""
+    start_time = time.perf_counter()
+
     # Extract: aggregate sales per artwork (from database)
     sales_per_artwork = DuckDBQueryProcessor(sql="""
         SELECT
@@ -265,7 +275,7 @@ def artworks_transform(context: dg.AssetExecutionContext):
         LEFT JOIN sales_per_artwork s ON c.artwork_id = s.artwork_id
         LEFT JOIN primary_media pm ON c.artwork_id = pm.artwork_id
         LEFT JOIN all_media am ON c.artwork_id = am.artwork_id
-        ORDER BY COALESCE(s.total_sales_value, 0) DESC
+        ORDER BY COALESCE(s.total_sales_value, 0) DESC, c.artwork_id
     """).process(catalog, tables={
         "sales_per_artwork": sales_per_artwork,
         "primary_media": primary_media,
@@ -276,6 +286,7 @@ def artworks_transform(context: dg.AssetExecutionContext):
     result = PolarsStringProcessor("artist_name", "upper").process(result)
 
     # Report
+    elapsed_ms = (time.perf_counter() - start_time) * 1000
     context.add_output_metadata({
         "record_count": len(result),
         "artworks_sold": int(result["has_sold"].sum()),
@@ -283,8 +294,9 @@ def artworks_transform(context: dg.AssetExecutionContext):
         "artworks_with_media": int((result["media_count"] > 0).sum()),
         "total_catalog_value": float(result["list_price_usd"].sum()),
         "preview": dg.MetadataValue.md(result.head(5).to_pandas().to_markdown(index=False)),
+        "processing_time_ms": round(elapsed_ms, 2),
     })
-    context.log.info(f"Transformed {len(result)} artworks with sales history and media")
+    context.log.info(f"Transformed {len(result)} artworks in {elapsed_ms:.1f}ms")
     return result
 
 
@@ -298,12 +310,16 @@ def artworks_output(
     artworks_transform: pl.DataFrame,
 ):
     """Output artwork catalog to JSON."""
+    start_time = time.perf_counter()
+
     # Convert to dict with native Python types for JSON serialization
     vc = artworks_transform["price_tier"].value_counts()
     tier_counts = dict(zip(vc["price_tier"].to_list(), vc["count"].to_list()))
 
+    elapsed_ms = (time.perf_counter() - start_time) * 1000
     write_json_output(artworks_transform, ARTWORKS_OUTPUT_PATH, context, extra_metadata={
         "price_tier_distribution": tier_counts,
+        "processing_time_ms": round(elapsed_ms, 2),
     })
-    context.log.info(f"Output {len(artworks_transform)} artworks to {ARTWORKS_OUTPUT_PATH}")
+    context.log.info(f"Output {len(artworks_transform)} artworks to {ARTWORKS_OUTPUT_PATH} in {elapsed_ms:.1f}ms")
     return artworks_transform

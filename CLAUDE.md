@@ -8,8 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Install dependencies
 uv sync
 
-# Set Dagster home (required for persistence)
-export DAGSTER_HOME=$(pwd)/dagster_home
+# Optional: Enable persistent run history (copy .env.example to .env)
+cp .env.example .env
 
 # Start Dagster UI
 uv run dagster dev
