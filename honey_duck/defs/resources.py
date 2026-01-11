@@ -86,6 +86,14 @@ ARTWORKS_OUTPUT_PATH_POLARS_OPS = Path(
     os.environ.get("HONEY_DUCK_ARTWORKS_OUTPUT_POLARS_OPS", str(JSON_OUTPUT_DIR / "artworks_output_polars_ops.json"))
 )
 
+# Polars multi-asset implementation output paths
+SALES_OUTPUT_PATH_POLARS_MULTI = Path(
+    os.environ.get("HONEY_DUCK_SALES_OUTPUT_POLARS_MULTI", str(JSON_OUTPUT_DIR / "sales_output_polars_multi.json"))
+)
+ARTWORKS_OUTPUT_PATH_POLARS_MULTI = Path(
+    os.environ.get("HONEY_DUCK_ARTWORKS_OUTPUT_POLARS_MULTI", str(JSON_OUTPUT_DIR / "artworks_output_polars_multi.json"))
+)
+
 
 # -----------------------------------------------------------------------------
 # External Source Assets (CSV files)

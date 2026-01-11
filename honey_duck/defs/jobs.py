@@ -92,3 +92,33 @@ polars_ops_pipeline_job = dg.define_asset_job(
     3. Output: Filter and write JSON
     """,
 )
+
+
+# Polars multi-asset pipeline
+polars_multi_pipeline_job = dg.define_asset_job(
+    name="polars_multi_pipeline",
+    selection=dg.AssetSelection.groups("harvest", "transform_polars_multi", "output_polars_multi"),
+    description="""
+    Multi-asset implementation for tightly coupled transformation steps.
+
+    Demonstrates the multi-asset pattern where one function produces multiple
+    related assets. Each intermediate step is yielded separately but computed
+    together in a single function.
+
+    Benefits:
+    - Tightly coupled steps run together (can't selectively materialize)
+    - Each step persisted independently via IO manager
+    - Individual asset tracking in lineage graph
+    - Single function for related logic
+
+    Use when:
+    - Intermediate steps are tightly coupled and should run together
+    - You want each step persisted independently (via IO manager)
+    - You need individual asset tracking in the lineage graph
+    - Steps must complete together (can't selectively materialize)
+
+    1. Harvest (dlt): Load raw data to DuckDB (shared)
+    2. Transform: Multi-asset functions that yield intermediate steps
+    3. Output: Filter and write JSON
+    """,
+)

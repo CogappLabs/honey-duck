@@ -3,7 +3,7 @@
 This module creates the single Definitions object that Dagster uses.
 All assets, jobs, and resources are combined here.
 
-Asset Graph (Original + 5 Implementation Variants)
+Asset Graph (Original + 6 Implementation Variants)
 --------------------------------------------------
 Each implementation follows this pattern:
 
@@ -18,6 +18,7 @@ Groups
 - transform_duckdb/output_duckdb: Pure DuckDB SQL queries
 - transform_polars_fs/output_polars_fs: Polars with FilesystemIOManager
 - transform_polars_ops/output_polars_ops: Graph-backed assets with ops (detailed observability)
+- transform_polars_multi/output_polars_multi: Multi-asset implementation (tightly coupled steps)
 
 IO Managers
 -----------
@@ -81,6 +82,14 @@ from .assets_polars_ops import (
     sales_transform_polars_ops,
 )
 
+# Polars multi-asset implementation
+from .assets_polars_multi import (
+    artworks_output_polars_multi,
+    artworks_pipeline_multi,
+    sales_output_polars_multi,
+    sales_pipeline_multi,
+)
+
 from .checks import (
     check_artworks_transform_schema,
     check_sales_above_threshold,
@@ -92,6 +101,7 @@ from .jobs import (
     duckdb_pipeline_job,
     full_pipeline_job,
     polars_fs_pipeline_job,
+    polars_multi_pipeline_job,
     polars_ops_pipeline_job,
     polars_pipeline_job,
 )
@@ -131,6 +141,11 @@ defs = dg.Definitions(
         artworks_transform_polars_ops,
         sales_output_polars_ops,
         artworks_output_polars_ops,
+        # Polars multi-asset implementation (tightly coupled steps)
+        sales_pipeline_multi,
+        artworks_pipeline_multi,
+        sales_output_polars_multi,
+        artworks_output_polars_multi,
     ],
     jobs=[
         full_pipeline_job,
@@ -138,6 +153,7 @@ defs = dg.Definitions(
         duckdb_pipeline_job,
         polars_fs_pipeline_job,
         polars_ops_pipeline_job,
+        polars_multi_pipeline_job,
     ],
     asset_checks=[
         # Blocking Pandera schema checks (prevent downstream on failure)
