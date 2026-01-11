@@ -15,7 +15,12 @@ import dagster as dg
 import polars as pl
 from dagster_duckdb import DuckDBResource
 
-from cogapp_deps.dagster import setup_harvest_parquet_views, write_json_output
+from cogapp_deps.dagster import (
+    add_dataframe_metadata,
+    setup_harvest_parquet_views,
+    track_timing,
+    write_json_and_return,
+)
 
 from .constants import (
     MIN_SALE_VALUE_USD,
@@ -71,23 +76,18 @@ def sales_transform_duckdb(
     duckdb: DuckDBResource,
 ) -> pl.DataFrame:
     """Join sales with artworks and artists using pure DuckDB SQL."""
-    start_time = time.perf_counter()
+    with track_timing(context, "sales transform (DuckDB SQL)"):
+        with duckdb.get_connection() as conn:
+            setup_harvest_parquet_views(conn, HARVEST_PARQUET_DIR)
+            result: pl.DataFrame = conn.sql(SALES_TRANSFORM_SQL).pl()
 
-    with duckdb.get_connection() as conn:
-        setup_harvest_parquet_views(conn, HARVEST_PARQUET_DIR)
-        result: pl.DataFrame = conn.sql(SALES_TRANSFORM_SQL).pl()
-
-    elapsed_ms = (time.perf_counter() - start_time) * 1000
-    context.add_output_metadata({
-        "record_count": len(result),
-        "columns": result.columns,
-        "preview": dg.MetadataValue.md(result.head(5).to_pandas().to_markdown(index=False)),
-        "unique_artworks": result["artwork_id"].n_unique(),
-        "total_sales_value": float(result["sale_price_usd"].sum()),
-        "date_range": f"{str(result['sale_date'].min())} to {str(result['sale_date'].max())}",
-        "processing_time_ms": round(elapsed_ms, 2),
-    })
-    context.log.info(f"Transformed {len(result)} sales records (DuckDB SQL) in {elapsed_ms:.1f}ms")
+    add_dataframe_metadata(
+        context,
+        result,
+        unique_artworks=result["artwork_id"].n_unique(),
+        total_sales_value=float(result["sale_price_usd"].sum()),
+        date_range=f"{str(result['sale_date'].min())} to {str(result['sale_date'].max())}",
+    )
     return result
 
 
@@ -119,14 +119,17 @@ def sales_output_duckdb(
         """).fetchone()[0]
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
-    write_json_output(result, SALES_OUTPUT_PATH_DUCKDB, context, extra_metadata={
-        "filtered_from": total_count,
-        "filter_threshold": f"${MIN_SALE_VALUE_USD:,}",
-        "total_value": float(total_value) if total_value else 0,
-        "processing_time_ms": round(elapsed_ms, 2),
-    })
-    context.log.info(f"Output {len(result)} high-value sales to {SALES_OUTPUT_PATH_DUCKDB} in {elapsed_ms:.1f}ms")
-    return result
+    return write_json_and_return(
+        result,
+        SALES_OUTPUT_PATH_DUCKDB,
+        context,
+        extra_metadata={
+            "filtered_from": total_count,
+            "filter_threshold": f"${MIN_SALE_VALUE_USD:,}",
+            "total_value": float(total_value) if total_value else 0,
+            "processing_time_ms": round(elapsed_ms, 2),
+        },
+    )
 
 
 # -----------------------------------------------------------------------------
@@ -225,23 +228,19 @@ def artworks_transform_duckdb(
     duckdb: DuckDBResource,
 ) -> pl.DataFrame:
     """Join artworks with artists, media, and aggregate sales using pure DuckDB SQL."""
-    start_time = time.perf_counter()
+    with track_timing(context, "artworks transform (DuckDB SQL)"):
+        with duckdb.get_connection() as conn:
+            setup_harvest_parquet_views(conn, HARVEST_PARQUET_DIR)
+            result: pl.DataFrame = conn.sql(ARTWORKS_TRANSFORM_SQL).pl()
 
-    with duckdb.get_connection() as conn:
-        setup_harvest_parquet_views(conn, HARVEST_PARQUET_DIR)
-        result: pl.DataFrame = conn.sql(ARTWORKS_TRANSFORM_SQL).pl()
-
-    elapsed_ms = (time.perf_counter() - start_time) * 1000
-    context.add_output_metadata({
-        "record_count": len(result),
-        "artworks_sold": int(result["has_sold"].sum()),
-        "artworks_unsold": int((~result["has_sold"]).sum()),
-        "artworks_with_media": int((result["media_count"] > 0).sum()),
-        "total_catalog_value": float(result["list_price_usd"].sum()),
-        "preview": dg.MetadataValue.md(result.head(5).to_pandas().to_markdown(index=False)),
-        "processing_time_ms": round(elapsed_ms, 2),
-    })
-    context.log.info(f"Transformed {len(result)} artworks (DuckDB SQL) in {elapsed_ms:.1f}ms")
+    add_dataframe_metadata(
+        context,
+        result,
+        artworks_sold=int(result["has_sold"].sum()),
+        artworks_unsold=int((~result["has_sold"]).sum()),
+        artworks_with_media=int((result["media_count"] > 0).sum()),
+        total_catalog_value=float(result["list_price_usd"].sum()),
+    )
     return result
 
 
@@ -268,9 +267,12 @@ def artworks_output_duckdb(
         tier_dict = dict(zip(tier_counts["price_tier"], tier_counts["count"]))
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
-    write_json_output(artworks_transform_duckdb, ARTWORKS_OUTPUT_PATH_DUCKDB, context, extra_metadata={
-        "price_tier_distribution": tier_dict,
-        "processing_time_ms": round(elapsed_ms, 2),
-    })
-    context.log.info(f"Output {len(artworks_transform_duckdb)} artworks to {ARTWORKS_OUTPUT_PATH_DUCKDB} in {elapsed_ms:.1f}ms")
-    return artworks_transform_duckdb
+    return write_json_and_return(
+        artworks_transform_duckdb,
+        ARTWORKS_OUTPUT_PATH_DUCKDB,
+        context,
+        extra_metadata={
+            "price_tier_distribution": tier_dict,
+            "processing_time_ms": round(elapsed_ms, 2),
+        },
+    )

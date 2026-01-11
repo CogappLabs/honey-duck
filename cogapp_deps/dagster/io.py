@@ -166,6 +166,74 @@ def write_json_output(
     })
 
 
+def write_json_and_return(
+    df: pd.DataFrame | "pl.DataFrame",
+    output_path: Path | str,
+    context: dg.AssetExecutionContext,
+    extra_metadata: dict | None = None,
+) -> pd.DataFrame | "pl.DataFrame":
+    """Write DataFrame to JSON, log completion, and return DataFrame.
+
+    Convenience wrapper that combines write_json_output with logging
+    and return. Eliminates the repetitive pattern found throughout the codebase:
+
+        write_json_output(df, path, context, extra_metadata={...})
+        context.log.info(f"Output {len(df)} records to {path}")
+        return df
+
+    Instead, use:
+
+        return write_json_and_return(df, path, context, extra_metadata={...})
+
+    The log message automatically includes timing information if processing_time_ms
+    is present in extra_metadata.
+
+    Args:
+        df: DataFrame to write (pandas or polars)
+        output_path: Path to write JSON file
+        context: Asset execution context
+        extra_metadata: Additional metadata to include (optional)
+
+    Returns:
+        The input DataFrame (unchanged)
+
+    Example:
+        >>> # Simple usage
+        >>> return write_json_and_return(result, SALES_OUTPUT_PATH, context)
+        # Logs: "Output 73 records to /path/to/sales.json"
+
+        >>> # With extra metadata and timing
+        >>> return write_json_and_return(
+        ...     result,
+        ...     SALES_OUTPUT_PATH,
+        ...     context,
+        ...     extra_metadata={
+        ...         "total_value": float(result["price"].sum()),
+        ...         "processing_time_ms": 45.2,
+        ...     }
+        ... )
+        # Logs: "Output 73 records to /path/to/sales.json in 45.2ms"
+    """
+    # Ensure output_path is a Path object
+    output_path = Path(output_path) if isinstance(output_path, str) else output_path
+
+    # Write JSON with metadata
+    write_json_output(df, output_path, context, extra_metadata=extra_metadata)
+
+    # Log completion with timing if available
+    record_count = len(df)
+    if extra_metadata and "processing_time_ms" in extra_metadata:
+        processing_time = extra_metadata["processing_time_ms"]
+        context.log.info(
+            f"Output {record_count:,} records to {output_path} in {processing_time:.1f}ms"
+        )
+    else:
+        context.log.info(f"Output {record_count:,} records to {output_path}")
+
+    # Return DataFrame unchanged
+    return df
+
+
 def write_json_from_duckdb(
     conn: duckdb.DuckDBPyConnection,
     sql: str,

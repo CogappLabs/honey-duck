@@ -30,7 +30,10 @@ from typing import Iterator
 import dagster as dg
 import polars as pl
 
-from cogapp_deps.dagster import read_parquet_table_lazy, write_json_output
+from cogapp_deps.dagster import (
+    read_harvest_tables_lazy,
+    write_json_and_return,
+)
 
 from .config import CONFIG
 from .constants import (
@@ -70,24 +73,16 @@ def sales_pipeline_multi(context: dg.AssetExecutionContext) -> Iterator[dg.Outpu
     """
     # Step 1: Join sales with artworks and artists
     context.log.info("Loading and joining sales data...")
-    sales = read_parquet_table_lazy(
-        HARVEST_PARQUET_DIR / "raw",
-        "sales_raw",
-        required_columns=["sale_id", "artwork_id", "sale_date", "sale_price_usd", "buyer_country"],
+    tables = read_harvest_tables_lazy(
+        HARVEST_PARQUET_DIR,
+        ("sales_raw", ["sale_id", "artwork_id", "sale_date", "sale_price_usd", "buyer_country"]),
+        ("artworks_raw", ["artwork_id", "artist_id", "title", "year", "medium", "price_usd"]),
+        ("artists_raw", ["artist_id", "name", "nationality"]),
         asset_name="sales_pipeline_multi",
     )
-    artworks = read_parquet_table_lazy(
-        HARVEST_PARQUET_DIR / "raw",
-        "artworks_raw",
-        required_columns=["artwork_id", "artist_id", "title", "year", "medium", "price_usd"],
-        asset_name="sales_pipeline_multi",
-    )
-    artists = read_parquet_table_lazy(
-        HARVEST_PARQUET_DIR / "raw",
-        "artists_raw",
-        required_columns=["artist_id", "name", "nationality"],
-        asset_name="sales_pipeline_multi",
-    )
+    sales = tables["sales_raw"]
+    artworks = tables["artworks_raw"]
+    artists = tables["artists_raw"]
 
     joined = (
         sales.join(artworks, on="artwork_id", suffix="_artworks")
@@ -174,18 +169,14 @@ def artworks_pipeline_multi(context: dg.AssetExecutionContext) -> Iterator[dg.Ou
     """
     # Step 1: Create base catalog
     context.log.info("Creating artwork catalog...")
-    artworks = read_parquet_table_lazy(
-        HARVEST_PARQUET_DIR / "raw",
-        "artworks_raw",
-        required_columns=["artwork_id", "artist_id", "title", "year", "medium", "price_usd"],
+    tables = read_harvest_tables_lazy(
+        HARVEST_PARQUET_DIR,
+        ("artworks_raw", ["artwork_id", "artist_id", "title", "year", "medium", "price_usd"]),
+        ("artists_raw", ["artist_id", "name", "nationality"]),
         asset_name="artworks_pipeline_multi",
     )
-    artists = read_parquet_table_lazy(
-        HARVEST_PARQUET_DIR / "raw",
-        "artists_raw",
-        required_columns=["artist_id", "name", "nationality"],
-        asset_name="artworks_pipeline_multi",
-    )
+    artworks = tables["artworks_raw"]
+    artists = tables["artists_raw"]
 
     catalog = (
         artworks.join(artists, on="artist_id", suffix="_artists")
@@ -210,12 +201,12 @@ def artworks_pipeline_multi(context: dg.AssetExecutionContext) -> Iterator[dg.Ou
 
     # Step 2: Aggregate sales data
     context.log.info("Aggregating sales data...")
-    sales = read_parquet_table_lazy(
-        HARVEST_PARQUET_DIR / "raw",
-        "sales_raw",
-        required_columns=["artwork_id", "sale_date", "sale_price_usd"],
+    sales_tables = read_harvest_tables_lazy(
+        HARVEST_PARQUET_DIR,
+        ("sales_raw", ["artwork_id", "sale_date", "sale_price_usd"]),
         asset_name="artworks_pipeline_multi",
     )
+    sales = sales_tables["sales_raw"]
 
     sales_agg = (
         sales.group_by("artwork_id")
@@ -240,12 +231,12 @@ def artworks_pipeline_multi(context: dg.AssetExecutionContext) -> Iterator[dg.Ou
 
     # Step 3: Join media information
     context.log.info("Loading media information...")
-    media = read_parquet_table_lazy(
-        HARVEST_PARQUET_DIR / "raw",
-        "media",
-        required_columns=["artwork_id"],
+    media_tables = read_harvest_tables_lazy(
+        HARVEST_PARQUET_DIR,
+        ("media", ["artwork_id"]),
         asset_name="artworks_pipeline_multi",
     )
+    media = media_tables["media"]
 
     # Get primary image (sort_order = 1) per artwork
     media_agg = (
@@ -335,17 +326,14 @@ def sales_output_polars_multi(
     """
     result = sales_transform_polars_multi.filter(pl.col("list_price_usd") > PRICE_TIER_MID_MAX_USD)
 
-    write_json_output(result, SALES_OUTPUT_PATH_POLARS_MULTI, context)
-
-    context.add_output_metadata(
-        {
-            "record_count": len(result),
-            "premium_threshold": dg.MetadataValue.text(f"${PRICE_TIER_MID_MAX_USD:,}"),
-            "preview": dg.MetadataValue.md(result.head(5).to_pandas().to_markdown(index=False)),
-        }
+    return write_json_and_return(
+        result,
+        SALES_OUTPUT_PATH_POLARS_MULTI,
+        context,
+        extra_metadata={
+            "premium_threshold": f"${PRICE_TIER_MID_MAX_USD:,}",
+        },
     )
-
-    return result
 
 
 @dg.asset(
@@ -365,19 +353,16 @@ def artworks_output_polars_multi(
         ["price_tier", "sales_rank"]
     )
 
-    write_json_output(result, ARTWORKS_OUTPUT_PATH_POLARS_MULTI, context)
-
     tier_counts = result.group_by("price_tier").agg(pl.len().alias("count"))
     tier_dist = dict(
         zip(tier_counts["price_tier"].to_list(), tier_counts["count"].to_list(), strict=False)
     )
 
-    context.add_output_metadata(
-        {
-            "record_count": len(result),
-            "tier_distribution": dg.MetadataValue.json(tier_dist),
-            "preview": dg.MetadataValue.md(result.head(5).to_pandas().to_markdown(index=False)),
-        }
+    return write_json_and_return(
+        result,
+        ARTWORKS_OUTPUT_PATH_POLARS_MULTI,
+        context,
+        extra_metadata={
+            "tier_distribution": tier_dist,
+        },
     )
-
-    return result

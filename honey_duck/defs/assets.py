@@ -50,7 +50,13 @@ from datetime import timedelta
 import dagster as dg
 import polars as pl
 
-from cogapp_deps.dagster import read_table, setup_harvest_parquet_views, write_json_output
+from cogapp_deps.dagster import (
+    add_dataframe_metadata,
+    read_table,
+    setup_harvest_parquet_views,
+    track_timing,
+    write_json_and_return,
+)
 from cogapp_deps.processors import Chain
 from cogapp_deps.processors.duckdb import (
     DuckDBQueryProcessor,
@@ -144,63 +150,56 @@ def _ensure_parquet_views():
 )
 def sales_transform(context: dg.AssetExecutionContext) -> pl.DataFrame:
     """Join sales with artworks and artists, add sale-focused metrics."""
-    start_time = time.perf_counter()
+    with track_timing(context, "sales transform"):
+        # Ensure Parquet views are set up
+        _ensure_parquet_views()
 
-    # Ensure Parquet views are set up
-    _ensure_parquet_views()
+        # Extract: join sales → artworks → artists (from database)
+        result = DuckDBQueryProcessor(sql="""
+            SELECT
+                s.sale_id,
+                s.artwork_id,
+                s.sale_date,
+                s.sale_price_usd,
+                s.buyer_country,
+                aw.title,
+                aw.artist_id,
+                aw.year AS artwork_year,
+                aw.medium,
+                aw.price_usd AS list_price_usd,
+                ar.name AS artist_name,
+                ar.nationality
+            FROM raw.sales_raw s
+            LEFT JOIN raw.artworks_raw aw ON s.artwork_id = aw.artwork_id
+            LEFT JOIN raw.artists_raw ar ON aw.artist_id = ar.artist_id
+        """).process()
 
-    # Extract: join sales → artworks → artists (from database)
-    result = DuckDBQueryProcessor(sql="""
-        SELECT
-            s.sale_id,
-            s.artwork_id,
-            s.sale_date,
-            s.sale_price_usd,
-            s.buyer_country,
-            aw.title,
-            aw.artist_id,
-            aw.year AS artwork_year,
-            aw.medium,
-            aw.price_usd AS list_price_usd,
-            ar.name AS artist_name,
-            ar.nationality
-        FROM raw.sales_raw s
-        LEFT JOIN raw.artworks_raw aw ON s.artwork_id = aw.artwork_id
-        LEFT JOIN raw.artists_raw ar ON aw.artist_id = ar.artist_id
-    """).process()
+        # Transform: add price metrics (with division safety)
+        result = DuckDBSQLProcessor(sql="""
+            SELECT *,
+                sale_price_usd - list_price_usd AS price_diff,
+                CASE
+                    WHEN list_price_usd IS NULL OR list_price_usd = 0 THEN NULL
+                    ELSE ROUND((sale_price_usd - list_price_usd) * 100.0 / list_price_usd, 1)
+                END AS pct_change
+            FROM _input
+            ORDER BY sale_date DESC, sale_id
+        """).process(result)
 
-    # Transform: add price metrics (with division safety)
-    result = DuckDBSQLProcessor(sql="""
-        SELECT *,
-            sale_price_usd - list_price_usd AS price_diff,
-            CASE
-                WHEN list_price_usd IS NULL OR list_price_usd = 0 THEN NULL
-                ELSE ROUND((sale_price_usd - list_price_usd) * 100.0 / list_price_usd, 1)
-            END AS pct_change
-        FROM _input
-        ORDER BY sale_date DESC, sale_id
-    """).process(result)
+        # Transform: normalize artist names (Chain converts to Polars)
+        result: pl.DataFrame = Chain([  # type: ignore[no-redef]
+            PolarsStringProcessor("artist_name", "strip"),
+            PolarsStringProcessor("artist_name", "upper"),
+        ]).process(result)
 
-    # Transform: normalize artist names (Chain converts to Polars)
-    result: pl.DataFrame = Chain([  # type: ignore[no-redef]
-        PolarsStringProcessor("artist_name", "strip"),
-        PolarsStringProcessor("artist_name", "upper"),
-    ]).process(result)
-
-    # Report
-    elapsed_ms = (time.perf_counter() - start_time) * 1000
-    context.add_output_metadata({
-        "record_count": len(result),
-        "columns": result.columns,
-        "preview": dg.MetadataValue.md(
-            result.head(5).to_pandas().to_markdown(index=False)  # type: ignore[operator]
-        ),
-        "unique_artworks": result["artwork_id"].n_unique(),
-        "total_sales_value": float(result["sale_price_usd"].sum()),
-        "date_range": f"{str(result['sale_date'].min())} to {str(result['sale_date'].max())}",
-        "processing_time_ms": round(elapsed_ms, 2),
-    })
-    context.log.info(f"Transformed {len(result)} sales records in {elapsed_ms:.1f}ms")
+    # Add metadata with extra business fields
+    add_dataframe_metadata(
+        context,
+        result,
+        unique_artworks=result["artwork_id"].n_unique(),
+        total_sales_value=float(result["sale_price_usd"].sum()),
+        date_range=f"{str(result['sale_date'].min())} to {str(result['sale_date'].max())}",
+    )
     return result  # type: ignore[return-value]
 
 
@@ -227,14 +226,17 @@ def sales_output(
 
     # Output
     elapsed_ms = (time.perf_counter() - start_time) * 1000
-    write_json_output(result, SALES_OUTPUT_PATH, context, extra_metadata={
-        "filtered_from": total_count,
-        "filter_threshold": f"${MIN_SALE_VALUE_USD:,}",
-        "total_value": float(result["sale_price_usd"].sum()),
-        "processing_time_ms": round(elapsed_ms, 2),
-    })
-    context.log.info(f"Output {len(result)} high-value sales to {SALES_OUTPUT_PATH} in {elapsed_ms:.1f}ms")
-    return result
+    return write_json_and_return(
+        result,
+        SALES_OUTPUT_PATH,
+        context,
+        extra_metadata={
+            "filtered_from": total_count,
+            "filter_threshold": f"${MIN_SALE_VALUE_USD:,}",
+            "total_value": float(result["sale_price_usd"].sum()),
+            "processing_time_ms": round(elapsed_ms, 2),
+        },
+    )
 
 
 # -----------------------------------------------------------------------------
@@ -249,108 +251,102 @@ def sales_output(
 )
 def artworks_transform(context: dg.AssetExecutionContext) -> pl.DataFrame:
     """Join artworks with artists, media, and aggregate sales history per artwork."""
-    start_time = time.perf_counter()
+    with track_timing(context, "artworks transform"):
+        # Ensure Parquet views are set up
+        _ensure_parquet_views()
 
-    # Ensure Parquet views are set up
-    _ensure_parquet_views()
+        # Extract: aggregate sales per artwork (from database)
+        sales_per_artwork = DuckDBQueryProcessor(sql="""
+            SELECT
+                s.artwork_id,
+                COUNT(*) AS sale_count,
+                SUM(s.sale_price_usd) AS total_sales_value,
+                ROUND(AVG(s.sale_price_usd), 0) AS avg_sale_price,
+                MIN(s.sale_date) AS first_sale_date,
+                MAX(s.sale_date) AS last_sale_date
+            FROM raw.sales_raw s
+            JOIN raw.artworks_raw aw ON s.artwork_id = aw.artwork_id
+            GROUP BY s.artwork_id
+        """).process()
 
-    # Extract: aggregate sales per artwork (from database)
-    sales_per_artwork = DuckDBQueryProcessor(sql="""
-        SELECT
-            s.artwork_id,
-            COUNT(*) AS sale_count,
-            SUM(s.sale_price_usd) AS total_sales_value,
-            ROUND(AVG(s.sale_price_usd), 0) AS avg_sale_price,
-            MIN(s.sale_date) AS first_sale_date,
-            MAX(s.sale_date) AS last_sale_date
-        FROM raw.sales_raw s
-        JOIN raw.artworks_raw aw ON s.artwork_id = aw.artwork_id
-        GROUP BY s.artwork_id
-    """).process()
+        # Extract: build artwork catalog (from database)
+        catalog = DuckDBQueryProcessor(sql="""
+            SELECT
+                aw.artwork_id,
+                aw.title,
+                aw.year,
+                aw.medium,
+                aw.price_usd AS list_price_usd,
+                ar.name AS artist_name,
+                ar.nationality
+            FROM raw.artworks_raw aw
+            LEFT JOIN raw.artists_raw ar ON aw.artist_id = ar.artist_id
+        """).process()
 
-    # Extract: build artwork catalog (from database)
-    catalog = DuckDBQueryProcessor(sql="""
-        SELECT
-            aw.artwork_id,
-            aw.title,
-            aw.year,
-            aw.medium,
-            aw.price_usd AS list_price_usd,
-            ar.name AS artist_name,
-            ar.nationality
-        FROM raw.artworks_raw aw
-        LEFT JOIN raw.artists_raw ar ON aw.artist_id = ar.artist_id
-    """).process()
+        # Extract: process media
+        media_df = read_table("media", schema="raw")
 
-    # Extract: process media
-    media_df = read_table("media", schema="raw")
+        primary_media = DuckDBSQLProcessor(sql="""
+            SELECT artwork_id, filename AS primary_image, alt_text AS primary_image_alt
+            FROM _input
+            WHERE sort_order = 1
+        """).process(media_df)
 
-    primary_media = DuckDBSQLProcessor(sql="""
-        SELECT artwork_id, filename AS primary_image, alt_text AS primary_image_alt
-        FROM _input
-        WHERE sort_order = 1
-    """).process(media_df)
+        all_media = DuckDBSQLProcessor(sql="""
+            SELECT artwork_id,
+                list({
+                    'sort_order': sort_order, 'filename': filename, 'media_type': media_type,
+                    'file_format': file_format, 'width_px': width_px, 'height_px': height_px,
+                    'file_size_kb': file_size_kb, 'alt_text': alt_text
+                } ORDER BY sort_order) AS media
+            FROM _input
+            GROUP BY artwork_id
+        """).process(media_df)
 
-    all_media = DuckDBSQLProcessor(sql="""
-        SELECT artwork_id,
-            list({
-                'sort_order': sort_order, 'filename': filename, 'media_type': media_type,
-                'file_format': file_format, 'width_px': width_px, 'height_px': height_px,
-                'file_size_kb': file_size_kb, 'alt_text': alt_text
-            } ORDER BY sort_order) AS media
-        FROM _input
-        GROUP BY artwork_id
-    """).process(media_df)
+        # Transform: final assembly - join all intermediate results
+        # Price tier thresholds: budget < $500k, mid < $3M, premium >= $3M
+        result = DuckDBSQLProcessor(sql=f"""
+            SELECT
+                c.*,
+                COALESCE(s.sale_count, 0) AS sale_count,
+                COALESCE(s.total_sales_value, 0) AS total_sales_value,
+                s.avg_sale_price,
+                s.first_sale_date,
+                s.last_sale_date,
+                CASE WHEN s.sale_count > 0 THEN true ELSE false END AS has_sold,
+                CASE
+                    WHEN c.list_price_usd < {PRICE_TIER_BUDGET_MAX_USD} THEN 'budget'
+                    WHEN c.list_price_usd < {PRICE_TIER_MID_MAX_USD} THEN 'mid'
+                    ELSE 'premium'
+                END AS price_tier,
+                RANK() OVER (ORDER BY COALESCE(s.total_sales_value, 0) DESC) AS sales_rank,
+                pm.primary_image,
+                pm.primary_image_alt,
+                COALESCE(len(am.media), 0) AS media_count,
+                am.media
+            FROM _input c
+            LEFT JOIN sales_per_artwork s ON c.artwork_id = s.artwork_id
+            LEFT JOIN primary_media pm ON c.artwork_id = pm.artwork_id
+            LEFT JOIN all_media am ON c.artwork_id = am.artwork_id
+            ORDER BY COALESCE(s.total_sales_value, 0) DESC, c.artwork_id
+        """).process(catalog, tables={
+            "sales_per_artwork": sales_per_artwork,
+            "primary_media": primary_media,
+            "all_media": all_media,
+        })
 
-    # Transform: final assembly - join all intermediate results
-    # Price tier thresholds: budget < $500k, mid < $3M, premium >= $3M
-    result = DuckDBSQLProcessor(sql=f"""
-        SELECT
-            c.*,
-            COALESCE(s.sale_count, 0) AS sale_count,
-            COALESCE(s.total_sales_value, 0) AS total_sales_value,
-            s.avg_sale_price,
-            s.first_sale_date,
-            s.last_sale_date,
-            CASE WHEN s.sale_count > 0 THEN true ELSE false END AS has_sold,
-            CASE
-                WHEN c.list_price_usd < {PRICE_TIER_BUDGET_MAX_USD} THEN 'budget'
-                WHEN c.list_price_usd < {PRICE_TIER_MID_MAX_USD} THEN 'mid'
-                ELSE 'premium'
-            END AS price_tier,
-            RANK() OVER (ORDER BY COALESCE(s.total_sales_value, 0) DESC) AS sales_rank,
-            pm.primary_image,
-            pm.primary_image_alt,
-            COALESCE(len(am.media), 0) AS media_count,
-            am.media
-        FROM _input c
-        LEFT JOIN sales_per_artwork s ON c.artwork_id = s.artwork_id
-        LEFT JOIN primary_media pm ON c.artwork_id = pm.artwork_id
-        LEFT JOIN all_media am ON c.artwork_id = am.artwork_id
-        ORDER BY COALESCE(s.total_sales_value, 0) DESC, c.artwork_id
-    """).process(catalog, tables={
-        "sales_per_artwork": sales_per_artwork,
-        "primary_media": primary_media,
-        "all_media": all_media,
-    })
+        # Transform: normalize artist names (converts to Polars)
+        result: pl.DataFrame = PolarsStringProcessor("artist_name", "upper").process(result)  # type: ignore[no-redef]
 
-    # Transform: normalize artist names (converts to Polars)
-    result: pl.DataFrame = PolarsStringProcessor("artist_name", "upper").process(result)  # type: ignore[no-redef]
-
-    # Report
-    elapsed_ms = (time.perf_counter() - start_time) * 1000
-    context.add_output_metadata({
-        "record_count": len(result),
-        "artworks_sold": int(result["has_sold"].sum()),
-        "artworks_unsold": int((~result["has_sold"]).sum()),
-        "artworks_with_media": int((result["media_count"] > 0).sum()),
-        "total_catalog_value": float(result["list_price_usd"].sum()),
-        "preview": dg.MetadataValue.md(
-            result.head(5).to_pandas().to_markdown(index=False)  # type: ignore[operator]
-        ),
-        "processing_time_ms": round(elapsed_ms, 2),
-    })
-    context.log.info(f"Transformed {len(result)} artworks in {elapsed_ms:.1f}ms")
+    # Add metadata with extra business fields
+    add_dataframe_metadata(
+        context,
+        result,
+        artworks_sold=int(result["has_sold"].sum()),
+        artworks_unsold=int((~result["has_sold"]).sum()),
+        artworks_with_media=int((result["media_count"] > 0).sum()),
+        total_catalog_value=float(result["list_price_usd"].sum()),
+    )
     return result  # type: ignore[return-value]
 
 
@@ -371,9 +367,12 @@ def artworks_output(
     tier_counts = dict(zip(vc["price_tier"].to_list(), vc["count"].to_list()))
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
-    write_json_output(artworks_transform, ARTWORKS_OUTPUT_PATH, context, extra_metadata={
-        "price_tier_distribution": tier_counts,
-        "processing_time_ms": round(elapsed_ms, 2),
-    })
-    context.log.info(f"Output {len(artworks_transform)} artworks to {ARTWORKS_OUTPUT_PATH} in {elapsed_ms:.1f}ms")
-    return artworks_transform
+    return write_json_and_return(
+        artworks_transform,
+        ARTWORKS_OUTPUT_PATH,
+        context,
+        extra_metadata={
+            "price_tier_distribution": tier_counts,
+            "processing_time_ms": round(elapsed_ms, 2),
+        },
+    )

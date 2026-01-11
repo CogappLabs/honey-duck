@@ -23,7 +23,7 @@ from cogapp_deps.dagster import (
     read_harvest_table_lazy,
     read_harvest_tables_lazy,
     track_timing,
-    write_json_output,
+    write_json_and_return,
 )
 
 from .constants import (
@@ -144,15 +144,18 @@ def sales_output_polars_fs(
     )
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
-    write_json_output(result, SALES_OUTPUT_PATH_POLARS_FS, context, extra_metadata={
-        "filtered_from": total_count,
-        "filter_threshold": f"${MIN_SALE_VALUE_USD:,}",
-        "total_value": float(result["sale_price_usd"].sum()),
-        "processing_time_ms": round(elapsed_ms, 2),
-        "io_manager": "FilesystemIOManager",
-    })
-    context.log.info(f"Output {len(result)} high-value sales to {SALES_OUTPUT_PATH_POLARS_FS} in {elapsed_ms:.1f}ms")
-    return result
+    return write_json_and_return(
+        result,
+        SALES_OUTPUT_PATH_POLARS_FS,
+        context,
+        extra_metadata={
+            "filtered_from": total_count,
+            "filter_threshold": f"${MIN_SALE_VALUE_USD:,}",
+            "total_value": float(result["sale_price_usd"].sum()),
+            "processing_time_ms": round(elapsed_ms, 2),
+            "io_manager": "FilesystemIOManager",
+        },
+    )
 
 
 # -----------------------------------------------------------------------------
@@ -293,13 +296,13 @@ def artworks_output_polars_fs(
     tier_counts = dict(zip(vc["price_tier"].to_list(), vc["count"].to_list()))
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
-    write_json_output(
-        artworks_transform_polars_fs, ARTWORKS_OUTPUT_PATH_POLARS_FS, context,
+    return write_json_and_return(
+        artworks_transform_polars_fs,
+        ARTWORKS_OUTPUT_PATH_POLARS_FS,
+        context,
         extra_metadata={
             "price_tier_distribution": tier_counts,
             "processing_time_ms": round(elapsed_ms, 2),
             "io_manager": "FilesystemIOManager",
-        }
+        },
     )
-    context.log.info(f"Output {len(artworks_transform_polars_fs)} artworks to {ARTWORKS_OUTPUT_PATH_POLARS_FS} in {elapsed_ms:.1f}ms")
-    return artworks_transform_polars_fs

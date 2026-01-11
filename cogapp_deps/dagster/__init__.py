@@ -31,6 +31,7 @@ from cogapp_deps.dagster.io import (
     DuckDBPandasPolarsIOManager,
     DuckDBRelationTypeHandler,
     read_table,
+    write_json_and_return,
     write_json_from_duckdb,
     write_json_output,
 )
@@ -63,6 +64,7 @@ __all__ = [
     "DuckDBPandasPolarsIOManager",
     "DuckDBRelationTypeHandler",
     "read_table",
+    "write_json_and_return",
     "write_json_from_duckdb",
     "write_json_output",
     # Exceptions
