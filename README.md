@@ -19,6 +19,19 @@ uv run dagster dev
 uv run dagster job execute -j full_pipeline
 ```
 
+## Documentation
+
+**New to Dagster?** Start here:
+- 📚 **[Getting Started Guide](docs/GETTING_STARTED.md)** - Hands-on tutorial for new Dagster developers
+- 💡 **[Best Practices](docs/BEST_PRACTICES.md)** - Guidelines for writing maintainable pipelines
+- ⌨️ **[CLI Reference](docs/CLI_REFERENCE.md)** - Quick reference for Dagster commands
+- 🔧 **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+- 🚀 **[LocalStack S3 Guide](docs/LOCALSTACK_S3_GUIDE.md)** - S3 integration and testing
+
+**Project-specific docs:**
+- 🎯 **[CLAUDE.md](CLAUDE.md)** - Project structure and development commands
+- 📋 **[PATTERNS.md](honey_duck/defs/PATTERNS.md)** - Detailed asset patterns and examples
+
 ## Architecture
 
 ```
