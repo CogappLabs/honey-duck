@@ -5,23 +5,24 @@ IO Approaches
 This pipeline uses two IO approaches across three layers:
 
 1. dlt-managed IO (harvest layer):
-   - dlt writes directly to DuckDB raw.* tables
+   - dlt writes directly to Parquet files
+   - DuckDB views (raw.*) point to Parquet files for SQL access
    - Dagster IO manager is NOT used
    - Assets yield MaterializeResult with metadata only
 
 2. Dagster IO manager (transform + output layers):
-   - TRANSFORM: Reads raw.* via SQL (deps declare dependency), returns DataFrame
+   - TRANSFORM: Reads raw.* via SQL views (deps declare dependency), returns DataFrame
    - OUTPUT: Receives DataFrame as parameter, returns DataFrame + writes JSON
 
 Data Flow:
     ┌─────────────────────────────────────────────────────────────────┐
-    │ HARVEST (dlt writes to DuckDB, no IO manager)                   │
-    │   dlt_harvest_assets -> raw.sales_raw, raw.artworks_raw, etc.  │
+    │ HARVEST (dlt writes to Parquet, DuckDB views for SQL access)    │
+    │   dlt_harvest_assets -> Parquet files -> DuckDB raw.* views    │
     └──────────────────────────────┬──────────────────────────────────┘
                                    │ deps (no data passed)
                                    ▼
     ┌─────────────────────────────────────────────────────────────────┐
-    │ TRANSFORM (read raw.* via SQL, IO manager stores output)        │
+    │ TRANSFORM (read raw.* via SQL views, IO manager stores output)  │
     │   sales_transform    : SQL joins raw.* -> return DataFrame      │
     │   artworks_transform : SQL joins raw.* -> return DataFrame      │
     └──────────────────────────────┬──────────────────────────────────┘
@@ -75,22 +76,38 @@ from .resources import (
 configure_duckdb(db_path=DUCKDB_PATH, read_only=False)
 
 # Track whether views have been set up in this process
+# Note: In multiprocess execution, each process initializes views independently
 _views_initialized = False
+
+# View setup retry configuration
+_VIEW_SETUP_MAX_RETRIES = 3
+_VIEW_SETUP_RETRY_BASE_DELAY = 0.1  # seconds
 
 
 def _ensure_parquet_views():
-    """Ensure views in DuckDB pointing to Parquet files exist (called per-asset as needed)."""
+    """Ensure views in DuckDB pointing to Parquet files exist (called per-asset as needed).
+
+    Creates DuckDB views that point to Parquet files, enabling SQL queries over the
+    harvest data. Uses retry logic to handle concurrent access in multiprocess execution.
+
+    Raises:
+        RuntimeError: If views cannot be created after max retries
+        ValueError: If parquet directory path is invalid
+    """
     global _views_initialized
     if _views_initialized:
         return
 
     import duckdb
-    import time
-    parquet_dir = HARVEST_PARQUET_DIR / "raw"
+    from pathlib import Path
+
+    # Validate and resolve parquet directory path to prevent injection
+    parquet_dir = Path(HARVEST_PARQUET_DIR / "raw").resolve()
+    if not str(parquet_dir).startswith(str(Path.cwd().resolve())):
+        raise ValueError(f"Invalid parquet directory outside project: {parquet_dir}")
 
     # Retry logic for handling concurrent access
-    max_retries = 3
-    for attempt in range(max_retries):
+    for attempt in range(_VIEW_SETUP_MAX_RETRIES):
         try:
             conn = duckdb.connect(str(DUCKDB_PATH))
             try:
@@ -121,18 +138,21 @@ def _ensure_parquet_views():
         except Exception as e:
             error_str = str(e).lower()
             # If another process already created the views, that's fine
-            if "already exists" in error_str or (attempt < max_retries - 1 and "lock" in error_str):
+            if "already exists" in error_str or (attempt < _VIEW_SETUP_MAX_RETRIES - 1 and "lock" in error_str):
                 if "lock" in error_str:
-                    # Wait a bit and retry
-                    time.sleep(0.1 * (attempt + 1))
+                    # Wait a bit and retry with exponential backoff
+                    time.sleep(_VIEW_SETUP_RETRY_BASE_DELAY * (attempt + 1))
                     continue
                 else:
                     # Views exist, we're done
                     _views_initialized = True
                     return
-            # On last attempt or unknown error, raise
-            if attempt == max_retries - 1:
-                raise
+            # On last attempt or unknown error, raise with context
+            if attempt == _VIEW_SETUP_MAX_RETRIES - 1:
+                raise RuntimeError(
+                    f"Failed to initialize Parquet views after {_VIEW_SETUP_MAX_RETRIES} attempts. "
+                    f"Last error: {str(e)}"
+                ) from e
 
 
 # -----------------------------------------------------------------------------

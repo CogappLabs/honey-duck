@@ -42,8 +42,23 @@ HARVEST_DEPS = [
 
 
 def _setup_parquet_views(conn):
-    """Create views in DuckDB pointing to Parquet files."""
-    parquet_dir = HARVEST_PARQUET_DIR / "raw"
+    """Create views in DuckDB pointing to Parquet files.
+
+    Creates DuckDB views that point to Parquet files in the harvest directory,
+    enabling SQL queries over the harvest data.
+
+    Args:
+        conn: DuckDB connection object
+
+    Raises:
+        ValueError: If parquet directory path is invalid
+    """
+    from pathlib import Path
+
+    # Validate and resolve parquet directory path to prevent injection
+    parquet_dir = Path(HARVEST_PARQUET_DIR / "raw").resolve()
+    if not str(parquet_dir).startswith(str(Path.cwd().resolve())):
+        raise ValueError(f"Invalid parquet directory outside project: {parquet_dir}")
 
     conn.execute("CREATE SCHEMA IF NOT EXISTS raw")
     conn.execute(f"""
