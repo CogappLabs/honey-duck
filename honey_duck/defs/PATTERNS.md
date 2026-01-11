@@ -4,21 +4,28 @@ This document shows how to create new harvests, transforms, and outputs with min
 
 ## Pattern 1: Simple Transform Asset
 
-**Boilerplate-free transform with automatic error handling:**
+**Transform with automatic error handling using standard Dagster decorators:**
 
 ```python
+import dagster as dg
+import polars as pl
 from honey_duck.defs.helpers import (
-    transform_asset,
     read_harvest_tables,
     add_standard_metadata,
-    CONFIG,
+    AssetGroups,
+    STANDARD_HARVEST_DEPS,
 )
+from honey_duck.defs.config import CONFIG
 
-@transform_asset(group_name="transform_polars")
-def my_transform(context) -> pl.DataFrame:
-    """Transform description - automatic error handling included!"""
+@dg.asset(
+    kinds={"polars"},
+    group_name=AssetGroups.TRANSFORM_POLARS,
+    deps=STANDARD_HARVEST_DEPS,
+)
+def my_transform(context: dg.AssetExecutionContext) -> pl.DataFrame:
+    """Transform description - error handling built into helper functions!"""
 
-    # Read tables with validation (one line!)
+    # Read tables with validation (automatic error handling)
     tables = read_harvest_tables(
         ("sales_raw", ["sale_id", "sale_price_usd"]),
         ("artworks_raw", ["artwork_id", "title"]),
@@ -33,7 +40,7 @@ def my_transform(context) -> pl.DataFrame:
         .collect()
     )
 
-    # Add metadata (one line!)
+    # Add metadata (automatic: record count, preview, columns)
     add_standard_metadata(
         context,
         result,
@@ -43,33 +50,38 @@ def my_transform(context) -> pl.DataFrame:
     return result
 ```
 
-**What you get automatically:**
-- ✅ Error handling with clear messages
-- ✅ Table/column validation
-- ✅ Timing metadata
+**What you get from helper functions:**
+- ✅ Error handling with clear, actionable messages
+- ✅ Table/column validation (raises MissingTableError, MissingColumnError)
 - ✅ Standard metadata (record count, preview, columns)
-- ✅ Proper group_name and kinds
-- ✅ Harvest dependencies
+- ✅ Lists available tables/columns when validation fails
 
 ## Pattern 2: Output Asset
 
-**Boilerplate-free output with freshness policy:**
+**Output with freshness policy using standard Dagster decorators:**
 
 ```python
-from honey_duck.defs.helpers import output_asset
+import dagster as dg
+import polars as pl
+from honey_duck.defs.helpers import AssetGroups
+from honey_duck.defs.config import CONFIG
 from cogapp_deps.dagster import write_json_output
 
-@output_asset(group_name="output_polars", freshness_hours=24)
+@dg.asset(
+    kinds={"polars", "json"},
+    group_name=AssetGroups.OUTPUT_POLARS,
+    freshness_policy=dg.FreshnessPolicy(maximum_lag_minutes=24 * 60),
+)
 def my_output(
-    context,
+    context: dg.AssetExecutionContext,
     my_transform: pl.DataFrame,  # Depends on transform
 ) -> pl.DataFrame:
-    """Output description - automatic error handling included!"""
+    """Output description - write JSON to output directory."""
 
     # Filter
     result = my_transform.filter(pl.col("value") > 1000)
 
-    # Write JSON
+    # Write JSON (automatic error handling)
     write_json_output(
         result,
         CONFIG.json_output_dir / "my_output.json",
@@ -79,22 +91,34 @@ def my_output(
     return result
 ```
 
-**What you get automatically:**
-- ✅ Error handling
+**Standard Dagster features:**
 - ✅ Freshness policy (24 hours)
 - ✅ Proper group_name and kinds (polars, json)
-- ✅ Timing logs
+- ✅ Automatic dependency resolution from function parameters
 
 ## Pattern 3: Multi-Table Transform
 
 **Reading multiple tables efficiently:**
 
 ```python
-@transform_asset()
-def complex_transform(context) -> pl.DataFrame:
+import dagster as dg
+import polars as pl
+from honey_duck.defs.helpers import (
+    read_harvest_tables,
+    add_standard_metadata,
+    AssetGroups,
+    STANDARD_HARVEST_DEPS,
+)
+
+@dg.asset(
+    kinds={"polars"},
+    group_name=AssetGroups.TRANSFORM_POLARS,
+    deps=STANDARD_HARVEST_DEPS,
+)
+def complex_transform(context: dg.AssetExecutionContext) -> pl.DataFrame:
     """Join multiple tables with validation."""
 
-    # Read all tables at once
+    # Read all tables at once (automatic validation)
     tables = read_harvest_tables(
         ("sales_raw", ["sale_id", "artwork_id", "sale_price_usd"]),
         ("artworks_raw", ["artwork_id", "artist_id", "title"]),
@@ -116,13 +140,15 @@ def complex_transform(context) -> pl.DataFrame:
 
 ## Pattern 4: Graph-Backed Asset with Ops
 
-**For detailed observability:**
+**For detailed observability (standard Dagster graph-backed assets):**
 
 ```python
-from honey_duck.defs.helpers import read_harvest_tables
+import dagster as dg
+import polars as pl
+from honey_duck.defs.helpers import read_harvest_tables, AssetGroups
 
 @dg.op
-def load_and_join(context) -> pl.DataFrame:
+def load_and_join(context: dg.OpExecutionContext) -> pl.DataFrame:
     """Op: Load and join tables."""
     tables = read_harvest_tables(
         ("sales_raw", ["sale_id", "sale_price_usd"]),
@@ -140,7 +166,7 @@ def load_and_join(context) -> pl.DataFrame:
     return result
 
 @dg.op
-def add_metrics(context, df: pl.DataFrame) -> pl.DataFrame:
+def add_metrics(context: dg.OpExecutionContext, df: pl.DataFrame) -> pl.DataFrame:
     """Op: Add computed metrics."""
     result = df.with_columns(
         (pl.col("sale_price_usd") * 2).alias("doubled")
@@ -148,7 +174,7 @@ def add_metrics(context, df: pl.DataFrame) -> pl.DataFrame:
     context.log.info(f"Added metrics to {len(result):,} records")
     return result
 
-@dg.graph_asset(kinds={"polars"}, group_name="transform_polars_ops")
+@dg.graph_asset(kinds={"polars"}, group_name=AssetGroups.TRANSFORM_POLARS_OPS)
 def my_graph_asset() -> pl.DataFrame:
     """Graph-backed asset with op-level logs."""
     df = load_and_join()
@@ -179,11 +205,23 @@ export FRESHNESS_HOURS=48
 
 ## Error Handling
 
-**Errors are handled automatically:**
+**Helper functions provide automatic error handling:**
 
 ```python
-@transform_asset()
-def my_asset(context) -> pl.DataFrame:
+import dagster as dg
+import polars as pl
+from honey_duck.defs.helpers import (
+    read_harvest_tables,
+    AssetGroups,
+    STANDARD_HARVEST_DEPS,
+)
+
+@dg.asset(
+    kinds={"polars"},
+    group_name=AssetGroups.TRANSFORM_POLARS,
+    deps=STANDARD_HARVEST_DEPS,
+)
+def my_asset(context: dg.AssetExecutionContext) -> pl.DataFrame:
     # If table doesn't exist:
     # → MissingTableError with list of available tables
 
@@ -232,11 +270,11 @@ defs = dg.Definitions(
 
 | Task | Helper | Automatic Features |
 |------|--------|-------------------|
-| Transform | `@transform_asset()` | Error handling, timing, validation, deps |
-| Output | `@output_asset()` | Error handling, freshness, timing |
-| Read tables | `read_harvest_tables()` | Validation, error context |
+| Read tables | `read_harvest_tables()` | Validation, error context, actionable errors |
 | Metadata | `add_standard_metadata()` | Count, preview, columns |
-| Config | `CONFIG.property` | Validated on import |
+| Config | `CONFIG.property` | Validated on import, auto-creates directories |
+| Constants | `AssetGroups.*` | Standard group names |
+| Dependencies | `STANDARD_HARVEST_DEPS` | Common harvest dependencies |
 
 ## Anti-Patterns to Avoid
 
@@ -259,27 +297,52 @@ tables = read_harvest_tables(
 ❌ **Don't manually add boilerplate:**
 ```python
 # Bad - repetitive boilerplate
+import duckdb
+
 @dg.asset(
     kinds={"polars"},
     group_name="transform_polars",
     deps=[dg.AssetKey("dlt_harvest_sales_raw"), ...],
 )
 def my_asset(context):
-    start_time = time.perf_counter()
-    try:
-        # logic
-        elapsed = time.perf_counter() - start_time
-        context.add_output_metadata({"time": elapsed})
-    except Exception as e:
-        context.log.error(f"Failed: {e}")
-        raise
+    conn = duckdb.connect(DUCKDB_PATH)
+    # Manual table checking
+    tables = conn.sql("SHOW TABLES").pl()
+    if "sales_raw" not in tables["name"].to_list():
+        raise ValueError("Table not found")  # No context!
+
+    df = conn.sql("SELECT * FROM raw.sales_raw").pl()
+    # Manual metadata
+    context.add_output_metadata({
+        "count": len(df),
+        "columns": df.columns,
+    })
+    return df
 ```
 
-✅ **Do use decorators:**
+✅ **Do use helper functions:**
 ```python
-# Good - automatic boilerplate
-@transform_asset()
-def my_asset(context):
-    # logic
+# Good - helpers provide validation and metadata
+import dagster as dg
+import polars as pl
+from honey_duck.defs.helpers import (
+    read_harvest_tables,
+    add_standard_metadata,
+    AssetGroups,
+    STANDARD_HARVEST_DEPS,
+)
+
+@dg.asset(
+    kinds={"polars"},
+    group_name=AssetGroups.TRANSFORM_POLARS,
+    deps=STANDARD_HARVEST_DEPS,
+)
+def my_asset(context: dg.AssetExecutionContext) -> pl.DataFrame:
+    tables = read_harvest_tables(
+        ("sales_raw", ["sale_id", "sale_price_usd"]),
+        asset_name="my_asset",
+    )
+    result = tables["sales_raw"].collect()
+    add_standard_metadata(context, result)
     return result
 ```
