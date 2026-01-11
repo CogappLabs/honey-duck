@@ -61,19 +61,12 @@ HARVEST_DEPS = [
 
 
 @dg.multi_asset(
-    specs=[
-        dg.AssetSpec(
-            key="sales_joined_polars_multi",
-            kinds={"polars"},
-            group_name="transform_polars_multi",
-            deps=HARVEST_DEPS,
-        ),
-        dg.AssetSpec(
-            key="sales_transform_polars_multi",
-            kinds={"polars"},
-            group_name="transform_polars_multi",
-        ),
-    ],
+    outs={
+        "sales_joined_polars_multi": dg.AssetOut(io_manager_key="io_manager"),
+        "sales_transform_polars_multi": dg.AssetOut(io_manager_key="io_manager"),
+    },
+    group_name="transform_polars_multi",
+    deps=HARVEST_DEPS,
 )
 def sales_pipeline_multi(context: dg.AssetExecutionContext) -> Iterator[dg.Output]:
     """Multi-asset: Sales pipeline with intermediate persistence.
@@ -106,8 +99,8 @@ def sales_pipeline_multi(context: dg.AssetExecutionContext) -> Iterator[dg.Outpu
     )
 
     joined = (
-        sales.join(artworks, on="artwork_id")
-        .join(artists, on="artist_id")
+        sales.join(artworks, on="artwork_id", suffix="_artworks")
+        .join(artists, on="artist_id", suffix="_artists")
         .select(
             "sale_id",
             "artwork_id",
@@ -168,29 +161,14 @@ def sales_pipeline_multi(context: dg.AssetExecutionContext) -> Iterator[dg.Outpu
 
 
 @dg.multi_asset(
-    specs=[
-        dg.AssetSpec(
-            key="artworks_catalog_polars_multi",
-            kinds={"polars"},
-            group_name="transform_polars_multi",
-            deps=HARVEST_DEPS,
-        ),
-        dg.AssetSpec(
-            key="artworks_sales_agg_polars_multi",
-            kinds={"polars"},
-            group_name="transform_polars_multi",
-        ),
-        dg.AssetSpec(
-            key="artworks_media_polars_multi",
-            kinds={"polars"},
-            group_name="transform_polars_multi",
-        ),
-        dg.AssetSpec(
-            key="artworks_transform_polars_multi",
-            kinds={"polars"},
-            group_name="transform_polars_multi",
-        ),
-    ],
+    outs={
+        "artworks_catalog_polars_multi": dg.AssetOut(io_manager_key="io_manager"),
+        "artworks_sales_agg_polars_multi": dg.AssetOut(io_manager_key="io_manager"),
+        "artworks_media_polars_multi": dg.AssetOut(io_manager_key="io_manager"),
+        "artworks_transform_polars_multi": dg.AssetOut(io_manager_key="io_manager"),
+    },
+    group_name="transform_polars_multi",
+    deps=HARVEST_DEPS,
 )
 def artworks_pipeline_multi(context: dg.AssetExecutionContext) -> Iterator[dg.Output]:
     """Multi-asset: Artworks pipeline with multiple intermediate steps.
@@ -219,7 +197,7 @@ def artworks_pipeline_multi(context: dg.AssetExecutionContext) -> Iterator[dg.Ou
     )
 
     catalog = (
-        artworks.join(artists, on="artist_id")
+        artworks.join(artists, on="artist_id", suffix="_artists")
         .select(
             "artwork_id",
             "title",
@@ -278,15 +256,15 @@ def artworks_pipeline_multi(context: dg.AssetExecutionContext) -> Iterator[dg.Ou
         asset_name="artworks_pipeline_multi",
     )
 
-    # Get primary image per artwork
+    # Get primary image (sort_order = 1) per artwork
     media_agg = (
         media.with_columns(
-            pl.when(pl.col("is_primary") == 1)
-            .then(pl.col("image_url"))
+            pl.when(pl.col("sort_order") == 1)
+            .then(pl.col("filename"))
             .otherwise(None)
             .alias("primary_image"),
-            pl.when(pl.col("is_primary") == 1)
-            .then(pl.col("image_alt"))
+            pl.when(pl.col("sort_order") == 1)
+            .then(pl.col("alt_text"))
             .otherwise(None)
             .alias("primary_image_alt"),
         )
