@@ -13,13 +13,18 @@ Asset Graph:
                            └--> artworks_transform_polars_fs --> artworks_output_polars_fs
 """
 
-import time
 from datetime import timedelta
 
 import dagster as dg
 import polars as pl
 
-from cogapp_deps.dagster import read_harvest_table_lazy, write_json_output
+from cogapp_deps.dagster import (
+    add_dataframe_metadata,
+    read_harvest_table_lazy,
+    read_harvest_tables_lazy,
+    track_timing,
+    write_json_output,
+)
 
 from .constants import (
     MIN_SALE_VALUE_USD,
@@ -55,60 +60,64 @@ def _read_raw_table_lazy(table: str) -> pl.LazyFrame:
     io_manager_key="fs_io_manager",
 )
 def sales_transform_polars_fs(context: dg.AssetExecutionContext) -> pl.DataFrame:
-    """Join sales with artworks and artists using pure Polars lazy expressions."""
-    start_time = time.perf_counter()
+    """Join sales with artworks and artists using pure Polars lazy expressions.
 
-    sales = _read_raw_table_lazy("sales_raw")
-    artworks = _read_raw_table_lazy("artworks_raw")
-    artists = _read_raw_table_lazy("artists_raw")
+    Demonstrates helpers with FilesystemIOManager backend.
+    """
+    with track_timing(context, "sales transform (FS)"):
+        # Batch read tables
+        tables = read_harvest_tables_lazy(
+            HARVEST_PARQUET_DIR,
+            ("sales_raw", None),
+            ("artworks_raw", None),
+            ("artists_raw", None),
+            asset_name="sales_transform_polars_fs",
+        )
 
-    # Build lazy query: join -> select -> compute -> normalize -> sort
-    result = (
-        sales
-        .join(artworks, on="artwork_id", how="left", suffix="_aw")
-        .join(artists, on="artist_id", how="left", suffix="_ar")
-        .select(
-            "sale_id",
-            "artwork_id",
-            "sale_date",
-            "sale_price_usd",
-            "buyer_country",
-            "title",
-            "artist_id",
-            pl.col("year").alias("artwork_year"),
-            "medium",
-            pl.col("price_usd").alias("list_price_usd"),
-            pl.col("name").alias("artist_name"),
-            "nationality",
+        # Build lazy query: join -> select -> compute -> normalize -> sort
+        result = (
+            tables["sales_raw"]
+            .join(tables["artworks_raw"], on="artwork_id", how="left", suffix="_aw")
+            .join(tables["artists_raw"], on="artist_id", how="left", suffix="_ar")
+            .select(
+                "sale_id",
+                "artwork_id",
+                "sale_date",
+                "sale_price_usd",
+                "buyer_country",
+                "title",
+                "artist_id",
+                pl.col("year").alias("artwork_year"),
+                "medium",
+                pl.col("price_usd").alias("list_price_usd"),
+                pl.col("name").alias("artist_name"),
+                "nationality",
+            )
+            .with_columns(
+                (pl.col("sale_price_usd") - pl.col("list_price_usd")).alias("price_diff"),
+                pl.when(pl.col("list_price_usd").is_null() | (pl.col("list_price_usd") == 0))
+                .then(None)
+                .otherwise(
+                    ((pl.col("sale_price_usd") - pl.col("list_price_usd")) * 100.0
+                     / pl.col("list_price_usd")).round(1)
+                ).alias("pct_change"),
+            )
+            .with_columns(
+                pl.col("artist_name").str.strip_chars().str.to_uppercase()
+            )
+            .sort(["sale_date", "sale_id"], descending=[True, False])
+            .collect()
         )
-        .with_columns(
-            (pl.col("sale_price_usd") - pl.col("list_price_usd")).alias("price_diff"),
-            pl.when(pl.col("list_price_usd").is_null() | (pl.col("list_price_usd") == 0))
-            .then(None)
-            .otherwise(
-                ((pl.col("sale_price_usd") - pl.col("list_price_usd")) * 100.0
-                 / pl.col("list_price_usd")).round(1)
-            ).alias("pct_change"),
-        )
-        .with_columns(
-            pl.col("artist_name").str.strip_chars().str.to_uppercase()
-        )
-        .sort(["sale_date", "sale_id"], descending=[True, False])
-        .collect()
+
+    # Add metadata with extra fields
+    add_dataframe_metadata(
+        context,
+        result,
+        unique_artworks=result["artwork_id"].n_unique(),
+        total_sales_value=float(result["sale_price_usd"].sum()),
+        date_range=f"{str(result['sale_date'].min())} to {str(result['sale_date'].max())}",
+        io_manager="FilesystemIOManager",
     )
-
-    elapsed_ms = (time.perf_counter() - start_time) * 1000
-    context.add_output_metadata({
-        "record_count": len(result),
-        "columns": result.columns,
-        "preview": dg.MetadataValue.md(result.head(5).to_pandas().to_markdown(index=False)),
-        "unique_artworks": result["artwork_id"].n_unique(),
-        "total_sales_value": float(result["sale_price_usd"].sum()),
-        "date_range": f"{str(result['sale_date'].min())} to {str(result['sale_date'].max())}",
-        "processing_time_ms": round(elapsed_ms, 2),
-        "io_manager": "FilesystemIOManager",
-    })
-    context.log.info(f"Transformed {len(result)} sales records (Polars FS) in {elapsed_ms:.1f}ms")
     return result
 
 

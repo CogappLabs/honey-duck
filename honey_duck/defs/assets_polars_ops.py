@@ -24,7 +24,12 @@ from datetime import timedelta
 import dagster as dg
 import polars as pl
 
-from cogapp_deps.dagster import read_parquet_table_lazy, write_json_output
+from cogapp_deps.dagster import (
+    read_harvest_tables_lazy,
+    read_parquet_table_lazy,
+    track_timing,
+    write_json_output,
+)
 
 from .config import CONFIG
 from .constants import (
@@ -47,55 +52,45 @@ from .resources import (
 
 @dg.op
 def join_sales_data(context: dg.OpExecutionContext) -> pl.DataFrame:
-    """Op: Join sales with artworks and artists."""
-    start_time = time.perf_counter()
+    """Op: Join sales with artworks and artists.
 
-    # Read with validation
-    sales = read_parquet_table_lazy(
-        HARVEST_PARQUET_DIR / "raw",
-        "sales_raw",
-        required_columns=["sale_id", "artwork_id", "sale_date", "sale_price_usd", "buyer_country"],
-        asset_name="join_sales_data",
-    )
-    artworks = read_parquet_table_lazy(
-        HARVEST_PARQUET_DIR / "raw",
-        "artworks_raw",
-        required_columns=["artwork_id", "artist_id", "title", "year", "medium", "price_usd"],
-        asset_name="join_sales_data",
-    )
-    artists = read_parquet_table_lazy(
-        HARVEST_PARQUET_DIR / "raw",
-        "artists_raw",
-        required_columns=["artist_id", "name", "nationality"],
-        asset_name="join_sales_data",
-    )
-
-    # Join and select columns
-    result = (
-        sales
-        .join(artworks, on="artwork_id", how="left", suffix="_aw")
-        .join(artists, on="artist_id", how="left", suffix="_ar")
-        .select(
-            "sale_id",
-            "artwork_id",
-            "sale_date",
-            "sale_price_usd",
-            "buyer_country",
-            "title",
-            "artist_id",
-            pl.col("year").alias("artwork_year"),
-            "medium",
-            pl.col("price_usd").alias("list_price_usd"),
-            pl.col("name").alias("artist_name"),
-            "nationality",
+    Demonstrates batch reading in ops context for large datasets.
+    """
+    with track_timing(context, "join"):
+        # Batch read with validation
+        tables = read_harvest_tables_lazy(
+            HARVEST_PARQUET_DIR,
+            ("sales_raw", ["sale_id", "artwork_id", "sale_date", "sale_price_usd", "buyer_country"]),
+            ("artworks_raw", ["artwork_id", "artist_id", "title", "year", "medium", "price_usd"]),
+            ("artists_raw", ["artist_id", "name", "nationality"]),
+            asset_name="join_sales_data",
         )
-        .collect()
-    )
 
-    elapsed_ms = (time.perf_counter() - start_time) * 1000
+        # Join and select columns
+        result = (
+            tables["sales_raw"]
+            .join(tables["artworks_raw"], on="artwork_id", how="left", suffix="_aw")
+            .join(tables["artists_raw"], on="artist_id", how="left", suffix="_ar")
+            .select(
+                "sale_id",
+                "artwork_id",
+                "sale_date",
+                "sale_price_usd",
+                "buyer_country",
+                "title",
+                "artist_id",
+                pl.col("year").alias("artwork_year"),
+                "medium",
+                pl.col("price_usd").alias("list_price_usd"),
+                pl.col("name").alias("artist_name"),
+                "nationality",
+            )
+            .collect()
+        )
+
     context.log.info(
         f"[join_sales_data] Joined {len(result):,} sales records "
-        f"across {result['artwork_id'].n_unique():,} artworks in {elapsed_ms:.1f}ms"
+        f"across {result['artwork_id'].n_unique():,} artworks"
     )
     return result
 
