@@ -19,19 +19,40 @@ uv run dagster dev
 uv run dagster job execute -j full_pipeline
 ```
 
+Open http://localhost:3000 and click **"Materialize all"** to run the pipeline!
+
 ## Documentation
 
-**New to Dagster?** Start here:
-- 📚 **[Getting Started Guide](docs/GETTING_STARTED.md)** - Hands-on tutorial for new Dagster developers
-- 💡 **[Best Practices](docs/BEST_PRACTICES.md)** - Guidelines for writing maintainable pipelines
-- ⌨️ **[CLI Reference](docs/CLI_REFERENCE.md)** - Quick reference for Dagster commands
-- 🔧 **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
-- 🚀 **[LocalStack S3 Guide](docs/LOCALSTACK_S3_GUIDE.md)** - S3 integration and testing
+### 🚀 New Users Start Here
 
-**Project-specific docs:**
-- 🎯 **[CLAUDE.md](CLAUDE.md)** - Project structure and development commands
-- 📋 **[PATTERNS.md](honey_duck/defs/PATTERNS.md)** - Detailed asset patterns and examples
-- 🔍 **[Elasticsearch Integration](docs/ELASTICSEARCH_INTEGRATION.md)** - Full-text search and analytics with Elasticsearch 8/9
+**Zero to Hero**:
+1. **[Quick Start Tutorial](docs/QUICK_START_TUTORIAL.md)** ⭐ - Build your first asset in 15 minutes
+2. **[Getting Started Guide](docs/GETTING_STARTED.md)** - In-depth Dagster introduction
+3. **[PATTERNS.md](honey_duck/defs/PATTERNS.md)** - Copy-paste asset patterns
+4. **[Cogapp Deps API](docs/COGAPP_DEPS_API.md)** - Complete utility reference
+
+### 📖 Core Documentation
+
+**Essential Reading**:
+- **[CLAUDE.md](CLAUDE.md)** - Project structure and commands
+- **[Best Practices](docs/BEST_PRACTICES.md)** - Production guidelines
+- **[Performance Tuning](docs/PERFORMANCE_TUNING.md)** ⚡ - Optimize your pipelines
+- **[CLI Reference](docs/CLI_REFERENCE.md)** - Dagster commands
+- **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+
+### 🔌 Integrations
+
+**Output Destinations**:
+- **[Elasticsearch Integration](docs/ELASTICSEARCH_INTEGRATION.md)** - Full-text search with ES 8/9
+- **[Common Outputs](docs/COMMON_OUTPUTS.md)** - PostgreSQL, BigQuery, S3, and more
+
+**AI & Web**:
+- **[API Bulk Harvesting](docs/API_BULK_HARVESTING.md)** - Claude & Voyage AI batch processing
+- **[Sitemap Generation](docs/SITEMAP_GENERATION.md)** - SEO-optimized XML sitemaps
+- **[IIIF Tile Generation](docs/IIIF_TILE_GENERATION.md)** - Image tile processing
+
+**Development**:
+- **[LocalStack S3 Guide](docs/LOCALSTACK_S3_GUIDE.md)** - Local S3 testing
 
 ## Architecture
 
