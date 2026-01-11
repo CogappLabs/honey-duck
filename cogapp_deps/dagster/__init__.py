@@ -72,6 +72,12 @@ try:
         create_parquet_pipeline,
         setup_harvest_parquet_views,
     )
+    from cogapp_deps.dagster.xml_sources import (
+        xml_file_source,
+        xml_http_source,
+        xml_multi_source,
+        xml_streaming_source,
+    )
 
     _HAS_DLT = True
 except ImportError:
@@ -81,6 +87,10 @@ except ImportError:
     setup_harvest_parquet_views = None
     claude_message_batches = None
     voyage_embeddings_batch = None
+    xml_file_source = None
+    xml_http_source = None
+    xml_multi_source = None
+    xml_streaming_source = None
 
 __all__ = [
     # IO utilities
@@ -127,4 +137,9 @@ __all__ = [
     # API sources (optional, requires dlt)
     "claude_message_batches",
     "voyage_embeddings_batch",
+    # XML sources (optional, requires dlt)
+    "xml_file_source",
+    "xml_http_source",
+    "xml_streaming_source",
+    "xml_multi_source",
 ]

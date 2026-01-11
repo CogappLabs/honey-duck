@@ -40,6 +40,7 @@ dev-dependencies = [
     "ruff",
     "mypy>=1.11",
     "pandas-stubs>=2.0",
+    "lefthook",
 ]
 
 [tool.mypy]

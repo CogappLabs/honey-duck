@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<catalog>
+    <artwork id="AW001">
+        <title>Starry Night</title>
+        <artist>Vincent van Gogh</artist>
+        <year>1889</year>
+        <medium>Oil on canvas</medium>
+        <price>100000000</price>
+    </artwork>
+    <artwork id="AW002">
+        <title>The Persistence of Memory</title>
+        <artist>Salvador Dalí</artist>
+        <year>1931</year>
+        <medium>Oil on canvas</medium>
+        <price>50000000</price>
+    </artwork>
+    <artwork id="AW003">
+        <title>The Scream</title>
+        <artist>Edvard Munch</artist>
+        <year>1893</year>
+        <medium>Oil, tempera, pastel on cardboard</medium>
+        <price>119922500</price>
+    </artwork>
+    <artwork id="AW004">
+        <title>Guernica</title>
+        <artist>Pablo Picasso</artist>
+        <year>1937</year>
+        <medium>Oil on canvas</medium>
+        <price>200000000</price>
+    </artwork>
+    <artwork id="AW005">
+        <title>The Kiss</title>
+        <artist>Gustav Klimt</artist>
+        <year>1908</year>
+        <medium>Oil and gold leaf on canvas</medium>
+        <price>150000000</price>
+    </artwork>
+</catalog>

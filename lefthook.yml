@@ -1,0 +1,64 @@
+# Lefthook configuration for honey-duck
+# Runs linting, type checking, and tests before commits
+#
+# Install: pip install lefthook (or brew install lefthook on macOS)
+# Enable: lefthook install
+# Skip for one commit: LEFTHOOK=0 git commit ...
+
+pre-commit:
+  parallel: false  # Run sequentially for better error messages
+  commands:
+    # 1. Ruff linting (fast Python linter)
+    ruff-check:
+      glob: "*.py"
+      run: uv run ruff check {staged_files}
+      stage_fixed: true  # Auto-stage fixes
+      skip:
+        - merge
+        - rebase
+
+    # 2. Ruff formatting (check only, don't auto-format)
+    ruff-format-check:
+      glob: "*.py"
+      run: uv run ruff format --check {staged_files}
+      skip:
+        - merge
+        - rebase
+
+    # 3. Type checking with mypy
+    mypy-check:
+      glob: "*.py"
+      run: uv run mypy {staged_files}
+      skip:
+        - merge
+        - rebase
+
+    # 4. Run tests
+    pytest:
+      run: uv run pytest -xvs --tb=short
+      skip:
+        - merge
+        - rebase
+
+  # Scripts for additional checks
+  scripts:
+    # Check for debug statements
+    "no-debug-statements":
+      runner: bash
+      skip:
+        - merge
+        - rebase
+
+post-commit:
+  commands:
+    # Show commit summary
+    summary:
+      run: echo "✅ Commit successful! All checks passed."
+
+# Skip hooks for specific situations
+skip_output:
+  - meta
+  - success
+
+# Fail fast - stop on first error
+fail_fast: true
