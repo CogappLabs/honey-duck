@@ -38,6 +38,11 @@ from cogapp_deps.dagster.io import (
 from cogapp_deps.dagster.io_managers import (
     JSONIOManager,
 )
+from cogapp_deps.dagster.notifications import (
+    create_email_notification_asset,
+    create_pipeline_status_notification,
+    create_slack_notification_asset,
+)
 from cogapp_deps.dagster.validation import (
     read_duckdb_table_lazy,
     read_harvest_table_lazy,
@@ -88,6 +93,10 @@ __all__ = [
     "read_tables_from_duckdb",
     "add_dataframe_metadata",
     "track_timing",
+    # Notifications
+    "create_slack_notification_asset",
+    "create_email_notification_asset",
+    "create_pipeline_status_notification",
     # DLT helpers (optional)
     "create_parquet_pipeline",
     "create_duckdb_pipeline",
