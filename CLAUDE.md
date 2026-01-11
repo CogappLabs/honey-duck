@@ -43,15 +43,17 @@ honey_duck/
 
 cogapp_deps/              # Utilities (simulates external package)
 ├── dagster/              # Dagster helpers
-│   └── io.py             # DuckDBPandasPolarsIOManager (legacy, not used)
+│   └── io.py             # write_json_output helper
 └── processors/           # DataFrame processors
-    ├── pandas/           # PandasReplaceOnConditionProcessor
     ├── polars/           # PolarsFilterProcessor, PolarsStringProcessor
-    └── duckdb/           # DuckDBJoinProcessor, DuckDBWindowProcessor
+    └── duckdb/           # DuckDBQueryProcessor, DuckDBSQLProcessor, etc.
 
 data/
 ├── input/                # Source CSV files
-└── output/               # Generated output (*.parquet, *.json, *.duckdb)
+└── output/               # Generated outputs (organized by type)
+    ├── json/             # Asset JSON outputs
+    ├── storage/          # IO manager Parquet files (inter-asset communication)
+    └── dlt/              # DuckDB database for dlt harvest
 
 dagster_home/             # Dagster persistence directory
 ```
@@ -64,27 +66,32 @@ dlt_harvest_* (shared) ──→ sales_transform_<impl> ──→ sales_output_<
                        └──→ artworks_transform_<impl> ──→ artworks_output_<impl>
 ```
 
-**Implementations**: original (processor classes), polars, pandas, duckdb, polars_fs
+**Implementations**: original (processor classes), polars, duckdb, polars_fs
 
 **Jobs**:
-- `full_pipeline` - Original implementation
+- `full_pipeline` - Original implementation with processor classes
 - `polars_pipeline` - Pure Polars expressions
-- `pandas_pipeline` - Pure Pandas expressions
 - `duckdb_pipeline` - Pure DuckDB SQL
 - `polars_fs_pipeline` - Polars with FilesystemIOManager
 
 **IO Managers**:
-- `io_manager` (default): PolarsParquetIOManager - stores DataFrames as Parquet files in `data/output/parquet/`
+- `io_manager` (default): PolarsParquetIOManager - stores DataFrames as Parquet files in `data/output/storage/`
 - `fs_io_manager`: FilesystemIOManager - pickles DataFrames to files (used by polars_fs implementation)
 
-**Storage**:
-- Inter-asset communication: Parquet files (via PolarsParquetIOManager)
-- dlt harvest: DuckDB `raw` schema (via dagster-dlt integration)
-- DuckDB still used for: SQL transformations via processors and dlt harvest storage
-- Final outputs: JSON files in `data/output/`
+**Storage Organization**:
+```
+data/output/
+├── json/     - Asset JSON outputs (sales_output.json, artworks_output.json, etc.)
+├── storage/  - IO manager Parquet files (inter-asset communication)
+└── dlt/      - DuckDB database for dlt harvest (dagster.duckdb)
+```
 
-**Note**: All asset implementations now return Polars DataFrames for compatibility with PolarsParquetIOManager.
-The Pandas implementation converts pandas → polars for return values.
+**DuckDB Usage**:
+- DuckDB is still used for: SQL transformations via processors and dlt harvest storage
+- dlt harvest: CSV/SQLite loaded to DuckDB `raw` schema
+- Inter-asset communication: Now uses Parquet (not DuckDB tables)
+
+**Note**: All asset implementations return Polars DataFrames for compatibility with PolarsParquetIOManager.
 
 ## Adding New Assets
 
@@ -94,12 +101,8 @@ The Pandas implementation converts pandas → polars for return values.
 4. Add rich metadata via `context.add_output_metadata()`
 5. Add to `definitions.py` assets list
 
-**Important**: Assets must return Polars DataFrames. If using pandas/duckdb internally, convert at the end:
+**Important**: Assets must return Polars DataFrames. If using DuckDB internally, convert at the end:
 ```python
-# Pandas example
-result = some_pandas_operations(df)
-return pl.from_pandas(result)
-
 # DuckDB example
 result = conn.sql("SELECT * FROM table").pl()
 return result

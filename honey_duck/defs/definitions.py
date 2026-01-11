@@ -14,10 +14,9 @@ Groups
 ------
 - harvest: Raw data loaded from CSV/SQLite into DuckDB via dlt (shared)
 - transform/output: Original implementation with processor classes
-- transform_polars/output_polars: Pure Polars expressions (Parquet IO manager)
-- transform_pandas/output_pandas: Pure Pandas expressions (Parquet IO manager)
-- transform_duckdb/output_duckdb: Pure DuckDB SQL queries (Parquet IO manager)
-- transform_polars_fs/output_polars_fs: Pure Polars expressions (Filesystem IO manager)
+- transform_polars/output_polars: Pure Polars expressions
+- transform_duckdb/output_duckdb: Pure DuckDB SQL queries
+- transform_polars_fs/output_polars_fs: Polars with FilesystemIOManager
 
 IO Managers
 -----------
@@ -53,14 +52,6 @@ from .assets_polars import (
     sales_transform_polars,
 )
 
-# Pure Pandas implementation
-from .assets_pandas import (
-    artworks_output_pandas,
-    artworks_transform_pandas,
-    sales_output_pandas,
-    sales_transform_pandas,
-)
-
 # Pure DuckDB SQL implementation
 from .assets_duckdb import (
     artworks_output_duckdb,
@@ -87,7 +78,6 @@ from .dlt_assets import dlt_harvest_assets
 from .jobs import (
     duckdb_pipeline_job,
     full_pipeline_job,
-    pandas_pipeline_job,
     polars_fs_pipeline_job,
     polars_pipeline_job,
 )
@@ -108,11 +98,6 @@ defs = dg.Definitions(
         artworks_transform_polars,
         sales_output_polars,
         artworks_output_polars,
-        # Pure Pandas implementation
-        sales_transform_pandas,
-        artworks_transform_pandas,
-        sales_output_pandas,
-        artworks_output_pandas,
         # Pure DuckDB SQL implementation
         sales_transform_duckdb,
         artworks_transform_duckdb,
@@ -127,7 +112,6 @@ defs = dg.Definitions(
     jobs=[
         full_pipeline_job,
         polars_pipeline_job,
-        pandas_pipeline_job,
         duckdb_pipeline_job,
         polars_fs_pipeline_job,
     ],

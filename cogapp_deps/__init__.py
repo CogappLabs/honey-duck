@@ -6,7 +6,6 @@ data transformation patterns.
 Structure:
     cogapp_deps/
     └── processors/
-        ├── pandas/   - Aggregations, conditional replacements
         ├── polars/   - Filtering, string transforms (chainable)
         └── duckdb/   - SQL-based operations
 
@@ -20,7 +19,7 @@ Example:
     >>> result = chain.process(df)
 """
 
-from .processors import duckdb, pandas
+from .processors import duckdb
 
 try:
     from .processors import polars
@@ -31,7 +30,6 @@ except ImportError:
 
 __all__ = [
     "processors",
-    "pandas",
     "duckdb",
     "polars",
     "POLARS_AVAILABLE",

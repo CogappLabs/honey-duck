@@ -38,22 +38,6 @@ polars_pipeline_job = dg.define_asset_job(
 )
 
 
-# Pure Pandas implementation pipeline
-pandas_pipeline_job = dg.define_asset_job(
-    name="pandas_pipeline",
-    selection=dg.AssetSelection.groups("harvest", "transform_pandas", "output_pandas"),
-    description="""
-    Pure Pandas implementation of honey-duck pipeline.
-
-    Uses inline Pandas expressions (no processor classes).
-
-    1. Harvest (dlt): Load raw data to DuckDB (shared)
-    2. Transform: Join and enrich using pd.merge(), assignment, etc.
-    3. Output: Filter using boolean indexing and write JSON
-    """,
-)
-
-
 # Pure DuckDB SQL implementation pipeline
 duckdb_pipeline_job = dg.define_asset_job(
     name="duckdb_pipeline",

@@ -51,7 +51,7 @@ Chain Polars processors:
     ]).process(df)  # single optimized query
 """
 
-from . import duckdb, pandas
+from . import duckdb
 from .chain import Chain
 
 try:
@@ -63,7 +63,6 @@ except ImportError:
 
 __all__ = [
     "Chain",
-    "pandas",
     "duckdb",
     "polars",
     "POLARS_AVAILABLE",

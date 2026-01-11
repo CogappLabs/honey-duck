@@ -5,7 +5,12 @@ This module configures storage paths for the pipeline:
 - DuckDB is used for SQL transformations and dlt harvest storage
 - Final outputs are written as JSON files
 
-Storage locations are all under data/output/ and can be overridden via environment variables.
+Directory structure under data/output/:
+- json/     - Asset JSON outputs
+- storage/  - IO manager Parquet files (inter-asset communication)
+- dlt/      - DuckDB database for dlt harvest
+
+All paths can be overridden via environment variables.
 """
 
 import os
@@ -19,61 +24,58 @@ DATA_DIR = PROJECT_ROOT / "data"
 INPUT_DIR = DATA_DIR / "input"
 OUTPUT_DIR = DATA_DIR / "output"
 
+# Output subdirectories for organized storage
+JSON_OUTPUT_DIR = OUTPUT_DIR / "json"
+STORAGE_DIR = OUTPUT_DIR / "storage"
+DLT_DIR = OUTPUT_DIR / "dlt"
+
 # Parquet IO Manager storage directory (can be overridden via environment variable)
 PARQUET_DIR = Path(
     os.environ.get(
         "HONEY_DUCK_PARQUET_DIR",
-        str(OUTPUT_DIR / "parquet"),
+        str(STORAGE_DIR),
     )
 )
 
 # DuckDB database path for dlt harvest and SQL transformations (can be overridden via environment variable)
 DUCKDB_PATH = os.environ.get(
     "HONEY_DUCK_DB_PATH",
-    str(OUTPUT_DIR / "dagster.duckdb"),
+    str(DLT_DIR / "dagster.duckdb"),
 )
 
 # SQLite media database path
 MEDIA_DB_PATH = INPUT_DIR / "media.db"
 
-# Output file paths (configurable via environment variables)
+# JSON output file paths (configurable via environment variables)
 SALES_OUTPUT_PATH = Path(
-    os.environ.get("HONEY_DUCK_SALES_OUTPUT", str(OUTPUT_DIR / "sales_output.json"))
+    os.environ.get("HONEY_DUCK_SALES_OUTPUT", str(JSON_OUTPUT_DIR / "sales_output.json"))
 )
 ARTWORKS_OUTPUT_PATH = Path(
-    os.environ.get("HONEY_DUCK_ARTWORKS_OUTPUT", str(OUTPUT_DIR / "artworks_output.json"))
+    os.environ.get("HONEY_DUCK_ARTWORKS_OUTPUT", str(JSON_OUTPUT_DIR / "artworks_output.json"))
 )
 
 # Polars implementation output paths
 SALES_OUTPUT_PATH_POLARS = Path(
-    os.environ.get("HONEY_DUCK_SALES_OUTPUT_POLARS", str(OUTPUT_DIR / "sales_output_polars.json"))
+    os.environ.get("HONEY_DUCK_SALES_OUTPUT_POLARS", str(JSON_OUTPUT_DIR / "sales_output_polars.json"))
 )
 ARTWORKS_OUTPUT_PATH_POLARS = Path(
-    os.environ.get("HONEY_DUCK_ARTWORKS_OUTPUT_POLARS", str(OUTPUT_DIR / "artworks_output_polars.json"))
-)
-
-# Pandas implementation output paths
-SALES_OUTPUT_PATH_PANDAS = Path(
-    os.environ.get("HONEY_DUCK_SALES_OUTPUT_PANDAS", str(OUTPUT_DIR / "sales_output_pandas.json"))
-)
-ARTWORKS_OUTPUT_PATH_PANDAS = Path(
-    os.environ.get("HONEY_DUCK_ARTWORKS_OUTPUT_PANDAS", str(OUTPUT_DIR / "artworks_output_pandas.json"))
+    os.environ.get("HONEY_DUCK_ARTWORKS_OUTPUT_POLARS", str(JSON_OUTPUT_DIR / "artworks_output_polars.json"))
 )
 
 # DuckDB SQL implementation output paths
 SALES_OUTPUT_PATH_DUCKDB = Path(
-    os.environ.get("HONEY_DUCK_SALES_OUTPUT_DUCKDB", str(OUTPUT_DIR / "sales_output_duckdb.json"))
+    os.environ.get("HONEY_DUCK_SALES_OUTPUT_DUCKDB", str(JSON_OUTPUT_DIR / "sales_output_duckdb.json"))
 )
 ARTWORKS_OUTPUT_PATH_DUCKDB = Path(
-    os.environ.get("HONEY_DUCK_ARTWORKS_OUTPUT_DUCKDB", str(OUTPUT_DIR / "artworks_output_duckdb.json"))
+    os.environ.get("HONEY_DUCK_ARTWORKS_OUTPUT_DUCKDB", str(JSON_OUTPUT_DIR / "artworks_output_duckdb.json"))
 )
 
 # Polars filesystem IO manager implementation output paths
 SALES_OUTPUT_PATH_POLARS_FS = Path(
-    os.environ.get("HONEY_DUCK_SALES_OUTPUT_POLARS_FS", str(OUTPUT_DIR / "sales_output_polars_fs.json"))
+    os.environ.get("HONEY_DUCK_SALES_OUTPUT_POLARS_FS", str(JSON_OUTPUT_DIR / "sales_output_polars_fs.json"))
 )
 ARTWORKS_OUTPUT_PATH_POLARS_FS = Path(
-    os.environ.get("HONEY_DUCK_ARTWORKS_OUTPUT_POLARS_FS", str(OUTPUT_DIR / "artworks_output_polars_fs.json"))
+    os.environ.get("HONEY_DUCK_ARTWORKS_OUTPUT_POLARS_FS", str(JSON_OUTPUT_DIR / "artworks_output_polars_fs.json"))
 )
 
 
