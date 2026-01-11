@@ -45,6 +45,13 @@ from cogapp_deps.dagster.notifications import (
     create_pipeline_status_notification,
     create_slack_notification_asset,
 )
+from cogapp_deps.dagster.sitemap import (
+    create_image_sitemap_asset,
+    create_sitemap_asset,
+    generate_image_sitemap_xml,
+    generate_sitemap_index_xml,
+    generate_sitemap_xml,
+)
 from cogapp_deps.dagster.validation import (
     read_duckdb_table_lazy,
     read_harvest_table_lazy,
@@ -101,6 +108,12 @@ __all__ = [
     "create_slack_notification_asset",
     "create_email_notification_asset",
     "create_pipeline_status_notification",
+    # Sitemaps
+    "create_sitemap_asset",
+    "create_image_sitemap_asset",
+    "generate_sitemap_xml",
+    "generate_image_sitemap_xml",
+    "generate_sitemap_index_xml",
     # DLT helpers (optional)
     "create_parquet_pipeline",
     "create_duckdb_pipeline",
