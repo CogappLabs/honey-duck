@@ -66,12 +66,73 @@ from .constants import (
 from .resources import (
     ARTWORKS_OUTPUT_PATH,
     DUCKDB_PATH,
+    HARVEST_PARQUET_DIR,
     SALES_OUTPUT_PATH,
 )
 
 # Configure DuckDB processors to use the main database for reading raw tables
-# Use read_only=True to avoid lock conflicts with the IO manager
-configure_duckdb(db_path=DUCKDB_PATH, read_only=True)
+# Use read_only=False to allow view creation when needed
+configure_duckdb(db_path=DUCKDB_PATH, read_only=False)
+
+# Track whether views have been set up in this process
+_views_initialized = False
+
+
+def _ensure_parquet_views():
+    """Ensure views in DuckDB pointing to Parquet files exist (called per-asset as needed)."""
+    global _views_initialized
+    if _views_initialized:
+        return
+
+    import duckdb
+    import time
+    parquet_dir = HARVEST_PARQUET_DIR / "raw"
+
+    # Retry logic for handling concurrent access
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            conn = duckdb.connect(str(DUCKDB_PATH))
+            try:
+                conn.execute("CREATE SCHEMA IF NOT EXISTS raw")
+
+                # Create or replace views pointing to Parquet files
+                # Using CREATE OR REPLACE to handle both new and existing views
+                conn.execute(f"""
+                    CREATE OR REPLACE VIEW raw.sales_raw AS
+                    SELECT * FROM read_parquet('{parquet_dir}/sales_raw/*.parquet')
+                """)
+                conn.execute(f"""
+                    CREATE OR REPLACE VIEW raw.artworks_raw AS
+                    SELECT * FROM read_parquet('{parquet_dir}/artworks_raw/*.parquet')
+                """)
+                conn.execute(f"""
+                    CREATE OR REPLACE VIEW raw.artists_raw AS
+                    SELECT * FROM read_parquet('{parquet_dir}/artists_raw/*.parquet')
+                """)
+                conn.execute(f"""
+                    CREATE OR REPLACE VIEW raw.media AS
+                    SELECT * FROM read_parquet('{parquet_dir}/media/*.parquet')
+                """)
+                _views_initialized = True
+                return
+            finally:
+                conn.close()
+        except Exception as e:
+            error_str = str(e).lower()
+            # If another process already created the views, that's fine
+            if "already exists" in error_str or (attempt < max_retries - 1 and "lock" in error_str):
+                if "lock" in error_str:
+                    # Wait a bit and retry
+                    time.sleep(0.1 * (attempt + 1))
+                    continue
+                else:
+                    # Views exist, we're done
+                    _views_initialized = True
+                    return
+            # On last attempt or unknown error, raise
+            if attempt == max_retries - 1:
+                raise
 
 
 # -----------------------------------------------------------------------------
@@ -100,6 +161,9 @@ HARVEST_DEPS = [
 def sales_transform(context: dg.AssetExecutionContext) -> pl.DataFrame:
     """Join sales with artworks and artists, add sale-focused metrics."""
     start_time = time.perf_counter()
+
+    # Ensure Parquet views are set up
+    _ensure_parquet_views()
 
     # Extract: join sales → artworks → artists (from database)
     result = DuckDBQueryProcessor(sql="""
@@ -202,6 +266,9 @@ def sales_output(
 def artworks_transform(context: dg.AssetExecutionContext) -> pl.DataFrame:
     """Join artworks with artists, media, and aggregate sales history per artwork."""
     start_time = time.perf_counter()
+
+    # Ensure Parquet views are set up
+    _ensure_parquet_views()
 
     # Extract: aggregate sales per artwork (from database)
     sales_per_artwork = DuckDBQueryProcessor(sql="""

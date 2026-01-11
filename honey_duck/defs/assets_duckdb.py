@@ -24,6 +24,7 @@ from .constants import (
 )
 from .resources import (
     ARTWORKS_OUTPUT_PATH_DUCKDB,
+    HARVEST_PARQUET_DIR,
     SALES_OUTPUT_PATH_DUCKDB,
 )
 
@@ -38,6 +39,29 @@ HARVEST_DEPS = [
     dg.AssetKey("dlt_harvest_artists_raw"),
     dg.AssetKey("dlt_harvest_media"),
 ]
+
+
+def _setup_parquet_views(conn):
+    """Create views in DuckDB pointing to Parquet files."""
+    parquet_dir = HARVEST_PARQUET_DIR / "raw"
+
+    conn.execute("CREATE SCHEMA IF NOT EXISTS raw")
+    conn.execute(f"""
+        CREATE OR REPLACE VIEW raw.sales_raw AS
+        SELECT * FROM read_parquet('{parquet_dir}/sales_raw/*.parquet')
+    """)
+    conn.execute(f"""
+        CREATE OR REPLACE VIEW raw.artworks_raw AS
+        SELECT * FROM read_parquet('{parquet_dir}/artworks_raw/*.parquet')
+    """)
+    conn.execute(f"""
+        CREATE OR REPLACE VIEW raw.artists_raw AS
+        SELECT * FROM read_parquet('{parquet_dir}/artists_raw/*.parquet')
+    """)
+    conn.execute(f"""
+        CREATE OR REPLACE VIEW raw.media AS
+        SELECT * FROM read_parquet('{parquet_dir}/media/*.parquet')
+    """)
 
 
 # -----------------------------------------------------------------------------
@@ -84,6 +108,7 @@ def sales_transform_duckdb(
     start_time = time.perf_counter()
 
     with duckdb.get_connection() as conn:
+        _setup_parquet_views(conn)
         result: pl.DataFrame = conn.sql(SALES_TRANSFORM_SQL).pl()
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
@@ -237,6 +262,7 @@ def artworks_transform_duckdb(
     start_time = time.perf_counter()
 
     with duckdb.get_connection() as conn:
+        _setup_parquet_views(conn)
         result: pl.DataFrame = conn.sql(ARTWORKS_TRANSFORM_SQL).pl()
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000

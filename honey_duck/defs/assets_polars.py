@@ -19,10 +19,9 @@ import time
 from datetime import timedelta
 
 import dagster as dg
-import duckdb
 import polars as pl
 
-from cogapp_deps.dagster import write_json_output
+from cogapp_deps.dagster import read_parquet_table_lazy, write_json_output
 
 from .constants import (
     MIN_SALE_VALUE_USD,
@@ -31,7 +30,7 @@ from .constants import (
 )
 from .resources import (
     ARTWORKS_OUTPUT_PATH_POLARS,
-    DUCKDB_PATH,
+    HARVEST_PARQUET_DIR,
     SALES_OUTPUT_PATH_POLARS,
 )
 
@@ -49,12 +48,12 @@ HARVEST_DEPS = [
 
 
 def _read_raw_table_lazy(table: str) -> pl.LazyFrame:
-    """Read table from raw schema as Polars LazyFrame."""
-    conn = duckdb.connect(DUCKDB_PATH, read_only=True)
-    try:
-        return conn.sql(f"SELECT * FROM raw.{table}").pl().lazy()
-    finally:
-        conn.close()
+    """Read table from Parquet files as Polars LazyFrame."""
+    return read_parquet_table_lazy(
+        HARVEST_PARQUET_DIR / "raw",
+        table,
+        asset_name="polars_pipeline",
+    )
 
 
 # -----------------------------------------------------------------------------
