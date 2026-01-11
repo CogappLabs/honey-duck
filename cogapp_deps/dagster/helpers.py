@@ -95,3 +95,65 @@ def add_dataframe_metadata(
         **extra_metadata,
     }
     context.add_output_metadata(metadata)
+
+
+class track_timing:
+    """Context manager to track and log execution time.
+
+    Automatically adds processing_time_ms to asset metadata and logs
+    completion message. Use this to eliminate manual timing boilerplate.
+
+    Args:
+        context: Asset execution context
+        operation: Description of operation (e.g., "transform", "processing")
+        log_message: Optional custom log message template. Use {elapsed_ms} placeholder.
+
+    Example:
+        >>> @dg.asset(kinds={"polars"})
+        >>> def my_asset(context: dg.AssetExecutionContext) -> pl.DataFrame:
+        ...     with track_timing(context, "transformation"):
+        ...         result = expensive_operation()
+        ...         # Automatically logs: "Completed transformation in 123.4ms"
+        ...         # Automatically adds processing_time_ms to metadata
+        ...     return result
+
+        >>> # With custom log message:
+        >>> with track_timing(context, "loading", log_message="Loaded {count} records in {elapsed_ms:.1f}ms"):
+        ...     result = load_data()
+        ...     context.log.info(f"Loaded {len(result)} records")  # Will use this count
+    """
+
+    def __init__(
+        self,
+        context: dg.AssetExecutionContext,
+        operation: str = "processing",
+        log_message: str | None = None,
+    ):
+        self.context = context
+        self.operation = operation
+        self.log_message = log_message
+        self.start_time = None
+        self.elapsed_ms = None
+
+    def __enter__(self):
+        import time
+
+        self.start_time = time.perf_counter()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        import time
+
+        if self.start_time is not None:
+            self.elapsed_ms = (time.perf_counter() - self.start_time) * 1000
+
+            # Add to metadata
+            self.context.add_output_metadata({"processing_time_ms": round(self.elapsed_ms, 2)})
+
+            # Log completion
+            if self.log_message:
+                self.context.log.info(self.log_message.format(elapsed_ms=self.elapsed_ms))
+            else:
+                self.context.log.info(f"Completed {self.operation} in {self.elapsed_ms:.1f}ms")
+
+        return False  # Don't suppress exceptions

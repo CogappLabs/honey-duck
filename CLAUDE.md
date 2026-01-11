@@ -163,27 +163,44 @@ data/output/
 ```python
 import dagster as dg
 import polars as pl
-from honey_duck.defs.helpers import read_harvest_tables, add_standard_metadata, AssetGroups, STANDARD_HARVEST_DEPS
+from cogapp_deps.dagster import (
+    read_harvest_tables_lazy,
+    track_timing,
+    add_dataframe_metadata,
+)
+from honey_duck.defs.helpers import AssetGroups, STANDARD_HARVEST_DEPS
+from honey_duck.defs.resources import HARVEST_PARQUET_DIR
 
 @dg.asset(kinds={"polars"}, group_name=AssetGroups.TRANSFORM_POLARS, deps=STANDARD_HARVEST_DEPS)
 def my_transform(context: dg.AssetExecutionContext) -> pl.DataFrame:
-    # Read tables with automatic validation and error handling
-    tables = read_harvest_tables(
-        ("sales_raw", ["sale_id", "sale_price_usd"]),
-        asset_name="my_transform",
-    )
+    """Transform with automatic timing, validation, and metadata."""
 
-    result = tables["sales_raw"].filter(pl.col("sale_price_usd") > 1000).collect()
+    with track_timing(context, "transformation"):
+        # Read tables with automatic validation (batch read)
+        tables = read_harvest_tables_lazy(
+            HARVEST_PARQUET_DIR,
+            ("sales_raw", ["sale_id", "sale_price_usd"]),
+            ("artworks_raw", ["artwork_id", "title"]),
+            asset_name="my_transform",
+        )
 
-    # Add standard metadata (record count, preview, columns)
-    add_standard_metadata(context, result)
+        result = (
+            tables["sales_raw"]
+            .join(tables["artworks_raw"], on="artwork_id")
+            .filter(pl.col("sale_price_usd") > 1000)
+            .collect()
+        )
+
+    # Add standard metadata (record count, preview, columns, processing_time_ms)
+    add_dataframe_metadata(context, result)
     return result
 ```
 
 **What you get from helper functions:**
+- ✅ Automatic timing tracking and logging
 - ✅ Error handling with clear, actionable messages
 - ✅ Table/column validation (raises MissingTableError, MissingColumnError)
-- ✅ Standard metadata (record count, preview, columns)
+- ✅ Standard metadata (record count, preview, columns, processing_time_ms)
 - ✅ Lists available tables/columns when validation fails
 
 ### Standard Dagster Patterns

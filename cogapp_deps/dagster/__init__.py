@@ -25,6 +25,7 @@ from cogapp_deps.dagster.exceptions import (
 from cogapp_deps.dagster.helpers import (
     add_dataframe_metadata,
     read_tables_from_duckdb,
+    track_timing,
 )
 from cogapp_deps.dagster.io import (
     DuckDBPandasPolarsIOManager,
@@ -36,6 +37,7 @@ from cogapp_deps.dagster.io import (
 from cogapp_deps.dagster.validation import (
     read_duckdb_table_lazy,
     read_harvest_table_lazy,
+    read_harvest_tables_lazy,
     read_parquet_table_lazy,
     validate_dataframe,
 )
@@ -73,11 +75,13 @@ __all__ = [
     # Validation
     "read_duckdb_table_lazy",
     "read_harvest_table_lazy",
+    "read_harvest_tables_lazy",
     "read_parquet_table_lazy",
     "validate_dataframe",
     # Helpers
     "read_tables_from_duckdb",
     "add_dataframe_metadata",
+    "track_timing",
     # DLT helpers (optional)
     "create_parquet_pipeline",
     "create_duckdb_pipeline",

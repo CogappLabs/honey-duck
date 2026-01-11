@@ -2,20 +2,21 @@
 
 This document shows how to create new harvests, transforms, and outputs with minimal boilerplate.
 
-## Pattern 1: Simple Transform Asset
+## Pattern 1: Simple Transform Asset (Recommended)
 
-**Transform with automatic error handling using standard Dagster decorators:**
+**Transform with automatic timing, validation, and metadata using standard Dagster decorators:**
 
 ```python
 import dagster as dg
 import polars as pl
-from honey_duck.defs.helpers import (
-    read_harvest_tables,
-    add_standard_metadata,
-    AssetGroups,
-    STANDARD_HARVEST_DEPS,
+from cogapp_deps.dagster import (
+    read_harvest_tables_lazy,
+    track_timing,
+    add_dataframe_metadata,
 )
-from honey_duck.defs.config import CONFIG
+from honey_duck.defs.helpers import AssetGroups, STANDARD_HARVEST_DEPS
+from honey_duck.defs.resources import HARVEST_PARQUET_DIR
+from honey_duck.defs.constants import MIN_SALE_VALUE_USD
 
 @dg.asset(
     kinds={"polars"},
@@ -23,25 +24,27 @@ from honey_duck.defs.config import CONFIG
     deps=STANDARD_HARVEST_DEPS,
 )
 def my_transform(context: dg.AssetExecutionContext) -> pl.DataFrame:
-    """Transform description - error handling built into helper functions!"""
+    """Transform sales with artworks - demonstrates helper patterns."""
 
-    # Read tables with validation (automatic error handling)
-    tables = read_harvest_tables(
-        ("sales_raw", ["sale_id", "sale_price_usd"]),
-        ("artworks_raw", ["artwork_id", "title"]),
-        asset_name="my_transform",  # For error context
-    )
+    with track_timing(context, "transformation"):
+        # Read multiple tables in one call with validation
+        tables = read_harvest_tables_lazy(
+            HARVEST_PARQUET_DIR,
+            ("sales_raw", ["sale_id", "sale_price_usd"]),
+            ("artworks_raw", ["artwork_id", "title"]),
+            asset_name="my_transform",
+        )
 
-    # Transform logic
-    result = (
-        tables["sales_raw"]
-        .join(tables["artworks_raw"], on="artwork_id")
-        .filter(pl.col("sale_price_usd") > CONFIG.min_sale_value_usd)
-        .collect()
-    )
+        # Transform logic
+        result = (
+            tables["sales_raw"]
+            .join(tables["artworks_raw"], on="artwork_id")
+            .filter(pl.col("sale_price_usd") > MIN_SALE_VALUE_USD)
+            .collect()
+        )
 
     # Add metadata (automatic: record count, preview, columns)
-    add_standard_metadata(
+    add_dataframe_metadata(
         context,
         result,
         unique_artworks=result["artwork_id"].n_unique(),
@@ -51,9 +54,10 @@ def my_transform(context: dg.AssetExecutionContext) -> pl.DataFrame:
 ```
 
 **What you get from helper functions:**
+- ✅ Automatic timing tracking and logging ("Completed transformation in 123.4ms")
 - ✅ Error handling with clear, actionable messages
 - ✅ Table/column validation (raises MissingTableError, MissingColumnError)
-- ✅ Standard metadata (record count, preview, columns)
+- ✅ Standard metadata (record count, preview, columns, processing_time_ms)
 - ✅ Lists available tables/columns when validation fails
 
 ## Pattern 2: Output Asset
@@ -270,11 +274,47 @@ defs = dg.Definitions(
 
 | Task | Helper | Automatic Features |
 |------|--------|-------------------|
-| Read tables | `read_harvest_tables()` | Validation, error context, actionable errors |
-| Metadata | `add_standard_metadata()` | Count, preview, columns |
+| Read tables (Parquet) | `read_harvest_tables_lazy()` | Batch reading, validation, error context |
+| Read tables (DuckDB) | `read_harvest_tables()` | Validation, error context, actionable errors |
+| Timing | `track_timing()` context | Auto logging, processing_time_ms metadata |
+| Metadata | `add_dataframe_metadata()` | Count, preview, columns, processing time |
 | Config | `CONFIG.property` | Validated on import, auto-creates directories |
 | Constants | `AssetGroups.*` | Standard group names |
 | Dependencies | `STANDARD_HARVEST_DEPS` | Common harvest dependencies |
+
+### Helper Details
+
+**Batch Reading (Parquet):**
+```python
+# Instead of individual reads:
+sales = read_harvest_table_lazy(HARVEST_PARQUET_DIR, "sales_raw", ...)
+artworks = read_harvest_table_lazy(HARVEST_PARQUET_DIR, "artworks_raw", ...)
+
+# Do batch read:
+tables = read_harvest_tables_lazy(
+    HARVEST_PARQUET_DIR,
+    ("sales_raw", ["sale_id", "sale_price_usd"]),  # With column validation
+    ("artworks_raw", None),  # No column validation
+    asset_name="my_asset",
+)
+sales = tables["sales_raw"]
+artworks = tables["artworks_raw"]
+```
+
+**Automatic Timing:**
+```python
+# Instead of manual timing:
+start_time = time.perf_counter()
+result = expensive_operation()
+elapsed_ms = (time.perf_counter() - start_time) * 1000
+context.add_output_metadata({"processing_time_ms": round(elapsed_ms, 2)})
+context.log.info(f"Completed in {elapsed_ms:.1f}ms")
+
+# Use context manager:
+with track_timing(context, "processing"):
+    result = expensive_operation()
+    # Automatically logs and adds metadata
+```
 
 ## Anti-Patterns to Avoid
 

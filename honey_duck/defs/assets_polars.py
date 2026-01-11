@@ -15,13 +15,18 @@ Asset Graph:
                            └──→ artworks_media_polars ─────┘
 """
 
-import time
 from datetime import timedelta
 
 import dagster as dg
 import polars as pl
 
-from cogapp_deps.dagster import read_harvest_table_lazy, write_json_output
+from cogapp_deps.dagster import (
+    add_dataframe_metadata,
+    read_harvest_table_lazy,
+    read_harvest_tables_lazy,
+    track_timing,
+    write_json_output,
+)
 
 from .constants import (
     MIN_SALE_VALUE_USD,
@@ -56,43 +61,47 @@ def _read_raw_table_lazy(table: str) -> pl.LazyFrame:
     group_name="transform_polars",
 )
 def sales_joined_polars(context: dg.AssetExecutionContext) -> pl.DataFrame:
-    """Join sales with artworks and artists."""
-    start_time = time.perf_counter()
+    """Join sales with artworks and artists.
 
-    sales = _read_raw_table_lazy("sales_raw")
-    artworks = _read_raw_table_lazy("artworks_raw")
-    artists = _read_raw_table_lazy("artists_raw")
-
-    # Join and select columns
-    result = (
-        sales
-        .join(artworks, on="artwork_id", how="left", suffix="_aw")
-        .join(artists, on="artist_id", how="left", suffix="_ar")
-        .select(
-            "sale_id",
-            "artwork_id",
-            "sale_date",
-            "sale_price_usd",
-            "buyer_country",
-            "title",
-            "artist_id",
-            pl.col("year").alias("artwork_year"),
-            "medium",
-            pl.col("price_usd").alias("list_price_usd"),
-            pl.col("name").alias("artist_name"),
-            "nationality",
+    Demonstrates new helper patterns:
+    - read_harvest_tables_lazy() for batch reading
+    - track_timing() context manager for automatic timing
+    - add_dataframe_metadata() for standard metadata
+    """
+    with track_timing(context, "sales join"):
+        # Read multiple tables in one call with validation
+        tables = read_harvest_tables_lazy(
+            HARVEST_PARQUET_DIR,
+            ("sales_raw", None),
+            ("artworks_raw", None),
+            ("artists_raw", None),
+            asset_name="sales_joined_polars",
         )
-        .collect()
-    )
 
-    elapsed_ms = (time.perf_counter() - start_time) * 1000
-    context.add_output_metadata({
-        "record_count": len(result),
-        "columns": result.columns,
-        "preview": dg.MetadataValue.md(result.head(5).to_pandas().to_markdown(index=False)),
-        "processing_time_ms": round(elapsed_ms, 2),
-    })
-    context.log.info(f"Joined {len(result)} sales records in {elapsed_ms:.1f}ms")
+        # Join and select columns
+        result = (
+            tables["sales_raw"]
+            .join(tables["artworks_raw"], on="artwork_id", how="left", suffix="_aw")
+            .join(tables["artists_raw"], on="artist_id", how="left", suffix="_ar")
+            .select(
+                "sale_id",
+                "artwork_id",
+                "sale_date",
+                "sale_price_usd",
+                "buyer_country",
+                "title",
+                "artist_id",
+                pl.col("year").alias("artwork_year"),
+                "medium",
+                pl.col("price_usd").alias("list_price_usd"),
+                pl.col("name").alias("artist_name"),
+                "nationality",
+            )
+            .collect()
+        )
+
+    # Add standard metadata automatically
+    add_dataframe_metadata(context, result)
     return result
 
 

@@ -207,6 +207,56 @@ def read_harvest_table_lazy(
     )
 
 
+def read_harvest_tables_lazy(
+    harvest_dir: str | Path,
+    *table_specs: tuple[str, list[str] | None],
+    schema: str = "raw",
+    asset_name: str = "unknown",
+) -> dict[str, pl.LazyFrame]:
+    """Read multiple harvest tables in one call with validation.
+
+    Convenience function to batch-read multiple related tables. Reduces
+    boilerplate when you need to join or process multiple tables together.
+
+    Args:
+        harvest_dir: Path to harvest Parquet directory (e.g., data/output/dlt/harvest_parquet)
+        *table_specs: Variable number of (table_name, required_columns) tuples.
+                      required_columns can be None to skip column validation.
+        schema: Schema/subdirectory name (default: "raw")
+        asset_name: Name of calling asset (for error context)
+
+    Returns:
+        Dictionary mapping table names to LazyFrames
+
+    Raises:
+        FileNotFoundError: If harvest directory doesn't exist
+        MissingTableError: If any table doesn't exist (lists available tables)
+        MissingColumnError: If required columns are missing (lists available columns)
+
+    Example:
+        >>> tables = read_harvest_tables_lazy(
+        ...     Path("data/output/dlt/harvest_parquet"),
+        ...     ("sales_raw", ["sale_id", "sale_price_usd"]),
+        ...     ("artworks_raw", ["artwork_id", "title"]),
+        ...     ("artists_raw", None),  # No column validation
+        ...     asset_name="sales_transform"
+        ... )
+        >>> sales = tables["sales_raw"]
+        >>> artworks = tables["artworks_raw"]
+        >>> result = sales.join(artworks, on="artwork_id").collect()
+    """
+    result = {}
+    for table_name, required_columns in table_specs:
+        result[table_name] = read_harvest_table_lazy(
+            harvest_dir,
+            table_name,
+            schema=schema,
+            required_columns=required_columns,
+            asset_name=asset_name,
+        )
+    return result
+
+
 def validate_dataframe(
     df: pl.DataFrame,
     required_columns: list[str],
