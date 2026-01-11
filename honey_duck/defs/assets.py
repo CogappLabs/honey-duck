@@ -50,7 +50,7 @@ from datetime import timedelta
 import dagster as dg
 import polars as pl
 
-from cogapp_deps.dagster import read_table, write_json_output
+from cogapp_deps.dagster import read_table, setup_harvest_parquet_views, write_json_output
 from cogapp_deps.processors import Chain
 from cogapp_deps.processors.duckdb import (
     DuckDBQueryProcessor,
@@ -64,6 +64,7 @@ from .constants import (
     PRICE_TIER_BUDGET_MAX_USD,
     PRICE_TIER_MID_MAX_USD,
 )
+from .helpers import STANDARD_HARVEST_DEPS as HARVEST_DEPS
 from .resources import (
     ARTWORKS_OUTPUT_PATH,
     DUCKDB_PATH,
@@ -99,38 +100,14 @@ def _ensure_parquet_views():
         return
 
     import duckdb
-    from pathlib import Path
-
-    # Validate and resolve parquet directory path to prevent injection
-    parquet_dir = Path(HARVEST_PARQUET_DIR / "raw").resolve()
-    if not str(parquet_dir).startswith(str(Path.cwd().resolve())):
-        raise ValueError(f"Invalid parquet directory outside project: {parquet_dir}")
 
     # Retry logic for handling concurrent access
     for attempt in range(_VIEW_SETUP_MAX_RETRIES):
         try:
             conn = duckdb.connect(str(DUCKDB_PATH))
             try:
-                conn.execute("CREATE SCHEMA IF NOT EXISTS raw")
-
-                # Create or replace views pointing to Parquet files
-                # Using CREATE OR REPLACE to handle both new and existing views
-                conn.execute(f"""
-                    CREATE OR REPLACE VIEW raw.sales_raw AS
-                    SELECT * FROM read_parquet('{parquet_dir}/sales_raw/*.parquet')
-                """)
-                conn.execute(f"""
-                    CREATE OR REPLACE VIEW raw.artworks_raw AS
-                    SELECT * FROM read_parquet('{parquet_dir}/artworks_raw/*.parquet')
-                """)
-                conn.execute(f"""
-                    CREATE OR REPLACE VIEW raw.artists_raw AS
-                    SELECT * FROM read_parquet('{parquet_dir}/artists_raw/*.parquet')
-                """)
-                conn.execute(f"""
-                    CREATE OR REPLACE VIEW raw.media AS
-                    SELECT * FROM read_parquet('{parquet_dir}/media/*.parquet')
-                """)
+                # Use extracted helper to set up views
+                setup_harvest_parquet_views(conn, HARVEST_PARQUET_DIR)
                 _views_initialized = True
                 return
             finally:
@@ -153,19 +130,6 @@ def _ensure_parquet_views():
                     f"Failed to initialize Parquet views after {_VIEW_SETUP_MAX_RETRIES} attempts. "
                     f"Last error: {str(e)}"
                 ) from e
-
-
-# -----------------------------------------------------------------------------
-# Dependencies
-# -----------------------------------------------------------------------------
-
-# All harvest assets - used as dependencies for transform layer
-HARVEST_DEPS = [
-    dg.AssetKey("dlt_harvest_sales_raw"),
-    dg.AssetKey("dlt_harvest_artworks_raw"),
-    dg.AssetKey("dlt_harvest_artists_raw"),
-    dg.AssetKey("dlt_harvest_media"),
-]
 
 
 # -----------------------------------------------------------------------------

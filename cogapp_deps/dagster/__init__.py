@@ -35,6 +35,7 @@ from cogapp_deps.dagster.io import (
 )
 from cogapp_deps.dagster.validation import (
     read_duckdb_table_lazy,
+    read_harvest_table_lazy,
     read_parquet_table_lazy,
     validate_dataframe,
 )
@@ -45,6 +46,7 @@ try:
     from cogapp_deps.dagster.dlt_helpers import (
         create_duckdb_pipeline,
         create_parquet_pipeline,
+        setup_harvest_parquet_views,
     )
 
     _HAS_DLT = True
@@ -52,6 +54,7 @@ except ImportError:
     _HAS_DLT = False
     create_duckdb_pipeline = None
     create_parquet_pipeline = None
+    setup_harvest_parquet_views = None
 
 __all__ = [
     # IO utilities
@@ -69,6 +72,7 @@ __all__ = [
     "raise_as_dagster_failure",
     # Validation
     "read_duckdb_table_lazy",
+    "read_harvest_table_lazy",
     "read_parquet_table_lazy",
     "validate_dataframe",
     # Helpers
@@ -77,4 +81,5 @@ __all__ = [
     # DLT helpers (optional)
     "create_parquet_pipeline",
     "create_duckdb_pipeline",
+    "setup_harvest_parquet_views",
 ]

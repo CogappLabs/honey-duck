@@ -15,68 +15,19 @@ import dagster as dg
 import polars as pl
 from dagster_duckdb import DuckDBResource
 
-from cogapp_deps.dagster import write_json_output
+from cogapp_deps.dagster import setup_harvest_parquet_views, write_json_output
 
 from .constants import (
     MIN_SALE_VALUE_USD,
     PRICE_TIER_BUDGET_MAX_USD,
     PRICE_TIER_MID_MAX_USD,
 )
+from .helpers import STANDARD_HARVEST_DEPS as HARVEST_DEPS
 from .resources import (
     ARTWORKS_OUTPUT_PATH_DUCKDB,
     HARVEST_PARQUET_DIR,
     SALES_OUTPUT_PATH_DUCKDB,
 )
-
-
-# -----------------------------------------------------------------------------
-# Dependencies
-# -----------------------------------------------------------------------------
-
-HARVEST_DEPS = [
-    dg.AssetKey("dlt_harvest_sales_raw"),
-    dg.AssetKey("dlt_harvest_artworks_raw"),
-    dg.AssetKey("dlt_harvest_artists_raw"),
-    dg.AssetKey("dlt_harvest_media"),
-]
-
-
-def _setup_parquet_views(conn):
-    """Create views in DuckDB pointing to Parquet files.
-
-    Creates DuckDB views that point to Parquet files in the harvest directory,
-    enabling SQL queries over the harvest data.
-
-    Args:
-        conn: DuckDB connection object
-
-    Raises:
-        ValueError: If parquet directory path is invalid
-    """
-    from pathlib import Path
-
-    # Validate and resolve parquet directory path to prevent injection
-    parquet_dir = Path(HARVEST_PARQUET_DIR / "raw").resolve()
-    if not str(parquet_dir).startswith(str(Path.cwd().resolve())):
-        raise ValueError(f"Invalid parquet directory outside project: {parquet_dir}")
-
-    conn.execute("CREATE SCHEMA IF NOT EXISTS raw")
-    conn.execute(f"""
-        CREATE OR REPLACE VIEW raw.sales_raw AS
-        SELECT * FROM read_parquet('{parquet_dir}/sales_raw/*.parquet')
-    """)
-    conn.execute(f"""
-        CREATE OR REPLACE VIEW raw.artworks_raw AS
-        SELECT * FROM read_parquet('{parquet_dir}/artworks_raw/*.parquet')
-    """)
-    conn.execute(f"""
-        CREATE OR REPLACE VIEW raw.artists_raw AS
-        SELECT * FROM read_parquet('{parquet_dir}/artists_raw/*.parquet')
-    """)
-    conn.execute(f"""
-        CREATE OR REPLACE VIEW raw.media AS
-        SELECT * FROM read_parquet('{parquet_dir}/media/*.parquet')
-    """)
 
 
 # -----------------------------------------------------------------------------
@@ -123,7 +74,7 @@ def sales_transform_duckdb(
     start_time = time.perf_counter()
 
     with duckdb.get_connection() as conn:
-        _setup_parquet_views(conn)
+        setup_harvest_parquet_views(conn, HARVEST_PARQUET_DIR)
         result: pl.DataFrame = conn.sql(SALES_TRANSFORM_SQL).pl()
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
@@ -277,7 +228,7 @@ def artworks_transform_duckdb(
     start_time = time.perf_counter()
 
     with duckdb.get_connection() as conn:
-        _setup_parquet_views(conn)
+        setup_harvest_parquet_views(conn, HARVEST_PARQUET_DIR)
         result: pl.DataFrame = conn.sql(ARTWORKS_TRANSFORM_SQL).pl()
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000

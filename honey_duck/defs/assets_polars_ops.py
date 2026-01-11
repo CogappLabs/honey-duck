@@ -27,28 +27,17 @@ import polars as pl
 from cogapp_deps.dagster import read_parquet_table_lazy, write_json_output
 
 from .config import CONFIG
-from .resources import HARVEST_PARQUET_DIR
 from .constants import (
     MIN_SALE_VALUE_USD,
     PRICE_TIER_BUDGET_MAX_USD,
     PRICE_TIER_MID_MAX_USD,
 )
+from .helpers import STANDARD_HARVEST_DEPS as HARVEST_DEPS
 from .resources import (
     ARTWORKS_OUTPUT_PATH_POLARS_OPS,
+    HARVEST_PARQUET_DIR,
     SALES_OUTPUT_PATH_POLARS_OPS,
 )
-
-
-# -----------------------------------------------------------------------------
-# Dependencies
-# -----------------------------------------------------------------------------
-
-HARVEST_DEPS = [
-    dg.AssetKey("dlt_harvest_sales_raw"),
-    dg.AssetKey("dlt_harvest_artworks_raw"),
-    dg.AssetKey("dlt_harvest_artists_raw"),
-    dg.AssetKey("dlt_harvest_media"),
-]
 
 
 # -----------------------------------------------------------------------------

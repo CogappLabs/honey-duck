@@ -162,6 +162,51 @@ def read_duckdb_table_lazy(
         conn.close()
 
 
+def read_harvest_table_lazy(
+    harvest_dir: str | Path,
+    table_name: str,
+    schema: str = "raw",
+    required_columns: list[str] | None = None,
+    asset_name: str = "unknown",
+) -> pl.LazyFrame:
+    """Read harvest table from Parquet files as Polars LazyFrame.
+
+    Convenience wrapper around read_parquet_table_lazy for harvest tables.
+    Automatically handles the schema subdirectory structure.
+
+    Args:
+        harvest_dir: Path to harvest Parquet directory (e.g., data/output/dlt/harvest_parquet)
+        table_name: Name of table to read
+        schema: Schema/subdirectory name (default: "raw")
+        required_columns: Optional list of required column names
+        asset_name: Name of calling asset (for error context)
+
+    Returns:
+        LazyFrame with data from Parquet files
+
+    Raises:
+        FileNotFoundError: If harvest directory doesn't exist
+        MissingTableError: If table doesn't exist (lists available tables)
+        MissingColumnError: If required columns are missing (lists available columns)
+
+    Example:
+        >>> from pathlib import Path
+        >>> sales = read_harvest_table_lazy(
+        ...     Path("data/output/dlt/harvest_parquet"),
+        ...     "sales_raw",
+        ...     asset_name="sales_transform"
+        ... )
+        >>> result = sales.filter(pl.col("sale_price_usd") > 1000).collect()
+    """
+    harvest_dir = Path(harvest_dir)
+    return read_parquet_table_lazy(
+        harvest_dir / schema,
+        table_name,
+        required_columns=required_columns,
+        asset_name=asset_name,
+    )
+
+
 def validate_dataframe(
     df: pl.DataFrame,
     required_columns: list[str],

@@ -8,6 +8,14 @@ from pathlib import Path
 
 import dlt
 
+# Optional DuckDB support
+try:
+    import duckdb
+
+    _HAS_DUCKDB = True
+except ImportError:
+    _HAS_DUCKDB = False
+
 
 def create_parquet_pipeline(
     pipeline_name: str,
@@ -79,3 +87,66 @@ def create_duckdb_pipeline(
         destination=dlt.destinations.duckdb(str(db_path)),
         dataset_name=dataset_name,
     )
+
+
+def setup_harvest_parquet_views(
+    conn,
+    harvest_dir: str | Path,
+    schema: str = "raw",
+    tables: list[str] | None = None,
+) -> None:
+    """Create DuckDB views pointing to harvest Parquet files.
+
+    Creates views that enable SQL queries over Parquet files written by DLT.
+    This is useful for pipelines that need to query harvest data using SQL
+    while keeping the harvest layer in Parquet format.
+
+    Args:
+        conn: DuckDB connection object
+        harvest_dir: Path to harvest Parquet directory (e.g., data/output/dlt/harvest_parquet)
+        schema: Schema name for views (default: "raw")
+        tables: List of table names to create views for.
+                If None, will create views for common tables:
+                ["sales_raw", "artworks_raw", "artists_raw", "media"]
+
+    Raises:
+        ValueError: If harvest directory path is invalid
+        ImportError: If duckdb is not installed
+
+    Example:
+        >>> import duckdb
+        >>> from pathlib import Path
+        >>> conn = duckdb.connect("pipeline.duckdb")
+        >>> setup_harvest_parquet_views(
+        ...     conn,
+        ...     Path("data/output/dlt/harvest_parquet"),
+        ...     schema="raw",
+        ...     tables=["sales_raw", "artworks_raw"]
+        ... )
+        >>> result = conn.sql("SELECT * FROM raw.sales_raw").pl()
+    """
+    if not _HAS_DUCKDB:
+        raise ImportError(
+            "duckdb is required for setup_harvest_parquet_views. "
+            "Install with: pip install duckdb"
+        )
+
+    # Validate and resolve harvest directory path to prevent injection
+    harvest_dir = Path(harvest_dir).resolve()
+    if not str(harvest_dir).startswith(str(Path.cwd().resolve())):
+        raise ValueError(f"Invalid harvest directory outside project: {harvest_dir}")
+
+    # Default tables if not specified
+    if tables is None:
+        tables = ["sales_raw", "artworks_raw", "artists_raw", "media"]
+
+    # Create schema
+    conn.execute(f"CREATE SCHEMA IF NOT EXISTS {schema}")
+
+    # Create view for each table
+    for table in tables:
+        parquet_path = harvest_dir / schema / table
+        conn.execute(f"""
+            CREATE OR REPLACE VIEW {schema}.{table} AS
+            SELECT * FROM read_parquet('{parquet_path}/*.parquet')
+        """)
