@@ -31,6 +31,7 @@ uv run dagster job execute -j full_pipeline
 **Project-specific docs:**
 - 🎯 **[CLAUDE.md](CLAUDE.md)** - Project structure and development commands
 - 📋 **[PATTERNS.md](honey_duck/defs/PATTERNS.md)** - Detailed asset patterns and examples
+- 🔍 **[Elasticsearch Integration](docs/ELASTICSEARCH_INTEGRATION.md)** - Full-text search and analytics with Elasticsearch 8/9
 
 ## Architecture
 

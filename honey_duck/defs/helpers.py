@@ -127,6 +127,9 @@ class AssetGroups:
     OUTPUT_POLARS_OPS = "output_polars_ops"
     OUTPUT_DUCKDB = "output_duckdb"
     OUTPUT_POLARS_FS = "output_polars_fs"
+    OUTPUT_ELASTICSEARCH = "output_elasticsearch"
+    ANALYTICS = "analytics"
+    NOTIFICATIONS = "notifications"
 
 
 # Standard harvest dependencies

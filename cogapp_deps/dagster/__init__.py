@@ -36,6 +36,7 @@ from cogapp_deps.dagster.io import (
     write_json_output,
 )
 from cogapp_deps.dagster.io_managers import (
+    ElasticsearchIOManager,
     JSONIOManager,
 )
 from cogapp_deps.dagster.notifications import (
@@ -72,6 +73,7 @@ __all__ = [
     "DuckDBPandasPolarsIOManager",
     "DuckDBRelationTypeHandler",
     "JSONIOManager",
+    "ElasticsearchIOManager",
     "read_table",
     "write_json_and_return",
     "write_json_from_duckdb",
