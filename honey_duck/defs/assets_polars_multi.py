@@ -30,7 +30,7 @@ from typing import Iterator
 import dagster as dg
 import polars as pl
 
-from cogapp_deps.dagster import read_duckdb_table_lazy, write_json_output
+from cogapp_deps.dagster import read_parquet_table_lazy, write_json_output
 
 from .config import CONFIG
 from .constants import (
@@ -40,6 +40,7 @@ from .constants import (
 )
 from .resources import (
     ARTWORKS_OUTPUT_PATH_POLARS_MULTI,
+    HARVEST_PARQUET_DIR,
     SALES_OUTPUT_PATH_POLARS_MULTI,
 )
 
@@ -79,20 +80,20 @@ def sales_pipeline_multi(context: dg.AssetExecutionContext) -> Iterator[dg.Outpu
     """
     # Step 1: Join sales with artworks and artists
     context.log.info("Loading and joining sales data...")
-    sales = read_duckdb_table_lazy(
-        CONFIG.duckdb_path,
+    sales = read_parquet_table_lazy(
+        HARVEST_PARQUET_DIR / "raw",
         "sales_raw",
         required_columns=["sale_id", "artwork_id", "sale_date", "sale_price_usd", "buyer_country"],
         asset_name="sales_pipeline_multi",
     )
-    artworks = read_duckdb_table_lazy(
-        CONFIG.duckdb_path,
+    artworks = read_parquet_table_lazy(
+        HARVEST_PARQUET_DIR / "raw",
         "artworks_raw",
         required_columns=["artwork_id", "artist_id", "title", "year", "medium", "price_usd"],
         asset_name="sales_pipeline_multi",
     )
-    artists = read_duckdb_table_lazy(
-        CONFIG.duckdb_path,
+    artists = read_parquet_table_lazy(
+        HARVEST_PARQUET_DIR / "raw",
         "artists_raw",
         required_columns=["artist_id", "name", "nationality"],
         asset_name="sales_pipeline_multi",
@@ -183,14 +184,14 @@ def artworks_pipeline_multi(context: dg.AssetExecutionContext) -> Iterator[dg.Ou
     """
     # Step 1: Create base catalog
     context.log.info("Creating artwork catalog...")
-    artworks = read_duckdb_table_lazy(
-        CONFIG.duckdb_path,
+    artworks = read_parquet_table_lazy(
+        HARVEST_PARQUET_DIR / "raw",
         "artworks_raw",
         required_columns=["artwork_id", "artist_id", "title", "year", "medium", "price_usd"],
         asset_name="artworks_pipeline_multi",
     )
-    artists = read_duckdb_table_lazy(
-        CONFIG.duckdb_path,
+    artists = read_parquet_table_lazy(
+        HARVEST_PARQUET_DIR / "raw",
         "artists_raw",
         required_columns=["artist_id", "name", "nationality"],
         asset_name="artworks_pipeline_multi",
@@ -219,8 +220,8 @@ def artworks_pipeline_multi(context: dg.AssetExecutionContext) -> Iterator[dg.Ou
 
     # Step 2: Aggregate sales data
     context.log.info("Aggregating sales data...")
-    sales = read_duckdb_table_lazy(
-        CONFIG.duckdb_path,
+    sales = read_parquet_table_lazy(
+        HARVEST_PARQUET_DIR / "raw",
         "sales_raw",
         required_columns=["artwork_id", "sale_date", "sale_price_usd"],
         asset_name="artworks_pipeline_multi",
@@ -249,8 +250,8 @@ def artworks_pipeline_multi(context: dg.AssetExecutionContext) -> Iterator[dg.Ou
 
     # Step 3: Join media information
     context.log.info("Loading media information...")
-    media = read_duckdb_table_lazy(
-        CONFIG.duckdb_path,
+    media = read_parquet_table_lazy(
+        HARVEST_PARQUET_DIR / "raw",
         "media",
         required_columns=["artwork_id"],
         asset_name="artworks_pipeline_multi",

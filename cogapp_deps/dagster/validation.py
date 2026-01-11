@@ -15,6 +15,79 @@ import polars as pl
 from .exceptions import MissingColumnError, MissingTableError, raise_as_dagster_failure
 
 
+def read_parquet_table_lazy(
+    parquet_dir: str | Path,
+    table_name: str,
+    required_columns: list[str] | None = None,
+    asset_name: str = "unknown",
+) -> pl.LazyFrame:
+    """Read table from Parquet files as Polars LazyFrame with validation.
+
+    Validates table existence and required columns before returning.
+    Provides actionable error messages listing available tables/columns.
+
+    Args:
+        parquet_dir: Path to directory containing Parquet files (e.g., harvest_parquet/)
+        table_name: Name of table to read (subdirectory name)
+        required_columns: Optional list of required column names
+        asset_name: Name of calling asset (for error context)
+
+    Returns:
+        LazyFrame with data from Parquet files
+
+    Raises:
+        FileNotFoundError: If parquet directory doesn't exist
+        MissingTableError: If table directory doesn't exist (lists available tables)
+        MissingColumnError: If required columns are missing (lists available columns)
+
+    Example:
+        >>> sales = read_parquet_table_lazy(
+        ...     "/path/to/harvest_parquet",
+        ...     "sales_raw",
+        ...     required_columns=["sale_id", "sale_price_usd"],
+        ...     asset_name="sales_transform"
+        ... )
+        >>> result = sales.filter(pl.col("sale_price_usd") > 1000).collect()
+    """
+    parquet_dir = Path(parquet_dir)
+
+    # Check parquet directory exists
+    if not parquet_dir.exists():
+        error = FileNotFoundError(
+            f"[{asset_name}] Parquet directory not found at {parquet_dir}. "
+            f"Did you run the harvest job first?"
+        )
+        raise_as_dagster_failure(error)
+
+    # Check table directory exists
+    table_dir = parquet_dir / table_name
+    if not table_dir.exists():
+        available_tables = [d.name for d in parquet_dir.iterdir() if d.is_dir()]
+        error = MissingTableError(asset_name, table_name, available_tables)
+        raise_as_dagster_failure(error)
+
+    # Read all Parquet files in table directory
+    parquet_files = list(table_dir.glob("*.parquet"))
+    if not parquet_files:
+        error = FileNotFoundError(
+            f"[{asset_name}] No Parquet files found in {table_dir}"
+        )
+        raise_as_dagster_failure(error)
+
+    # Read using scan_parquet which supports multiple files
+    df = pl.scan_parquet(table_dir / "*.parquet")
+
+    # Validate required columns if specified
+    if required_columns:
+        actual_columns = df.collect_schema().names()
+        missing = set(required_columns) - set(actual_columns)
+        if missing:
+            error = MissingColumnError(asset_name, missing, actual_columns)
+            raise_as_dagster_failure(error)
+
+    return df
+
+
 def read_duckdb_table_lazy(
     db_path: str | Path,
     table_name: str,

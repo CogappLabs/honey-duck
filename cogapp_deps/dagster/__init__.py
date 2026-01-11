@@ -35,6 +35,7 @@ from cogapp_deps.dagster.io import (
 )
 from cogapp_deps.dagster.validation import (
     read_duckdb_table_lazy,
+    read_parquet_table_lazy,
     validate_dataframe,
 )
 
@@ -54,6 +55,7 @@ __all__ = [
     "raise_as_dagster_failure",
     # Validation
     "read_duckdb_table_lazy",
+    "read_parquet_table_lazy",
     "validate_dataframe",
     # Helpers
     "read_tables_from_duckdb",

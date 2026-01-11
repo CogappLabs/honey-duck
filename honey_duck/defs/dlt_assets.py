@@ -61,4 +61,8 @@ def dlt_harvest_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResourc
     Uses write_disposition="replace" to fully reload tables each run,
     preventing duplicate data accumulation.
     """
-    yield from dlt.run(context=context, write_disposition="replace")
+    yield from dlt.run(
+        context=context,
+        write_disposition="replace",
+        loader_file_format="parquet",
+    )

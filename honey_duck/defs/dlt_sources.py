@@ -18,7 +18,7 @@ import dlt
 from dlt.sources.filesystem import filesystem, read_csv
 from dlt.sources.sql_database import sql_database
 
-from .resources import DUCKDB_PATH, INPUT_DIR, MEDIA_DB_PATH
+from .resources import DUCKDB_PATH, HARVEST_PARQUET_DIR, INPUT_DIR, MEDIA_DB_PATH
 
 
 @dlt.source(name="harvest")
@@ -67,13 +67,19 @@ def honey_duck_source():
 
 
 def get_harvest_pipeline() -> dlt.Pipeline:
-    """Get the dlt pipeline for harvesting to DuckDB.
+    """Get the dlt pipeline for harvesting to Parquet files.
 
     Returns:
-        Configured dlt pipeline pointing to honey-duck DuckDB.
+        Configured dlt pipeline pointing to Parquet filesystem destination.
     """
+    # Ensure harvest directory exists
+    HARVEST_PARQUET_DIR.mkdir(parents=True, exist_ok=True)
+
     return dlt.pipeline(
-        pipeline_name="honey_duck_harvest",
-        destination=dlt.destinations.duckdb(DUCKDB_PATH),
+        pipeline_name="honey_duck_harvest_parquet",
+        destination=dlt.destinations.filesystem(
+            bucket_url=str(HARVEST_PARQUET_DIR),
+            layout="{table_name}/{load_id}.{file_id}.{ext}",
+        ),
         dataset_name="raw",
     )

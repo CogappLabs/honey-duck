@@ -43,6 +43,14 @@ DUCKDB_PATH = os.environ.get(
     str(DLT_DIR / "dagster.duckdb"),
 )
 
+# Parquet harvest directory for dlt output
+HARVEST_PARQUET_DIR = Path(
+    os.environ.get(
+        "HONEY_DUCK_HARVEST_PARQUET_DIR",
+        str(DLT_DIR / "harvest_parquet"),
+    )
+)
+
 # SQLite media database path
 MEDIA_DB_PATH = INPUT_DIR / "media.db"
 
