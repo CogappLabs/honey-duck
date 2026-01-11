@@ -63,6 +63,10 @@ from cogapp_deps.dagster.validation import (
 try:
     import dlt as _dlt  # noqa: F401
 
+    from cogapp_deps.dagster.api_sources import (
+        claude_message_batches,
+        voyage_embeddings_batch,
+    )
     from cogapp_deps.dagster.dlt_helpers import (
         create_duckdb_pipeline,
         create_parquet_pipeline,
@@ -75,6 +79,8 @@ except ImportError:
     create_duckdb_pipeline = None
     create_parquet_pipeline = None
     setup_harvest_parquet_views = None
+    claude_message_batches = None
+    voyage_embeddings_batch = None
 
 __all__ = [
     # IO utilities
@@ -118,4 +124,7 @@ __all__ = [
     "create_parquet_pipeline",
     "create_duckdb_pipeline",
     "setup_harvest_parquet_views",
+    # API sources (optional, requires dlt)
+    "claude_message_batches",
+    "voyage_embeddings_batch",
 ]
