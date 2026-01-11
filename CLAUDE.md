@@ -35,15 +35,20 @@ honey_duck/
     ├── assets_duckdb.py  # Pure DuckDB SQL implementation
     ├── assets_polars_fs.py # Polars with FilesystemIOManager
     ├── assets_polars_ops.py # Graph-backed assets with ops (detailed observability)
+    ├── config.py         # Project-specific configuration
+    ├── helpers.py        # Project-specific helper wrappers
     ├── resources.py      # Path constants and configuration
     ├── constants.py      # Business constants (thresholds, tiers)
     ├── schemas.py        # Pandera validation schemas
     ├── jobs.py           # Job definitions
     └── checks.py         # Asset checks
 
-cogapp_deps/              # Utilities (simulates external package)
-├── dagster/              # Dagster helpers
-│   └── io.py             # write_json_output helper
+cogapp_deps/              # Reusable utilities (simulates external package)
+├── dagster/              # Generic Dagster utilities
+│   ├── io.py             # JSON output helpers
+│   ├── exceptions.py     # Exception classes (PipelineError, ConfigurationError, etc.)
+│   ├── validation.py     # Data validation (read_duckdb_table_lazy, validate_dataframe)
+│   └── helpers.py        # Generic helpers (read_tables_from_duckdb, add_dataframe_metadata)
 └── processors/           # DataFrame processors
     ├── polars/           # PolarsFilterProcessor, PolarsStringProcessor
     └── duckdb/           # DuckDBQueryProcessor, DuckDBSQLProcessor, etc.
@@ -57,6 +62,25 @@ data/
 
 dagster_home/             # Dagster persistence directory
 ```
+
+## Code Organization
+
+**honey_duck/** - Project-specific code:
+- Business logic (assets, transforms, outputs)
+- Project-specific configuration (HoneyDuckConfig)
+- Business constants (price tiers, thresholds)
+- Pandera schemas (data validation)
+- Asset checks
+
+**cogapp_deps/** - Generic, reusable utilities:
+- Exception classes (ConfigurationError, MissingTableError, etc.)
+- Data validation (read_duckdb_table_lazy, validate_dataframe)
+- Generic helpers (read_tables_from_duckdb, add_dataframe_metadata)
+- DataFrame processors (Polars, DuckDB)
+
+**When adding new code:**
+- If it's generic and reusable across pipelines → `cogapp_deps/`
+- If it's specific to honey_duck business logic → `honey_duck/`
 
 ## Key Patterns
 

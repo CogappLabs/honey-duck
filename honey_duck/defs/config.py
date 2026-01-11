@@ -8,7 +8,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from .exceptions import ConfigurationError
+from cogapp_deps.dagster import ConfigurationError
 
 
 @dataclass(frozen=True)

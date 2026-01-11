@@ -18,6 +18,15 @@ import polars as pl
 import pytest
 
 
+# Import from cogapp_deps (generic utilities)
+from cogapp_deps.dagster import (
+    ConfigurationError,
+    MissingColumnError,
+    MissingTableError,
+    read_duckdb_table_lazy,
+    validate_dataframe,
+)
+
 # Import modules directly bypassing __init__.py to avoid loading dlt_assets
 # which fails due to empty media.db
 def _import_module(module_name: str, file_path: Path):
@@ -32,16 +41,9 @@ def _import_module(module_name: str, file_path: Path):
 project_root = Path(__file__).parent.parent
 defs_dir = project_root / "honey_duck" / "defs"
 
-exceptions = _import_module("honey_duck.defs.exceptions", defs_dir / "exceptions.py")
 config = _import_module("honey_duck.defs.config", defs_dir / "config.py")
-utils = _import_module("honey_duck.defs.utils", defs_dir / "utils.py")
 
 HoneyDuckConfig = config.HoneyDuckConfig
-ConfigurationError = exceptions.ConfigurationError
-MissingColumnError = exceptions.MissingColumnError
-MissingTableError = exceptions.MissingTableError
-read_raw_table_lazy = utils.read_raw_table_lazy
-validate_dataframe = utils.validate_dataframe
 
 
 class TestConfiguration:
@@ -158,7 +160,7 @@ class TestDataValidation:
         db_path = tmp_path / "nonexistent.duckdb"
 
         with pytest.raises(FileNotFoundError, match="Database not found"):
-            read_raw_table_lazy(
+            read_duckdb_table_lazy(
                 db_path,
                 "sales_raw",
                 asset_name="test_asset",
@@ -173,7 +175,7 @@ class TestDataValidation:
         conn.close()
 
         with pytest.raises(MissingTableError, match="Table 'raw.sales_raw' not found"):
-            read_raw_table_lazy(
+            read_duckdb_table_lazy(
                 db_path,
                 "sales_raw",
                 asset_name="test_asset",
@@ -188,7 +190,7 @@ class TestDataValidation:
         conn.close()
 
         with pytest.raises(MissingColumnError, match="Missing required columns: \\['sale_id'\\]"):
-            read_raw_table_lazy(
+            read_duckdb_table_lazy(
                 db_path,
                 "sales_raw",
                 required_columns=["sale_id", "id"],
@@ -204,7 +206,7 @@ class TestDataValidation:
         conn.execute("INSERT INTO raw.sales_raw VALUES (1, 100.0), (2, 200.0)")
         conn.close()
 
-        result = read_raw_table_lazy(
+        result = read_duckdb_table_lazy(
             db_path,
             "sales_raw",
             required_columns=["sale_id", "sale_price"],
@@ -251,7 +253,7 @@ class TestErrorMessages:
         conn.close()
 
         try:
-            read_raw_table_lazy(db_path, "sales_raw", asset_name="test_asset")
+            read_duckdb_table_lazy(db_path, "sales_raw", asset_name="test_asset")
             pytest.fail("Should have raised MissingTableError")
         except MissingTableError as e:
             # Error message should include available tables

@@ -27,8 +27,13 @@ Example:
 import dagster as dg
 import polars as pl
 
+from cogapp_deps.dagster import (
+    add_dataframe_metadata,
+    read_duckdb_table_lazy,
+    read_tables_from_duckdb,
+)
+
 from .config import CONFIG
-from .utils import read_raw_table_lazy
 
 
 def read_harvest_tables(
@@ -62,15 +67,12 @@ def read_harvest_tables(
         sales = tables["sales_raw"]
         artworks = tables["artworks_raw"]
     """
-    result = {}
-    for table_name, required_columns in table_specs:
-        result[table_name] = read_raw_table_lazy(
-            CONFIG.duckdb_path,
-            table_name,
-            required_columns=required_columns,
-            asset_name=asset_name,
-        )
-    return result
+    return read_tables_from_duckdb(
+        CONFIG.duckdb_path,
+        *table_specs,
+        schema="raw",
+        asset_name=asset_name,
+    )
 
 
 def add_standard_metadata(
@@ -99,13 +101,7 @@ def add_standard_metadata(
             total_value=float(result["sale_price_usd"].sum()),
         )
     """
-    metadata = {
-        "record_count": len(df),
-        "columns": df.columns,
-        "preview": dg.MetadataValue.md(df.head(5).to_pandas().to_markdown(index=False)),
-        **extra_metadata,
-    }
-    context.add_output_metadata(metadata)
+    add_dataframe_metadata(context, df, **extra_metadata)
 
 
 # Asset group constants for consistency

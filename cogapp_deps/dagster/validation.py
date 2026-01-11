@@ -1,6 +1,7 @@
-"""Utility functions for the honey-duck pipeline.
+"""Generic data validation utilities for Dagster pipelines.
 
-This module provides validated data access with clear error messages.
+Provides validated data access with automatic error handling.
+Works with DuckDB and Polars DataFrames.
 """
 
 from pathlib import Path
@@ -11,35 +12,42 @@ import polars as pl
 from .exceptions import MissingColumnError, MissingTableError
 
 
-def read_raw_table_lazy(
+def read_duckdb_table_lazy(
     db_path: str | Path,
     table_name: str,
+    schema: str = "raw",
     required_columns: list[str] | None = None,
     asset_name: str = "unknown",
 ) -> pl.LazyFrame:
-    """Read table from raw schema as Polars LazyFrame with validation.
+    """Read table from DuckDB as Polars LazyFrame with validation.
+
+    Validates table existence and required columns before returning.
+    Provides actionable error messages listing available tables/columns.
 
     Args:
-        db_path: Path to DuckDB database
-        table_name: Name of table in raw schema (e.g., "sales_raw")
+        db_path: Path to DuckDB database file
+        table_name: Name of table to read (without schema prefix)
+        schema: Schema name (default: "raw")
         required_columns: Optional list of required column names
-        asset_name: Name of calling asset (for error messages)
+        asset_name: Name of calling asset (for error context)
 
     Returns:
         LazyFrame with data from table
 
     Raises:
-        MissingTableError: If table doesn't exist in database
-        MissingColumnError: If required columns are missing
         FileNotFoundError: If database file doesn't exist
+        MissingTableError: If table doesn't exist (lists available tables)
+        MissingColumnError: If required columns are missing (lists available columns)
 
     Example:
-        >>> sales = read_raw_table_lazy(
-        ...     "data.duckdb",
-        ...     "sales_raw",
+        >>> sales = read_duckdb_table_lazy(
+        ...     "pipeline.duckdb",
+        ...     "sales",
+        ...     schema="raw",
         ...     required_columns=["sale_id", "sale_price_usd"],
         ...     asset_name="sales_transform"
         ... )
+        >>> result = sales.filter(pl.col("sale_price_usd") > 1000).collect()
     """
     db_path = Path(db_path)
 
@@ -47,21 +55,20 @@ def read_raw_table_lazy(
     if not db_path.exists():
         raise FileNotFoundError(
             f"[{asset_name}] Database not found at {db_path}. "
-            f"Did you run the harvest job first? "
-            f"Run: uv run dagster job execute -j full_pipeline"
+            f"Did you run the harvest job first?"
         )
 
     conn = duckdb.connect(str(db_path), read_only=True)
     try:
         # Check table exists
-        tables_df = conn.sql("SHOW TABLES FROM raw").pl()
+        tables_df = conn.sql(f"SHOW TABLES FROM {schema}").pl()
         available_tables = tables_df["name"].to_list() if len(tables_df) > 0 else []
 
         if table_name not in available_tables:
-            raise MissingTableError(asset_name, f"raw.{table_name}", available_tables)
+            raise MissingTableError(asset_name, f"{schema}.{table_name}", available_tables)
 
         # Read table
-        df = conn.sql(f"SELECT * FROM raw.{table_name}").pl().lazy()
+        df = conn.sql(f"SELECT * FROM {schema}.{table_name}").pl().lazy()
 
         # Validate required columns if specified
         if required_columns:

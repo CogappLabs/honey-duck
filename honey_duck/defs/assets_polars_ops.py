@@ -24,7 +24,7 @@ from datetime import timedelta
 import dagster as dg
 import polars as pl
 
-from cogapp_deps.dagster import write_json_output
+from cogapp_deps.dagster import read_duckdb_table_lazy, write_json_output
 
 from .config import CONFIG
 from .constants import (
@@ -36,7 +36,6 @@ from .resources import (
     ARTWORKS_OUTPUT_PATH_POLARS_OPS,
     SALES_OUTPUT_PATH_POLARS_OPS,
 )
-from .utils import read_raw_table_lazy
 
 
 # -----------------------------------------------------------------------------
@@ -62,19 +61,19 @@ def join_sales_data(context: dg.OpExecutionContext) -> pl.DataFrame:
     start_time = time.perf_counter()
 
     # Read with validation
-    sales = read_raw_table_lazy(
+    sales = read_duckdb_table_lazy(
         CONFIG.duckdb_path,
         "sales_raw",
         required_columns=["sale_id", "artwork_id", "sale_date", "sale_price_usd", "buyer_country"],
         asset_name="join_sales_data",
     )
-    artworks = read_raw_table_lazy(
+    artworks = read_duckdb_table_lazy(
         CONFIG.duckdb_path,
         "artworks_raw",
         required_columns=["artwork_id", "artist_id", "title", "year", "medium", "price_usd"],
         asset_name="join_sales_data",
     )
-    artists = read_raw_table_lazy(
+    artists = read_duckdb_table_lazy(
         CONFIG.duckdb_path,
         "artists_raw",
         required_columns=["artist_id", "name", "nationality"],
@@ -184,13 +183,13 @@ def build_artwork_catalog(context: dg.OpExecutionContext) -> pl.DataFrame:
     """Op: Build artwork catalog by joining artworks with artists."""
     start_time = time.perf_counter()
 
-    artworks = read_raw_table_lazy(
+    artworks = read_duckdb_table_lazy(
         CONFIG.duckdb_path,
         "artworks_raw",
         required_columns=["artwork_id", "artist_id", "title", "year", "medium", "price_usd"],
         asset_name="build_artwork_catalog",
     )
-    artists = read_raw_table_lazy(
+    artists = read_duckdb_table_lazy(
         CONFIG.duckdb_path,
         "artists_raw",
         required_columns=["artist_id", "name", "nationality"],
@@ -225,7 +224,7 @@ def aggregate_sales_metrics(context: dg.OpExecutionContext, catalog: pl.DataFram
     """Op: Aggregate sales metrics per artwork."""
     start_time = time.perf_counter()
 
-    sales = read_raw_table_lazy(
+    sales = read_duckdb_table_lazy(
         CONFIG.duckdb_path,
         "sales_raw",
         required_columns=["artwork_id", "sale_price_usd", "sale_date"],
@@ -261,7 +260,7 @@ def prepare_media_data(context: dg.OpExecutionContext) -> pl.DataFrame:
     """Op: Prepare media data - primary image and all media aggregated."""
     start_time = time.perf_counter()
 
-    media = read_raw_table_lazy(
+    media = read_duckdb_table_lazy(
         CONFIG.duckdb_path,
         "media",
         required_columns=["artwork_id", "sort_order", "filename", "alt_text", "media_type",

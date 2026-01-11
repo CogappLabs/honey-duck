@@ -14,6 +14,17 @@ except ImportError as e:
         "Install with: pip install cogapp-deps[dagster]"
     ) from e
 
+from cogapp_deps.dagster.exceptions import (
+    ConfigurationError,
+    DataValidationError,
+    MissingColumnError,
+    MissingTableError,
+    PipelineError,
+)
+from cogapp_deps.dagster.helpers import (
+    add_dataframe_metadata,
+    read_tables_from_duckdb,
+)
 from cogapp_deps.dagster.io import (
     DuckDBPandasPolarsIOManager,
     DuckDBRelationTypeHandler,
@@ -21,11 +32,28 @@ from cogapp_deps.dagster.io import (
     write_json_from_duckdb,
     write_json_output,
 )
+from cogapp_deps.dagster.validation import (
+    read_duckdb_table_lazy,
+    validate_dataframe,
+)
 
 __all__ = [
+    # IO utilities
     "DuckDBPandasPolarsIOManager",
     "DuckDBRelationTypeHandler",
     "read_table",
     "write_json_from_duckdb",
     "write_json_output",
+    # Exceptions
+    "PipelineError",
+    "ConfigurationError",
+    "DataValidationError",
+    "MissingTableError",
+    "MissingColumnError",
+    # Validation
+    "read_duckdb_table_lazy",
+    "validate_dataframe",
+    # Helpers
+    "read_tables_from_duckdb",
+    "add_dataframe_metadata",
 ]
