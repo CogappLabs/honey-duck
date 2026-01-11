@@ -1,0 +1,54 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Dagster runtime
+dagster_home/
+.dagster/
+tmp*/
+
+# Output files (these will be generated in container)
+data/output/
+
+# Tests
+tests/
+.pytest_cache/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Development files
+.env.example
+.env
+docker-compose.*.yml
+
+# Misc
+*.log
+.DS_Store

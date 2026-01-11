@@ -1,0 +1,68 @@
+# Dagster instance configuration for production deployment
+# This file configures storage, compute logs, and run execution
+
+# Storage for run history, event logs, and schedules
+storage:
+  postgres:
+    postgres_db:
+      username:
+        env: DAGSTER_POSTGRES_USER
+      password:
+        env: DAGSTER_POSTGRES_PASSWORD
+      hostname:
+        env: DAGSTER_POSTGRES_HOSTNAME
+      db_name:
+        env: DAGSTER_POSTGRES_DB
+      port:
+        env: DAGSTER_POSTGRES_PORT
+
+# Run execution configuration
+run_coordinator:
+  module: dagster.core.run_coordinator
+  class: QueuedRunCoordinator
+  config:
+    max_concurrent_runs: 10
+
+# Run launcher (how runs are executed)
+run_launcher:
+  module: dagster.core.launcher
+  class: DefaultRunLauncher
+
+# Compute logs (stdout/stderr from runs)
+compute_logs:
+  module: dagster.core.storage.local_compute_log_manager
+  class: LocalComputeLogManager
+  config:
+    base_dir: /app/dagster_home/storage/compute_logs
+
+# Local artifact storage
+local_artifact_storage:
+  module: dagster.core.storage.root
+  class: LocalArtifactStorage
+  config:
+    base_dir: /app/dagster_home/storage/artifacts
+
+# Scheduler
+scheduler:
+  module: dagster.core.scheduler
+  class: DagsterDaemonScheduler
+
+# Run monitoring
+run_monitoring:
+  enabled: true
+  start_timeout_seconds: 180
+  cancel_timeout_seconds: 180
+  max_resume_run_attempts: 3
+
+# Telemetry (optional - disable for privacy)
+telemetry:
+  enabled: false
+
+# Retention policy for runs (optional)
+run_retries:
+  enabled: true
+
+# Code server timeout
+code_servers:
+  reload_timeout: 180
+  local_startup_timeout: 180

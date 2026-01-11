@@ -4,6 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
+### Local Development
+
 ```bash
 # Install dependencies
 uv sync
@@ -19,6 +21,29 @@ uv run dagster job execute -j full_pipeline
 
 # Run tests
 uv run pytest
+```
+
+### Docker Deployment
+
+```bash
+# Development (with hot reload)
+make dev                  # Start dev environment
+make dev-logs             # View logs
+make dev-down             # Stop dev environment
+
+# Production
+make build                # Build production images
+make up                   # Start production stack
+make logs                 # View logs
+make ps                   # Check status
+make down                 # Stop services
+
+# Maintenance
+make backup               # Backup database and data
+make clean                # Remove all containers/volumes
+make health               # Check service health
+
+# See docs/DEPLOYMENT.md for full deployment guide
 ```
 
 ## Structure

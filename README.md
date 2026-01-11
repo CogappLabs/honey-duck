@@ -51,8 +51,9 @@ Open http://localhost:3000 and click **"Materialize all"** to run the pipeline!
 - **[Sitemap Generation](docs/SITEMAP_GENERATION.md)** - SEO-optimized XML sitemaps
 - **[IIIF Tile Generation](docs/IIIF_TILE_GENERATION.md)** - Image tile processing
 
-**Development**:
+**Development & Deployment**:
 - **[LocalStack S3 Guide](docs/LOCALSTACK_S3_GUIDE.md)** - Local S3 testing
+- **[Production Deployment](docs/DEPLOYMENT.md)** 🐳 - Docker deployment guide
 
 ## Architecture
 

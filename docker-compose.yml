@@ -1,0 +1,124 @@
+# Production Docker Compose for honey-duck Dagster deployment
+version: '3.8'
+
+services:
+  # PostgreSQL database for Dagster metadata storage
+  dagster-postgres:
+    image: postgres:15-alpine
+    container_name: honey-duck-postgres
+    environment:
+      POSTGRES_USER: dagster
+      POSTGRES_PASSWORD: dagster
+      POSTGRES_DB: dagster
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - dagster-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dagster"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Dagster Webserver (UI)
+  dagster-webserver:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: honey-duck-webserver
+    entrypoint:
+      - uv
+      - run
+      - dagster-webserver
+      - -h
+      - 0.0.0.0
+      - -p
+      - "3000"
+      - -w
+      - /app/workspace.yaml
+    ports:
+      - "3000:3000"
+    environment:
+      DAGSTER_POSTGRES_USER: dagster
+      DAGSTER_POSTGRES_PASSWORD: dagster
+      DAGSTER_POSTGRES_DB: dagster
+      DAGSTER_POSTGRES_HOSTNAME: dagster-postgres
+      DAGSTER_POSTGRES_PORT: 5432
+    volumes:
+      - dagster-home:/app/dagster_home
+      - data-output:/app/data/output
+    depends_on:
+      dagster-postgres:
+        condition: service_healthy
+    networks:
+      - dagster-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/server_info"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Dagster Daemon (schedules, sensors, run queue)
+  dagster-daemon:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: honey-duck-daemon
+    entrypoint:
+      - uv
+      - run
+      - dagster-daemon
+      - run
+    environment:
+      DAGSTER_POSTGRES_USER: dagster
+      DAGSTER_POSTGRES_PASSWORD: dagster
+      DAGSTER_POSTGRES_DB: dagster
+      DAGSTER_POSTGRES_HOSTNAME: dagster-postgres
+      DAGSTER_POSTGRES_PORT: 5432
+    volumes:
+      - dagster-home:/app/dagster_home
+      - data-output:/app/data/output
+    depends_on:
+      dagster-postgres:
+        condition: service_healthy
+    networks:
+      - dagster-network
+    restart: unless-stopped
+
+  # Code location (gRPC server)
+  dagster-code-location:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: honey-duck-code-location
+    environment:
+      DAGSTER_POSTGRES_USER: dagster
+      DAGSTER_POSTGRES_PASSWORD: dagster
+      DAGSTER_POSTGRES_DB: dagster
+      DAGSTER_POSTGRES_HOSTNAME: dagster-postgres
+      DAGSTER_POSTGRES_PORT: 5432
+    volumes:
+      - data-output:/app/data/output
+    depends_on:
+      dagster-postgres:
+        condition: service_healthy
+    networks:
+      - dagster-network
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+    driver: local
+  dagster-home:
+    driver: local
+  data-output:
+    driver: local
+
+networks:
+  dagster-network:
+    driver: bridge

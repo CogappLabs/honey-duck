@@ -1,0 +1,66 @@
+# Development Docker Compose with hot reload and simpler setup
+version: '3.8'
+
+services:
+  # Dagster all-in-one (webserver + daemon in one container)
+  dagster-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: base
+    container_name: honey-duck-dev
+    entrypoint:
+      - uv
+      - run
+      - dagster
+      - dev
+      - -h
+      - 0.0.0.0
+      - -p
+      - "3000"
+      - -m
+      - honey_duck.defs
+    ports:
+      - "3000:3000"
+    environment:
+      DAGSTER_HOME: /app/dagster_home
+      HONEY_DUCK_DB_PATH: /app/data/output/dagster.duckdb
+      HONEY_DUCK_SALES_OUTPUT: /app/data/output/json/sales_output.json
+      HONEY_DUCK_ARTWORKS_OUTPUT: /app/data/output/json/artworks_output.json
+    volumes:
+      # Mount code for hot reload
+      - ./honey_duck:/app/honey_duck
+      - ./cogapp_deps:/app/cogapp_deps
+      - ./data:/app/data
+      # Persist dagster home
+      - dagster-dev-home:/app/dagster_home
+    networks:
+      - dagster-dev-network
+    restart: unless-stopped
+
+  # Optional: Elasticsearch for development
+  elasticsearch-dev:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.0
+    container_name: honey-duck-elasticsearch-dev
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch-dev-data:/usr/share/elasticsearch/data
+    networks:
+      - dagster-dev-network
+    profiles:
+      - with-elasticsearch
+
+volumes:
+  dagster-dev-home:
+    driver: local
+  elasticsearch-dev-data:
+    driver: local
+
+networks:
+  dagster-dev-network:
+    driver: bridge
