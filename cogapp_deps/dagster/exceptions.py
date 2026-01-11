@@ -1,8 +1,21 @@
 """Generic exception classes for Dagster ETL pipelines.
 
 Provides structured error handling with actionable error messages.
-Use these exceptions in your pipelines for consistent error reporting.
+Integrates with Dagster's Failure exception for UI metadata rendering.
+
+Usage:
+    from cogapp_deps.dagster import MissingTableError, raise_as_dagster_failure
+
+    # Automatic Failure wrapping (recommended)
+    try:
+        table = read_table(...)
+    except MissingTableError as e:
+        raise_as_dagster_failure(e)
 """
+
+from typing import Any
+
+import dagster as dg
 
 
 class PipelineError(Exception):
@@ -112,3 +125,68 @@ class MissingColumnError(DataValidationError):
             f"Available columns: {sorted(available_columns)}"
         )
         super().__init__(asset_name, message)
+
+
+def raise_as_dagster_failure(error: Exception) -> None:
+    """Convert pipeline exception to Dagster Failure with structured metadata.
+
+    This integrates our custom exceptions with Dagster's error rendering system.
+    Metadata is displayed in the Dagster UI for better debugging.
+
+    Args:
+        error: The exception to convert to Dagster Failure
+
+    Raises:
+        dagster.Failure: Always raises with metadata attached
+
+    Example:
+        try:
+            tables = read_duckdb_table_lazy(...)
+        except MissingTableError as e:
+            raise_as_dagster_failure(e)
+    """
+    metadata: dict[str, Any] = {
+        "error_type": dg.MetadataValue.text(type(error).__name__),
+        "error_message": dg.MetadataValue.text(str(error)),
+    }
+
+    # Add structured metadata for specific error types
+    if isinstance(error, MissingTableError):
+        metadata.update(
+            {
+                "asset_name": dg.MetadataValue.text(error.asset_name),
+                "missing_table": dg.MetadataValue.text(error.table_name),
+                "available_tables": dg.MetadataValue.json(error.available_tables),
+                "suggestion": dg.MetadataValue.text(
+                    "Run the harvest job first: dagster job execute -j <harvest_job>"
+                ),
+            }
+        )
+    elif isinstance(error, MissingColumnError):
+        metadata.update(
+            {
+                "asset_name": dg.MetadataValue.text(error.asset_name),
+                "missing_columns": dg.MetadataValue.json(sorted(error.missing_columns)),
+                "available_columns": dg.MetadataValue.json(
+                    sorted(error.available_columns)
+                ),
+            }
+        )
+    elif isinstance(error, DataValidationError):
+        metadata.update(
+            {
+                "asset_name": dg.MetadataValue.text(error.asset_name),
+            }
+        )
+    elif isinstance(error, FileNotFoundError):
+        # Extract path from error message if available
+        error_str = str(error)
+        metadata["suggestion"] = dg.MetadataValue.text(
+            "Check that the database/file exists and path is correct"
+        )
+
+    # Raise as Dagster Failure with metadata
+    raise dg.Failure(
+        description=str(error),
+        metadata=metadata,
+    ) from error

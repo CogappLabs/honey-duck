@@ -20,6 +20,7 @@ from cogapp_deps.dagster.exceptions import (
     MissingColumnError,
     MissingTableError,
     PipelineError,
+    raise_as_dagster_failure,
 )
 from cogapp_deps.dagster.helpers import (
     add_dataframe_metadata,
@@ -50,6 +51,7 @@ __all__ = [
     "DataValidationError",
     "MissingTableError",
     "MissingColumnError",
+    "raise_as_dagster_failure",
     # Validation
     "read_duckdb_table_lazy",
     "validate_dataframe",

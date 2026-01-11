@@ -13,6 +13,7 @@ import sys
 import tempfile
 from pathlib import Path
 
+import dagster as dg
 import duckdb
 import polars as pl
 import pytest
@@ -156,10 +157,10 @@ class TestDataValidation:
     """Test data validation utilities."""
 
     def test_read_raw_table_validates_database_exists(self, tmp_path: Path) -> None:
-        """Should raise clear error if database doesn't exist."""
+        """Should raise Dagster Failure if database doesn't exist."""
         db_path = tmp_path / "nonexistent.duckdb"
 
-        with pytest.raises(FileNotFoundError, match="Database not found"):
+        with pytest.raises(dg.Failure, match="Database not found"):
             read_duckdb_table_lazy(
                 db_path,
                 "sales_raw",
@@ -167,14 +168,14 @@ class TestDataValidation:
             )
 
     def test_read_raw_table_validates_table_exists(self, tmp_path: Path) -> None:
-        """Should raise clear error if table doesn't exist."""
+        """Should raise Dagster Failure if table doesn't exist."""
         db_path = tmp_path / "test.duckdb"
         conn = duckdb.connect(str(db_path))
         conn.execute("CREATE SCHEMA raw")
         conn.execute("CREATE TABLE raw.other_table (id INTEGER)")
         conn.close()
 
-        with pytest.raises(MissingTableError, match="Table 'raw.sales_raw' not found"):
+        with pytest.raises(dg.Failure, match="Table 'raw.sales_raw' not found"):
             read_duckdb_table_lazy(
                 db_path,
                 "sales_raw",
@@ -182,14 +183,14 @@ class TestDataValidation:
             )
 
     def test_read_raw_table_validates_columns(self, tmp_path: Path) -> None:
-        """Should raise clear error if required columns are missing."""
+        """Should raise Dagster Failure if required columns are missing."""
         db_path = tmp_path / "test.duckdb"
         conn = duckdb.connect(str(db_path))
         conn.execute("CREATE SCHEMA raw")
         conn.execute("CREATE TABLE raw.sales_raw (id INTEGER, price DOUBLE)")
         conn.close()
 
-        with pytest.raises(MissingColumnError, match="Missing required columns: \\['sale_id'\\]"):
+        with pytest.raises(dg.Failure, match="Missing required columns: \\['sale_id'\\]"):
             read_duckdb_table_lazy(
                 db_path,
                 "sales_raw",
@@ -231,12 +232,12 @@ class TestDataValidation:
         validate_dataframe(df, ["sale_id", "sale_price"], "test_asset")
 
     def test_validate_dataframe_missing_columns(self) -> None:
-        """Should raise for missing columns."""
+        """Should raise Dagster Failure for missing columns."""
         df = pl.DataFrame({
             "sale_id": [1, 2, 3],
         })
 
-        with pytest.raises(MissingColumnError, match="Missing required columns: \\['sale_price'\\]"):
+        with pytest.raises(dg.Failure, match="Missing required columns: \\['sale_price'\\]"):
             validate_dataframe(df, ["sale_id", "sale_price"], "test_asset")
 
 
@@ -244,7 +245,7 @@ class TestErrorMessages:
     """Test error messages are clear and actionable."""
 
     def test_missing_table_error_includes_available_tables(self, tmp_path: Path) -> None:
-        """MissingTableError should list available tables."""
+        """Dagster Failure should include table metadata."""
         db_path = tmp_path / "test.duckdb"
         conn = duckdb.connect(str(db_path))
         conn.execute("CREATE SCHEMA raw")
@@ -254,18 +255,19 @@ class TestErrorMessages:
 
         try:
             read_duckdb_table_lazy(db_path, "sales_raw", asset_name="test_asset")
-            pytest.fail("Should have raised MissingTableError")
-        except MissingTableError as e:
+            pytest.fail("Should have raised Dagster Failure")
+        except dg.Failure as e:
             # Error message should include available tables
-            assert "artworks_raw" in str(e)
-            assert "artists_raw" in str(e)
-            assert "Did you run the harvest job first?" in str(e)
-            # Error should have structured data
-            assert e.table_name == "raw.sales_raw"
-            assert set(e.available_tables) == {"artworks_raw", "artists_raw"}
+            assert "artworks_raw" in e.description
+            assert "artists_raw" in e.description
+            assert "Did you run the harvest job first?" in e.description
+            # Metadata should include structured data
+            assert e.metadata["error_type"].value == "MissingTableError"
+            assert e.metadata["missing_table"].value == "raw.sales_raw"
+            assert set(e.metadata["available_tables"].value) == {"artworks_raw", "artists_raw"}
 
     def test_missing_column_error_includes_available_columns(self) -> None:
-        """MissingColumnError should list available columns."""
+        """Dagster Failure should include column metadata."""
         df = pl.DataFrame({
             "sale_id": [1, 2],
             "artwork_id": [10, 20],
@@ -273,16 +275,17 @@ class TestErrorMessages:
 
         try:
             validate_dataframe(df, ["sale_id", "sale_price", "buyer"], "test_asset")
-            pytest.fail("Should have raised MissingColumnError")
-        except MissingColumnError as e:
+            pytest.fail("Should have raised Dagster Failure")
+        except dg.Failure as e:
             # Error message should include what's available
-            assert "sale_id" in str(e)
-            assert "artwork_id" in str(e)
-            assert "sale_price" in str(e)
-            assert "buyer" in str(e)
-            # Error should have structured data
-            assert e.missing_columns == {"sale_price", "buyer"}
-            assert set(e.available_columns) == {"sale_id", "artwork_id"}
+            assert "sale_id" in e.description
+            assert "artwork_id" in e.description
+            assert "sale_price" in e.description
+            assert "buyer" in e.description
+            # Metadata should include structured data
+            assert e.metadata["error_type"].value == "MissingColumnError"
+            assert set(e.metadata["missing_columns"].value) == {"sale_price", "buyer"}
+            assert set(e.metadata["available_columns"].value) == {"artwork_id", "sale_id"}
 
     def test_config_error_has_helpful_messages(self, tmp_path: Path) -> None:
         """ConfigurationError should have helpful messages."""

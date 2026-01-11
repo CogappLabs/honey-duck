@@ -2,6 +2,9 @@
 
 Provides validated data access with automatic error handling.
 Works with DuckDB and Polars DataFrames.
+
+Errors are automatically wrapped in Dagster Failure with metadata
+for better UI rendering and debugging.
 """
 
 from pathlib import Path
@@ -9,7 +12,7 @@ from pathlib import Path
 import duckdb
 import polars as pl
 
-from .exceptions import MissingColumnError, MissingTableError
+from .exceptions import MissingColumnError, MissingTableError, raise_as_dagster_failure
 
 
 def read_duckdb_table_lazy(
@@ -53,10 +56,11 @@ def read_duckdb_table_lazy(
 
     # Check database exists
     if not db_path.exists():
-        raise FileNotFoundError(
+        error = FileNotFoundError(
             f"[{asset_name}] Database not found at {db_path}. "
             f"Did you run the harvest job first?"
         )
+        raise_as_dagster_failure(error)
 
     conn = duckdb.connect(str(db_path), read_only=True)
     try:
@@ -65,7 +69,8 @@ def read_duckdb_table_lazy(
         available_tables = tables_df["name"].to_list() if len(tables_df) > 0 else []
 
         if table_name not in available_tables:
-            raise MissingTableError(asset_name, f"{schema}.{table_name}", available_tables)
+            error = MissingTableError(asset_name, f"{schema}.{table_name}", available_tables)
+            raise_as_dagster_failure(error)
 
         # Read table
         df = conn.sql(f"SELECT * FROM {schema}.{table_name}").pl().lazy()
@@ -75,7 +80,8 @@ def read_duckdb_table_lazy(
             actual_columns = df.collect_schema().names()
             missing = set(required_columns) - set(actual_columns)
             if missing:
-                raise MissingColumnError(asset_name, missing, actual_columns)
+                error = MissingColumnError(asset_name, missing, actual_columns)
+                raise_as_dagster_failure(error)
 
         return df
 
@@ -96,7 +102,7 @@ def validate_dataframe(
         asset_name: Name of asset (for error messages)
 
     Raises:
-        MissingColumnError: If required columns are missing
+        dagster.Failure: If required columns are missing (with metadata)
 
     Example:
         >>> validate_dataframe(
@@ -107,4 +113,5 @@ def validate_dataframe(
     """
     missing = set(required_columns) - set(df.columns)
     if missing:
-        raise MissingColumnError(asset_name, missing, df.columns)
+        error = MissingColumnError(asset_name, missing, df.columns)
+        raise_as_dagster_failure(error)
