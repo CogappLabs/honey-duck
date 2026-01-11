@@ -65,6 +65,8 @@ def read_tables_from_duckdb(
 def add_dataframe_metadata(
     context: dg.AssetExecutionContext,
     df: pl.DataFrame,
+    output_name: str | None = None,
+    mapping_key: str | None = None,
     **extra_metadata,
 ) -> None:
     """Add standard metadata for a DataFrame result.
@@ -75,17 +77,31 @@ def add_dataframe_metadata(
     - Preview (first 5 rows as markdown table)
     - Any extra metadata provided
 
+    Passes through all Dagster parameters to maintain full compatibility with
+    multi-output assets and dynamic partitions.
+
     Args:
         context: Asset execution context
         df: Result DataFrame
+        output_name: (Optional) For multi-output assets - specify which output this metadata is for
+        mapping_key: (Optional) For dynamic partitions - specify partition key
         **extra_metadata: Additional metadata to include
 
     Example:
+        >>> # Simple usage
         >>> add_dataframe_metadata(
         ...     context,
         ...     result,
         ...     unique_artworks=result["artwork_id"].n_unique(),
         ...     total_value=float(result["sale_price_usd"].sum()),
+        ... )
+
+        >>> # With multi-output asset
+        >>> add_dataframe_metadata(
+        ...     context,
+        ...     result,
+        ...     output_name="sales_joined",
+        ...     unique_artworks=result["artwork_id"].n_unique(),
         ... )
     """
     metadata = {
@@ -94,7 +110,7 @@ def add_dataframe_metadata(
         "preview": dg.MetadataValue.md(df.head(5).to_pandas().to_markdown(index=False)),
         **extra_metadata,
     }
-    context.add_output_metadata(metadata)
+    context.add_output_metadata(metadata, output_name=output_name, mapping_key=mapping_key)
 
 
 class track_timing:
@@ -103,10 +119,15 @@ class track_timing:
     Automatically adds processing_time_ms to asset metadata and logs
     completion message. Use this to eliminate manual timing boilerplate.
 
+    Passes through all Dagster parameters to maintain full compatibility with
+    multi-output assets and dynamic partitions.
+
     Args:
         context: Asset execution context
         operation: Description of operation (e.g., "transform", "processing")
         log_message: Optional custom log message template. Use {elapsed_ms} placeholder.
+        output_name: (Optional) For multi-output assets - specify which output this metadata is for
+        mapping_key: (Optional) For dynamic partitions - specify partition key
 
     Example:
         >>> @dg.asset(kinds={"polars"})
@@ -117,10 +138,9 @@ class track_timing:
         ...         # Automatically adds processing_time_ms to metadata
         ...     return result
 
-        >>> # With custom log message:
-        >>> with track_timing(context, "loading", log_message="Loaded {count} records in {elapsed_ms:.1f}ms"):
+        >>> # With multi-output asset
+        >>> with track_timing(context, "loading", output_name="sales_joined"):
         ...     result = load_data()
-        ...     context.log.info(f"Loaded {len(result)} records")  # Will use this count
     """
 
     def __init__(
@@ -128,10 +148,14 @@ class track_timing:
         context: dg.AssetExecutionContext,
         operation: str = "processing",
         log_message: str | None = None,
+        output_name: str | None = None,
+        mapping_key: str | None = None,
     ):
         self.context = context
         self.operation = operation
         self.log_message = log_message
+        self.output_name = output_name
+        self.mapping_key = mapping_key
         self.start_time = None
         self.elapsed_ms = None
 
@@ -147,8 +171,12 @@ class track_timing:
         if self.start_time is not None:
             self.elapsed_ms = (time.perf_counter() - self.start_time) * 1000
 
-            # Add to metadata
-            self.context.add_output_metadata({"processing_time_ms": round(self.elapsed_ms, 2)})
+            # Add to metadata (with full Dagster parameter support)
+            self.context.add_output_metadata(
+                {"processing_time_ms": round(self.elapsed_ms, 2)},
+                output_name=self.output_name,
+                mapping_key=self.mapping_key,
+            )
 
             # Log completion
             if self.log_message:

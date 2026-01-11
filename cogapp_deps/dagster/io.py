@@ -131,6 +131,8 @@ def write_json_output(
     output_path: Path,
     context: dg.AssetExecutionContext,
     extra_metadata: dict | None = None,
+    output_name: str | None = None,
+    mapping_key: str | None = None,
 ) -> None:
     """Write DataFrame to JSON using DuckDB's native COPY command.
 
@@ -140,11 +142,16 @@ def write_json_output(
     Uses DuckDB's native JSON export for better performance - avoids the
     DataFrame → pandas → json serialization path.
 
+    Passes through all Dagster parameters to maintain full compatibility with
+    multi-output assets and dynamic partitions.
+
     Args:
         df: DataFrame to write (pandas or polars)
         output_path: Path to write JSON file
         context: Dagster asset execution context
         extra_metadata: Additional metadata to include (optional)
+        output_name: (Optional) For multi-output assets - specify which output this metadata is for
+        mapping_key: (Optional) For dynamic partitions - specify partition key
     """
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -158,12 +165,16 @@ def write_json_output(
     record_count = conn.sql("SELECT COUNT(*) FROM _df").fetchone()[0]
     conn.close()
 
-    context.add_output_metadata({
-        "record_count": record_count,
-        "json_output": dg.MetadataValue.path(str(output_path)),
-        "preview": dg.MetadataValue.md(preview_df.to_markdown(index=False)),
-        **(extra_metadata or {}),
-    })
+    context.add_output_metadata(
+        {
+            "record_count": record_count,
+            "json_output": dg.MetadataValue.path(str(output_path)),
+            "preview": dg.MetadataValue.md(preview_df.to_markdown(index=False)),
+            **(extra_metadata or {}),
+        },
+        output_name=output_name,
+        mapping_key=mapping_key,
+    )
 
 
 def write_json_and_return(
@@ -171,6 +182,8 @@ def write_json_and_return(
     output_path: Path | str,
     context: dg.AssetExecutionContext,
     extra_metadata: dict | None = None,
+    output_name: str | None = None,
+    mapping_key: str | None = None,
 ) -> pd.DataFrame | "pl.DataFrame":
     """Write DataFrame to JSON, log completion, and return DataFrame.
 
@@ -188,11 +201,16 @@ def write_json_and_return(
     The log message automatically includes timing information if processing_time_ms
     is present in extra_metadata.
 
+    Passes through all Dagster parameters to maintain full compatibility with
+    multi-output assets and dynamic partitions.
+
     Args:
         df: DataFrame to write (pandas or polars)
         output_path: Path to write JSON file
         context: Asset execution context
         extra_metadata: Additional metadata to include (optional)
+        output_name: (Optional) For multi-output assets - specify which output this metadata is for
+        mapping_key: (Optional) For dynamic partitions - specify partition key
 
     Returns:
         The input DataFrame (unchanged)
@@ -213,12 +231,27 @@ def write_json_and_return(
         ...     }
         ... )
         # Logs: "Output 73 records to /path/to/sales.json in 45.2ms"
+
+        >>> # With multi-output asset
+        >>> return write_json_and_return(
+        ...     result,
+        ...     SALES_OUTPUT_PATH,
+        ...     context,
+        ...     output_name="sales_joined",
+        ... )
     """
     # Ensure output_path is a Path object
     output_path = Path(output_path) if isinstance(output_path, str) else output_path
 
-    # Write JSON with metadata
-    write_json_output(df, output_path, context, extra_metadata=extra_metadata)
+    # Write JSON with metadata (pass through Dagster parameters)
+    write_json_output(
+        df,
+        output_path,
+        context,
+        extra_metadata=extra_metadata,
+        output_name=output_name,
+        mapping_key=mapping_key,
+    )
 
     # Log completion with timing if available
     record_count = len(df)
@@ -240,11 +273,16 @@ def write_json_from_duckdb(
     output_path: Path,
     context: dg.AssetExecutionContext,
     extra_metadata: dict | None = None,
+    output_name: str | None = None,
+    mapping_key: str | None = None,
 ) -> int:
     """Write query results to JSON using DuckDB's native COPY command.
 
     This avoids DataFrame conversion overhead by using DuckDB's built-in
     JSON export. Creates parent directories if needed.
+
+    Passes through all Dagster parameters to maintain full compatibility with
+    multi-output assets and dynamic partitions.
 
     Args:
         conn: DuckDB connection to use
@@ -252,6 +290,8 @@ def write_json_from_duckdb(
         output_path: Path to write JSON file
         context: Dagster asset execution context
         extra_metadata: Additional metadata to include (optional)
+        output_name: (Optional) For multi-output assets - specify which output this metadata is for
+        mapping_key: (Optional) For dynamic partitions - specify partition key
 
     Returns:
         Number of records written
@@ -266,11 +306,15 @@ def write_json_from_duckdb(
     # Use DuckDB's native JSON export
     conn.execute(f"COPY ({sql}) TO '{output_path}' (FORMAT JSON, ARRAY true)")
 
-    context.add_output_metadata({
-        "record_count": record_count,
-        "json_output": dg.MetadataValue.path(str(output_path)),
-        "preview": dg.MetadataValue.md(preview_df.to_markdown(index=False)),
-        **(extra_metadata or {}),
-    })
+    context.add_output_metadata(
+        {
+            "record_count": record_count,
+            "json_output": dg.MetadataValue.path(str(output_path)),
+            "preview": dg.MetadataValue.md(preview_df.to_markdown(index=False)),
+            **(extra_metadata or {}),
+        },
+        output_name=output_name,
+        mapping_key=mapping_key,
+    )
 
     return record_count

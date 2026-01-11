@@ -35,6 +35,9 @@ from cogapp_deps.dagster.io import (
     write_json_from_duckdb,
     write_json_output,
 )
+from cogapp_deps.dagster.io_managers import (
+    JSONIOManager,
+)
 from cogapp_deps.dagster.validation import (
     read_duckdb_table_lazy,
     read_harvest_table_lazy,
@@ -63,6 +66,7 @@ __all__ = [
     # IO utilities
     "DuckDBPandasPolarsIOManager",
     "DuckDBRelationTypeHandler",
+    "JSONIOManager",
     "read_table",
     "write_json_and_return",
     "write_json_from_duckdb",
