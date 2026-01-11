@@ -184,7 +184,7 @@ class TestDuckDBSQLProcessor:
 
         assert "doubled_price" in result.columns
         assert "price_thousands" in result.columns
-        assert result.iloc[0]["doubled_price"] == 200000
+        assert result["doubled_price"][0] == 200000
 
     def test_filtering(self, sales_df: pd.DataFrame) -> None:
         """Test filtering via SQL."""
@@ -230,7 +230,7 @@ class TestDuckDBQueryProcessor:
         result = processor.process()
 
         assert len(result) == 2
-        assert result.iloc[0]["value"] == "one"
+        assert result["value"][0] == "one"
 
     def test_query_with_joins(self, tmp_path) -> None:
         """Test querying with joins from configured database."""
@@ -254,7 +254,7 @@ class TestDuckDBQueryProcessor:
         result = processor.process()
 
         assert len(result) == 2
-        assert result.iloc[0]["product_name"] == "Widget"
+        assert result["product_name"][0] == "Widget"
 
 
 # -----------------------------------------------------------------------------
