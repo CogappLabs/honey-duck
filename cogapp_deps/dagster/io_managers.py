@@ -410,4 +410,266 @@ class ElasticsearchIOManager(dg.IOManager):
         return df
 
 
-__all__ = ["JSONIOManager", "ElasticsearchIOManager"]
+class OpenSearchIOManager(dg.IOManager):
+    """IO Manager for writing DataFrames to OpenSearch (AWS fork of Elasticsearch).
+
+    OpenSearch is AWS's fork of Elasticsearch 7.x. This IO Manager provides the same
+    functionality as ElasticsearchIOManager but uses the opensearch-py client.
+
+    Features:
+    - Bulk indexing for high performance (configurable batch size)
+    - Automatic index creation with dynamic or custom mappings
+    - Support for OpenSearch 1.x, 2.x
+    - Connection pooling and retry logic
+    - Metadata tracking (document count, index name, response time)
+    - Handles both write (dump) and read (load) operations
+
+    Args:
+        hosts: OpenSearch host(s) (e.g., ["https://search-domain.us-east-1.es.amazonaws.com"])
+        index_prefix: Prefix for index names (e.g., "dagster_")
+        http_auth: Tuple of (username, password) for basic auth
+        use_ssl: Whether to use SSL (default: True)
+        verify_certs: Whether to verify SSL certificates (default: True)
+        bulk_size: Number of documents per bulk request (default: 500)
+        custom_mappings: Optional dict of {asset_name: mapping_dict}
+        aws_auth: Whether to use AWS SigV4 auth (requires boto3)
+        region: AWS region (required if aws_auth=True)
+        opensearch_kwargs: Additional kwargs for OpenSearch constructor
+
+    Environment Variables:
+        OPENSEARCH_HOST: OpenSearch endpoint URL
+        OPENSEARCH_USER: Username for basic auth
+        OPENSEARCH_PASSWORD: Password for basic auth
+        AWS_REGION: AWS region for SigV4 auth
+
+    Example (Basic Auth):
+        >>> defs = dg.Definitions(
+        ...     resources={
+        ...         "opensearch_io_manager": OpenSearchIOManager(
+        ...             hosts=["https://localhost:9200"],
+        ...             http_auth=("admin", "admin"),
+        ...             verify_certs=False,  # For local dev
+        ...         ),
+        ...     },
+        ... )
+
+    Example (AWS SigV4 Auth):
+        >>> defs = dg.Definitions(
+        ...     resources={
+        ...         "opensearch_io_manager": OpenSearchIOManager(
+        ...             hosts=["https://search-domain.us-east-1.es.amazonaws.com"],
+        ...             aws_auth=True,
+        ...             region="us-east-1",
+        ...         ),
+        ...     },
+        ... )
+
+    Example (Asset):
+        >>> @dg.asset(io_manager_key="opensearch_io_manager")
+        >>> def sales_output(sales_transform: pl.DataFrame) -> pl.DataFrame:
+        ...     return sales_transform
+    """
+
+    def __init__(
+        self,
+        hosts: list[str],
+        index_prefix: str = "dagster_",
+        http_auth: tuple[str, str] | None = None,
+        use_ssl: bool = True,
+        verify_certs: bool = True,
+        bulk_size: int = 500,
+        custom_mappings: dict[str, dict] | None = None,
+        aws_auth: bool = False,
+        region: str | None = None,
+        **opensearch_kwargs,
+    ):
+        self.hosts = hosts
+        self.index_prefix = index_prefix
+        self.http_auth = http_auth
+        self.use_ssl = use_ssl
+        self.verify_certs = verify_certs
+        self.bulk_size = bulk_size
+        self.custom_mappings = custom_mappings or {}
+        self.aws_auth = aws_auth
+        self.region = region
+        self.opensearch_kwargs = opensearch_kwargs
+        self._client = None
+
+    def _get_client(self):
+        """Get or create OpenSearch client with connection pooling."""
+        if self._client is None:
+            try:
+                from opensearchpy import OpenSearch
+            except ImportError:
+                raise ImportError(
+                    "opensearch-py package not found. Install with: "
+                    "pip install opensearch-py"
+                )
+
+            client_kwargs = {
+                "hosts": self.hosts,
+                "use_ssl": self.use_ssl,
+                "verify_certs": self.verify_certs,
+                **self.opensearch_kwargs,
+            }
+
+            # Add authentication
+            if self.aws_auth:
+                # AWS SigV4 authentication
+                try:
+                    from opensearchpy import RequestsHttpConnection, AWSV4SignerAuth
+                    import boto3
+                except ImportError:
+                    raise ImportError(
+                        "AWS authentication requires boto3 and requests. "
+                        "Install with: pip install boto3 requests"
+                    )
+
+                credentials = boto3.Session().get_credentials()
+                client_kwargs["http_auth"] = AWSV4SignerAuth(credentials, self.region)
+                client_kwargs["connection_class"] = RequestsHttpConnection
+
+            elif self.http_auth:
+                # Basic authentication
+                client_kwargs["http_auth"] = self.http_auth
+
+            self._client = OpenSearch(**client_kwargs)
+
+        return self._client
+
+    def _get_index_name(self, context: OutputContext | InputContext) -> str:
+        """Generate index name from asset key."""
+        asset_name = context.asset_key.path[-1]
+        return f"{self.index_prefix}{asset_name}"
+
+    def _create_index_if_not_exists(
+        self,
+        client,
+        index_name: str,
+        asset_name: str,
+        context: OutputContext,
+    ):
+        """Create index with mappings if it doesn't exist."""
+        if not client.indices.exists(index=index_name):
+            index_body = {}
+
+            if asset_name in self.custom_mappings:
+                index_body["mappings"] = self.custom_mappings[asset_name]
+                context.log.info(f"Creating index '{index_name}' with custom mapping")
+            else:
+                context.log.info(f"Creating index '{index_name}' with dynamic mapping")
+
+            client.indices.create(index=index_name, body=index_body)
+
+    def handle_output(self, context: OutputContext, obj: pd.DataFrame | pl.DataFrame):
+        """Write DataFrame to OpenSearch using bulk API."""
+        import time
+        import polars as pl
+
+        client = self._get_client()
+        index_name = self._get_index_name(context)
+        asset_name = context.asset_key.path[-1]
+
+        self._create_index_if_not_exists(client, index_name, asset_name, context)
+
+        # Convert to records
+        if isinstance(obj, pl.DataFrame):
+            records = obj.to_dicts()
+        else:  # pandas
+            records = obj.to_dict("records")
+
+        context.log.info(f"Indexing {len(records):,} documents to '{index_name}'")
+
+        # Bulk index
+        from opensearchpy.helpers import bulk
+
+        start_time = time.perf_counter()
+
+        def generate_actions():
+            for record in records:
+                action = {
+                    "_index": index_name,
+                    "_source": record,
+                }
+                if "id" in record:
+                    action["_id"] = record["id"]
+                elif "_id" in record:
+                    action["_id"] = record["_id"]
+                yield action
+
+        success_count, failed_items = bulk(
+            client,
+            generate_actions(),
+            chunk_size=self.bulk_size,
+            raise_on_error=False,
+            raise_on_exception=False,
+        )
+
+        elapsed_ms = (time.perf_counter() - start_time) * 1000
+
+        # Refresh index
+        client.indices.refresh(index=index_name)
+
+        if failed_items:
+            error_sample = failed_items[:5]
+            context.log.warning(
+                f"Failed to index {len(failed_items)} documents. "
+                f"Sample errors: {error_sample}"
+            )
+
+        context.add_output_metadata({
+            "index_name": index_name,
+            "document_count": success_count,
+            "failed_count": len(failed_items) if failed_items else 0,
+            "bulk_size": self.bulk_size,
+            "index_time_ms": round(elapsed_ms, 2),
+            "opensearch_host": self.hosts[0],
+        })
+
+        context.log.info(
+            f"Successfully indexed {success_count:,} documents to '{index_name}' "
+            f"in {elapsed_ms:.0f}ms"
+        )
+
+    def load_input(self, context: InputContext) -> pl.DataFrame:
+        """Load DataFrame from OpenSearch index."""
+        import polars as pl
+
+        client = self._get_client()
+        index_name = self._get_index_name(context)
+
+        if not client.indices.exists(index=index_name):
+            raise ValueError(
+                f"Index '{index_name}' does not exist. "
+                f"Materialize the upstream asset first."
+            )
+
+        count_response = client.count(index=index_name)
+        doc_count = count_response["count"]
+
+        context.log.info(f"Loading {doc_count:,} documents from '{index_name}'")
+
+        if doc_count > 10000:
+            context.log.warning(
+                f"Large index ({doc_count:,} docs). Consider using scan helper for better performance."
+            )
+
+        response = client.search(
+            index=index_name,
+            size=min(doc_count, 10000),
+            body={"query": {"match_all": {}}},
+        )
+
+        records = [hit["_source"] for hit in response["hits"]["hits"]]
+
+        if records:
+            df = pl.DataFrame(records)
+        else:
+            df = pl.DataFrame()
+
+        context.log.info(f"Loaded {len(df):,} records from '{index_name}'")
+
+        return df
+
+
+__all__ = ["JSONIOManager", "ElasticsearchIOManager", "OpenSearchIOManager"]

@@ -38,6 +38,7 @@ from cogapp_deps.dagster.io import (
 from cogapp_deps.dagster.io_managers import (
     ElasticsearchIOManager,
     JSONIOManager,
+    OpenSearchIOManager,
 )
 from cogapp_deps.dagster.notifications import (
     create_email_notification_asset,
@@ -74,6 +75,7 @@ __all__ = [
     "DuckDBRelationTypeHandler",
     "JSONIOManager",
     "ElasticsearchIOManager",
+    "OpenSearchIOManager",
     "read_table",
     "write_json_and_return",
     "write_json_from_duckdb",
