@@ -1,6 +1,6 @@
 """DuckDB SQL processors for efficient data transformations.
 
-All processors in this module execute DuckDB SQL queries and return pandas DataFrames.
+All processors in this module execute DuckDB SQL queries and return Polars DataFrames.
 DuckDB provides excellent performance for analytical queries and joins.
 
 Processors:

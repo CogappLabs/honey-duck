@@ -46,8 +46,12 @@ from .assets import artworks_output, artworks_transform, sales_output, sales_tra
 
 # Pure Polars implementation
 from .assets_polars import (
+    artworks_catalog_polars,
+    artworks_media_polars,
     artworks_output_polars,
+    artworks_sales_agg_polars,
     artworks_transform_polars,
+    sales_joined_polars,
     sales_output_polars,
     sales_transform_polars,
 )
@@ -93,10 +97,14 @@ defs = dg.Definitions(
         artworks_transform,
         sales_output,
         artworks_output,
-        # Pure Polars implementation
+        # Pure Polars implementation (split into steps for intermediate persistence)
+        sales_joined_polars,
         sales_transform_polars,
-        artworks_transform_polars,
         sales_output_polars,
+        artworks_catalog_polars,
+        artworks_sales_agg_polars,
+        artworks_media_polars,
+        artworks_transform_polars,
         artworks_output_polars,
         # Pure DuckDB SQL implementation
         sales_transform_duckdb,

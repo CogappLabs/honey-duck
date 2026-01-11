@@ -3,13 +3,15 @@
 Two processors for different use cases:
 - DuckDBSQLProcessor: Transform DataFrames with SQL (in-memory)
 - DuckDBQueryProcessor: Query configured database tables (persistent)
+
+All processors return Polars DataFrames for optimal performance.
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import pandas as pd
+import polars as pl
 
 if TYPE_CHECKING:
     import duckdb
@@ -49,17 +51,17 @@ class DuckDBSQLProcessor:
 
     def process(
         self,
-        df: pd.DataFrame,
-        tables: dict[str, pd.DataFrame] | None = None,
-    ) -> pd.DataFrame:
-        """Execute the SQL and return result as DataFrame.
+        df: pl.DataFrame,
+        tables: dict[str, pl.DataFrame] | None = None,
+    ) -> pl.DataFrame:
+        """Execute the SQL and return result as Polars DataFrame.
 
         Args:
             df: Input DataFrame, registered as "_input" table.
             tables: Additional DataFrames to register as named tables for JOINs.
 
         Returns:
-            DataFrame with query results.
+            Polars DataFrame with query results.
         """
         import duckdb as ddb
 
@@ -69,7 +71,7 @@ class DuckDBSQLProcessor:
             if tables:
                 for name, table_df in tables.items():
                     conn.register(name, table_df)
-            return conn.sql(self.sql).df()
+            return conn.sql(self.sql).pl()
         finally:
             conn.close()
 
@@ -105,11 +107,11 @@ class DuckDBQueryProcessor:
         """
         self.sql = sql
 
-    def process(self) -> pd.DataFrame:
+    def process(self) -> pl.DataFrame:
         """Execute the SQL against configured database and return result.
 
         Returns:
-            DataFrame with query results.
+            Polars DataFrame with query results.
 
         Raises:
             RuntimeError: If database is not configured or connection fails.
@@ -118,7 +120,7 @@ class DuckDBQueryProcessor:
 
         conn = get_connection()
         try:
-            return conn.sql(self.sql).df()
+            return conn.sql(self.sql).pl()
         finally:
             conn.close()
 

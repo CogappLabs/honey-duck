@@ -60,10 +60,17 @@ dagster_home/             # Dagster persistence directory
 
 ## Key Patterns
 
-**Asset graph** (5 parallel implementations sharing harvest layer):
+**Asset graph** (4 parallel implementations sharing harvest layer):
 ```
-dlt_harvest_* (shared) ──→ sales_transform_<impl> ──→ sales_output_<impl>
-                       └──→ artworks_transform_<impl> ──→ artworks_output_<impl>
+# Polars implementation (split into steps for intermediate persistence)
+dlt_harvest_* (shared) ──→ sales_joined_polars ──→ sales_transform_polars ──→ sales_output_polars
+                       └──→ artworks_catalog_polars ──┐
+                       └──→ artworks_sales_agg_polars ─┼──→ artworks_transform_polars ──→ artworks_output_polars
+                       └──→ artworks_media_polars ─────┘
+
+# Other implementations
+dlt_harvest_* ──→ sales_transform_<impl> ──→ sales_output_<impl>
+              └──→ artworks_transform_<impl> ──→ artworks_output_<impl>
 ```
 
 **Implementations**: original (processor classes), polars, duckdb, polars_fs
@@ -87,11 +94,16 @@ data/output/
 ```
 
 **DuckDB Usage**:
-- DuckDB is still used for: SQL transformations via processors and dlt harvest storage
-- dlt harvest: CSV/SQLite loaded to DuckDB `raw` schema
-- Inter-asset communication: Now uses Parquet (not DuckDB tables)
+- DuckDB is used for: SQL transformations via processors and dlt harvest storage
+- dlt harvest: CSV/SQLite loaded to DuckDB `raw` schema (via dagster-dlt)
+- DuckDB processors now return Polars DataFrames (using `.pl()` instead of `.df()`)
+- Inter-asset communication: Uses Parquet files (not DuckDB tables)
 
-**Note**: All asset implementations return Polars DataFrames for compatibility with PolarsParquetIOManager.
+**Intermediate Asset Persistence**:
+- Polars pipeline splits transformations into logical steps
+- Each step persists to Parquet via PolarsParquetIOManager
+- Enables debugging individual transformation steps
+- All assets return Polars DataFrames for IO manager compatibility
 
 ## Adding New Assets
 
