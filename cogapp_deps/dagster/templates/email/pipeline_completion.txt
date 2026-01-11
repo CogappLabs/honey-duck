@@ -1,0 +1,35 @@
+{{ pipeline_name }}
+{{ "=" * pipeline_name|length }}
+
+{{ status_message }}
+
+{{ greeting }},
+
+{{ message }}
+
+{% if metrics %}
+Metrics:
+{% for metric in metrics %}
+  • {{ metric.label }}: {{ metric.value }}
+{% endfor %}
+{% endif %}
+
+{% if assets %}
+Materialized Assets:
+{% for asset in assets %}
+  ✓ {{ asset }}
+{% endfor %}
+{% endif %}
+
+{% if dagster_url %}
+View in Dagster UI: {{ dagster_url }}
+{% endif %}
+
+Completed at {{ timestamp }}
+
+---
+This is an automated notification from your Dagster data pipeline.
+Powered by Cogapp (https://cogapp.com)
+{% if support_email %}
+Questions? Contact {{ support_email }}
+{% endif %}

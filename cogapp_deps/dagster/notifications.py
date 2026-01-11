@@ -131,36 +131,50 @@ def create_email_notification_asset(
     deps: Sequence[str],
     recipient_emails: list[str] | str,
     subject_template: str = "Pipeline Completion Notification",
-    body_template: str = "Pipeline completed successfully. {asset_count} assets materialized.",
+    pipeline_name: str | None = None,
+    dagster_url: str | None = None,
+    support_email: str | None = None,
+    custom_message: str | None = None,
     smtp_config_env_prefix: str = "SMTP",
     group_name: str = "notifications",
+    use_templates: bool = True,
 ) -> dg.AssetsDefinition:
-    """Create an email notification asset that triggers after dependencies complete.
+    """Create an email notification asset with Jinja2 templating and Cogapp branding.
 
-    This is a placeholder implementation showing the pattern. In production, you would:
-    1. Use @dg.resource to create an EmailResource with SMTP config
-    2. Use smtplib or a service like SendGrid/AWS SES
-    3. Add HTML email templates and error handling
+    Sends HTML and plain text email using Jinja2 templates with professional Cogapp styling.
+    Templates are located in cogapp_deps/dagster/templates/email/.
 
     Args:
         name: Asset name (e.g., "email_pipeline_report")
         deps: Asset keys that must complete before notification
         recipient_emails: Email address(es) to send to (string or list)
-        subject_template: Email subject (can include {asset_count} placeholder)
-        body_template: Email body (can include {asset_count} placeholder)
+        subject_template: Email subject line
+        pipeline_name: Pipeline display name (defaults to name)
+        dagster_url: URL to Dagster UI (e.g., "http://localhost:3000")
+        support_email: Support contact email for footer
+        custom_message: Custom message body (optional, uses default if not provided)
         smtp_config_env_prefix: Prefix for SMTP env vars (HOST, PORT, USER, PASSWORD)
         group_name: Dagster asset group name
+        use_templates: Whether to use Jinja2 HTML templates (default: True)
 
     Returns:
         Asset definition for the notification
+
+    Environment Variables:
+        {prefix}_HOST: SMTP server hostname
+        {prefix}_PORT: SMTP server port
+        {prefix}_USER: SMTP username
+        {prefix}_PASSWORD: SMTP password
 
     Example:
         >>> notify = create_email_notification_asset(
         ...     name="email_pipeline_report",
         ...     deps=["sales_output", "artworks_output"],
-        ...     recipient_emails=["team@example.com", "manager@example.com"],
-        ...     subject_template="Daily Pipeline Report - {asset_count} assets",
-        ...     body_template="Pipeline completed at {timestamp}. Check Dagster UI for details.",
+        ...     recipient_emails=["team@cogapp.com", "manager@cogapp.com"],
+        ...     subject_template="Daily Pipeline Report",
+        ...     pipeline_name="Honey Duck Sales Analysis",
+        ...     dagster_url="http://localhost:3000",
+        ...     support_email="data-team@cogapp.com",
         ... )
     """
 
@@ -171,15 +185,16 @@ def create_email_notification_asset(
         kinds={"email", "notification"},
     )
     def email_notification(context) -> dict:
-        """Send email notification after dependencies complete.
+        """Send email notification with Jinja2 templates and Cogapp branding.
 
-        PLACEHOLDER IMPLEMENTATION - Replace with actual email sending.
+        PLACEHOLDER IMPLEMENTATION - Replace with actual SMTP sending.
 
         Args:
             context: AssetExecutionContext provided by Dagster
         """
         import os
         from datetime import datetime
+        from pathlib import Path
 
         # Parse recipients
         recipients = recipient_emails if isinstance(recipient_emails, list) else [recipient_emails]
@@ -200,20 +215,98 @@ def create_email_notification_asset(
                 "reason": "smtp_not_configured",
             }
 
-        # Format message
-        timestamp = datetime.now().isoformat()
-        subject = subject_template.format(asset_count=len(deps), timestamp=timestamp)
-        body = body_template.format(asset_count=len(deps), timestamp=timestamp)
+        # Prepare template context
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
+        display_name = pipeline_name or name
 
-        # PLACEHOLDER: In production, use smtplib or email service here
+        template_context = {
+            "pipeline_name": display_name,
+            "subject": subject_template,
+            "status": "success",
+            "status_message": "✓ Pipeline Completed Successfully",
+            "greeting": "Hi",
+            "message": custom_message or f"Your {display_name} pipeline has completed successfully.",
+            "metrics": [
+                {"label": "Assets Materialized", "value": len(deps)},
+                {"label": "Status", "value": "Success"},
+            ],
+            "assets": list(deps),
+            "dagster_url": dagster_url,
+            "support_email": support_email,
+            "timestamp": timestamp,
+        }
+
+        if use_templates:
+            try:
+                from jinja2 import Environment, FileSystemLoader, select_autoescape
+
+                # Locate template directory
+                template_dir = Path(__file__).parent / "templates" / "email"
+
+                if not template_dir.exists():
+                    context.log.warning(
+                        f"Template directory not found: {template_dir}. Falling back to plain text."
+                    )
+                    use_templates_local = False
+                else:
+                    # Set up Jinja2 environment
+                    env = Environment(
+                        loader=FileSystemLoader(template_dir),
+                        autoescape=select_autoescape(["html", "xml"]),
+                    )
+
+                    # Render HTML and plain text templates
+                    html_template = env.get_template("pipeline_completion.html")
+                    text_template = env.get_template("pipeline_completion.txt")
+
+                    html_body = html_template.render(**template_context)
+                    text_body = text_template.render(**template_context)
+
+                    use_templates_local = True
+
+            except ImportError:
+                context.log.warning(
+                    "Jinja2 not installed. Install with: pip install jinja2. "
+                    "Falling back to plain text."
+                )
+                use_templates_local = False
+        else:
+            use_templates_local = False
+
+        # Fallback to simple text if templates disabled or unavailable
+        if not use_templates_local:
+            text_body = f"""
+{display_name}
+{'=' * len(display_name)}
+
+Pipeline completed successfully.
+
+Assets materialized: {len(deps)}
+Completed at {timestamp}
+
+Materialized Assets:
+{chr(10).join(f'  ✓ {asset}' for asset in deps)}
+
+---
+Powered by Cogapp (https://cogapp.com)
+            """.strip()
+            html_body = None
+
+        # PLACEHOLDER: In production, use smtplib to send HTML + plain text email
         # Example:
         # import smtplib
+        # from email.mime.multipart import MIMEMultipart
         # from email.mime.text import MIMEText
         #
-        # msg = MIMEText(body)
-        # msg["Subject"] = subject
+        # msg = MIMEMultipart("alternative")
+        # msg["Subject"] = subject_template
         # msg["From"] = smtp_user
         # msg["To"] = ", ".join(recipients)
+        #
+        # # Attach plain text and HTML versions
+        # msg.attach(MIMEText(text_body, "plain"))
+        # if html_body:
+        #     msg.attach(MIMEText(html_body, "html"))
         #
         # with smtplib.SMTP(smtp_host, int(smtp_port)) as server:
         #     server.starttls()
@@ -222,23 +315,26 @@ def create_email_notification_asset(
 
         context.log.info(f"[PLACEHOLDER] Would send email notification")
         context.log.info(f"[PLACEHOLDER] To: {', '.join(recipients)}")
-        context.log.info(f"[PLACEHOLDER] Subject: {subject}")
-        context.log.info(f"[PLACEHOLDER] Body: {body}")
+        context.log.info(f"[PLACEHOLDER] Subject: {subject_template}")
+        context.log.info(f"[PLACEHOLDER] Format: {'HTML + Text' if html_body else 'Text only'}")
         context.log.info(f"[PLACEHOLDER] Dependencies completed: {', '.join(deps)}")
 
         context.add_output_metadata({
-            "subject": subject,
+            "subject": subject_template,
             "recipients": ", ".join(recipients),
             "dependencies": ", ".join(deps),
             "smtp_configured": bool(smtp_host and smtp_user),
+            "format": "html+text" if html_body else "text",
+            "template_engine": "jinja2" if use_templates_local else "none",
         })
 
         return {
             "status": "sent",
-            "subject": subject,
+            "subject": subject_template,
             "recipients": recipients,
             "dependencies": list(deps),
             "timestamp": timestamp,
+            "format": "html+text" if html_body else "text",
         }
 
     return email_notification

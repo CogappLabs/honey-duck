@@ -48,27 +48,17 @@ notify_polars_pipeline = create_slack_notification_asset(
     channel="#data-pipeline-alerts",
 )
 
-# Example 3: Email notification with custom template
+# Example 3: Email notification with Jinja2 HTML templates and Cogapp branding
 notify_pipeline_email = create_email_notification_asset(
     name="notify_pipeline_email",
     deps=["sales_output", "artworks_output"],
-    recipient_emails=["data-team@example.com", "manager@example.com"],
-    subject_template="Daily Honey Duck Pipeline Report - {asset_count} assets completed",
-    body_template="""
-Pipeline Completion Report
-==========================
-
-The honey-duck data pipeline has completed successfully.
-
-Assets materialized: {asset_count}
-Timestamp: {timestamp}
-
-Check the Dagster UI for detailed metrics and logs:
-http://localhost:3000
-
----
-This is an automated notification from the Honey Duck data pipeline.
-    """,
+    recipient_emails=["data-team@cogapp.com", "manager@cogapp.com"],
+    subject_template="Daily Honey Duck Pipeline Report",
+    pipeline_name="Honey Duck Sales Analysis",
+    dagster_url="http://localhost:3000",
+    support_email="data-team@cogapp.com",
+    custom_message="The Honey Duck data pipeline has completed successfully. All sales and artworks data has been processed and is ready for analysis.",
+    use_templates=True,  # Uses Jinja2 HTML templates with Tailwind CSS
 )
 
 # Example 4: Using the convenience wrapper
@@ -80,17 +70,30 @@ notify_duckdb_pipeline = create_pipeline_status_notification(
     channel="#data-pipeline-alerts",
 )
 
-# Example 5: Multiple recipients with email
+# Example 5: Multiple stakeholders with branded HTML email
 notify_stakeholders = create_email_notification_asset(
     name="notify_stakeholders",
     deps=["sales_output", "artworks_output"],
     recipient_emails=[
-        "cto@example.com",
-        "data-lead@example.com",
-        "analytics-team@example.com",
+        "cto@cogapp.com",
+        "data-lead@cogapp.com",
+        "analytics-team@cogapp.com",
     ],
-    subject_template="Honey Duck Pipeline Report - {asset_count} assets",
-    body_template="Pipeline completed at {timestamp}. All {asset_count} assets materialized successfully.",
+    subject_template="Honey Duck Pipeline Report",
+    pipeline_name="Honey Duck Production Pipeline",
+    dagster_url="https://dagster.cogapp.com",
+    support_email="devops@cogapp.com",
+    use_templates=True,
+)
+
+# Example 6: Plain text email (no HTML templates)
+notify_simple = create_email_notification_asset(
+    name="notify_simple",
+    deps=["sales_output"],
+    recipient_emails="alerts@cogapp.com",
+    subject_template="Sales Pipeline Completed",
+    pipeline_name="Sales Data Pipeline",
+    use_templates=False,  # Plain text only
 )
 
 

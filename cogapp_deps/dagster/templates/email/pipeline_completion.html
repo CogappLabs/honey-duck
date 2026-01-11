@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ subject }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        cogapp: {
+                            primary: '#667eea',
+                            secondary: '#764ba2',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-100 font-sans leading-relaxed text-gray-800 m-0 p-0">
+    <div class="max-w-2xl mx-auto my-5 bg-white rounded-lg overflow-hidden shadow-md">
+        <!-- Header with Cogapp Branding -->
+        <div class="bg-gradient-to-r from-cogapp-primary to-cogapp-secondary text-white py-8 px-5 text-center">
+            <h1 class="m-0 text-2xl font-semibold">{{ pipeline_name }}</h1>
+            <div class="text-sm opacity-90 mt-1">Cogapp · Data Pipeline Notification</div>
+        </div>
+
+        <!-- Content -->
+        <div class="p-8">
+            <!-- Status Badge -->
+            <div class="inline-block px-4 py-2 rounded-full text-sm font-semibold mb-5
+                        {% if status == 'success' %}bg-green-100 text-green-800{% endif %}
+                        {% if status == 'warning' %}bg-yellow-100 text-yellow-800{% endif %}
+                        {% if status == 'error' %}bg-red-100 text-red-800{% endif %}">
+                {{ status_message }}
+            </div>
+
+            <!-- Greeting and Message -->
+            <p class="mb-4">{{ greeting }},</p>
+            <p class="mb-6">{{ message }}</p>
+
+            <!-- Metrics Grid -->
+            {% if metrics %}
+            <div class="grid grid-cols-2 gap-4 my-5">
+                {% for metric in metrics %}
+                <div class="bg-gray-50 p-4 rounded-lg border-l-4 border-cogapp-primary">
+                    <div class="text-xs text-gray-600 uppercase font-semibold mb-1">{{ metric.label }}</div>
+                    <div class="text-2xl font-bold text-gray-800">{{ metric.value }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Asset List -->
+            {% if assets %}
+            <div class="bg-gray-50 p-4 rounded-lg my-5">
+                <h3 class="m-0 mb-3 text-sm text-gray-600 uppercase font-semibold">Materialized Assets</h3>
+                {% for asset in assets %}
+                <div class="py-2 {% if not loop.last %}border-b border-gray-200{% endif %} text-gray-700">
+                    <span class="text-green-600 font-bold mr-2">✓</span>{{ asset }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- CTA Button -->
+            {% if dagster_url %}
+            <a href="{{ dagster_url }}"
+               class="inline-block px-8 py-3 bg-gradient-to-r from-cogapp-primary to-cogapp-secondary
+                      text-white no-underline rounded-lg font-semibold my-5 hover:opacity-90
+                      transition-opacity">
+                View in Dagster UI
+            </a>
+            {% endif %}
+
+            <!-- Timestamp -->
+            <div class="text-sm text-gray-600 mt-3">
+                ⏱ Completed at {{ timestamp }}
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="bg-gray-50 p-5 text-center text-xs text-gray-600 border-t border-gray-200">
+            <p class="mb-2">
+                This is an automated notification from your Dagster data pipeline.<br>
+                Powered by <a href="https://cogapp.com" class="text-cogapp-primary no-underline hover:underline">Cogapp</a>
+            </p>
+            {% if support_email %}
+            <p class="mb-0">
+                Questions? Contact <a href="mailto:{{ support_email }}" class="text-cogapp-primary no-underline hover:underline">{{ support_email }}</a>
+            </p>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>
