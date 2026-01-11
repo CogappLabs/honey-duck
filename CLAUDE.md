@@ -130,6 +130,33 @@ data/output/
 
 ## Adding New Assets
 
+**See `defs/PATTERNS.md` for detailed examples with minimal boilerplate.**
+
+### Quick Start (3 lines of code!)
+
+```python
+from honey_duck.defs.helpers import transform_asset, read_harvest_tables, add_standard_metadata
+
+@transform_asset()  # Automatic error handling, timing, validation!
+def my_transform(context) -> pl.DataFrame:
+    tables = read_harvest_tables(
+        ("sales_raw", ["sale_id", "sale_price_usd"]),
+        asset_name="my_transform",
+    )
+    result = tables["sales_raw"].filter(pl.col("sale_price_usd") > 1000).collect()
+    add_standard_metadata(context, result)
+    return result
+```
+
+**What you get automatically:**
+- ✅ Error handling with clear messages
+- ✅ Table/column validation
+- ✅ Timing metadata
+- ✅ Standard metadata (record count, preview)
+- ✅ Proper group_name, kinds, and dependencies
+
+### Traditional Approach (Still Supported)
+
 1. Add asset function in `defs/assets.py`
 2. Decorate with `@dg.asset(kinds={"polars"}, group_name="...")`
 3. **Return type must be `pl.DataFrame`** for PolarsParquetIOManager compatibility

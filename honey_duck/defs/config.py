@@ -159,31 +159,12 @@ class HoneyDuckConfig:
         return config
 
 
-# Lazy-loaded singleton instance
-_CONFIG: HoneyDuckConfig | None = None
-
-
-def get_config() -> HoneyDuckConfig:
-    """Get or create the global configuration instance.
-
-    Returns:
-        Validated configuration object
-
-    Raises:
-        ConfigurationError: If configuration is invalid
-    """
-    global _CONFIG
-    if _CONFIG is None:
-        try:
-            _CONFIG = HoneyDuckConfig.from_env()
-        except ConfigurationError as e:
-            # Re-raise with helpful context
-            raise ConfigurationError(
-                f"Failed to load configuration: {e}\n\n"
-                f"Check your environment variables and directory permissions."
-            ) from e
-    return _CONFIG
-
-
-# For backward compatibility, provide CONFIG as a property
-CONFIG = get_config()
+# Global configuration instance - validated on import
+try:
+    CONFIG = HoneyDuckConfig.from_env()
+except ConfigurationError as e:
+    # Re-raise with helpful context
+    raise ConfigurationError(
+        f"Failed to load configuration: {e}\n\n"
+        f"Check your environment variables and directory permissions."
+    ) from e
