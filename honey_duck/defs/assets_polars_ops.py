@@ -24,9 +24,10 @@ from datetime import timedelta
 import dagster as dg
 import polars as pl
 
-from cogapp_deps.dagster import read_duckdb_table_lazy, write_json_output
+from cogapp_deps.dagster import read_parquet_table_lazy, write_json_output
 
 from .config import CONFIG
+from .resources import HARVEST_PARQUET_DIR
 from .constants import (
     MIN_SALE_VALUE_USD,
     PRICE_TIER_BUDGET_MAX_USD,
@@ -61,20 +62,20 @@ def join_sales_data(context: dg.OpExecutionContext) -> pl.DataFrame:
     start_time = time.perf_counter()
 
     # Read with validation
-    sales = read_duckdb_table_lazy(
-        CONFIG.duckdb_path,
+    sales = read_parquet_table_lazy(
+        HARVEST_PARQUET_DIR / "raw",
         "sales_raw",
         required_columns=["sale_id", "artwork_id", "sale_date", "sale_price_usd", "buyer_country"],
         asset_name="join_sales_data",
     )
-    artworks = read_duckdb_table_lazy(
-        CONFIG.duckdb_path,
+    artworks = read_parquet_table_lazy(
+        HARVEST_PARQUET_DIR / "raw",
         "artworks_raw",
         required_columns=["artwork_id", "artist_id", "title", "year", "medium", "price_usd"],
         asset_name="join_sales_data",
     )
-    artists = read_duckdb_table_lazy(
-        CONFIG.duckdb_path,
+    artists = read_parquet_table_lazy(
+        HARVEST_PARQUET_DIR / "raw",
         "artists_raw",
         required_columns=["artist_id", "name", "nationality"],
         asset_name="join_sales_data",
@@ -183,14 +184,14 @@ def build_artwork_catalog(context: dg.OpExecutionContext) -> pl.DataFrame:
     """Op: Build artwork catalog by joining artworks with artists."""
     start_time = time.perf_counter()
 
-    artworks = read_duckdb_table_lazy(
-        CONFIG.duckdb_path,
+    artworks = read_parquet_table_lazy(
+        HARVEST_PARQUET_DIR / "raw",
         "artworks_raw",
         required_columns=["artwork_id", "artist_id", "title", "year", "medium", "price_usd"],
         asset_name="build_artwork_catalog",
     )
-    artists = read_duckdb_table_lazy(
-        CONFIG.duckdb_path,
+    artists = read_parquet_table_lazy(
+        HARVEST_PARQUET_DIR / "raw",
         "artists_raw",
         required_columns=["artist_id", "name", "nationality"],
         asset_name="build_artwork_catalog",
@@ -224,8 +225,8 @@ def aggregate_sales_metrics(context: dg.OpExecutionContext, catalog: pl.DataFram
     """Op: Aggregate sales metrics per artwork."""
     start_time = time.perf_counter()
 
-    sales = read_duckdb_table_lazy(
-        CONFIG.duckdb_path,
+    sales = read_parquet_table_lazy(
+        HARVEST_PARQUET_DIR / "raw",
         "sales_raw",
         required_columns=["artwork_id", "sale_price_usd", "sale_date"],
         asset_name="aggregate_sales_metrics",
@@ -260,8 +261,8 @@ def prepare_media_data(context: dg.OpExecutionContext) -> pl.DataFrame:
     """Op: Prepare media data - primary image and all media aggregated."""
     start_time = time.perf_counter()
 
-    media = read_duckdb_table_lazy(
-        CONFIG.duckdb_path,
+    media = read_parquet_table_lazy(
+        HARVEST_PARQUET_DIR / "raw",
         "media",
         required_columns=["artwork_id", "sort_order", "filename", "alt_text", "media_type",
                          "file_format", "width_px", "height_px", "file_size_kb"],

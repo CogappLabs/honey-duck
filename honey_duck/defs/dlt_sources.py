@@ -18,7 +18,9 @@ import dlt
 from dlt.sources.filesystem import filesystem, read_csv
 from dlt.sources.sql_database import sql_database
 
-from .resources import DUCKDB_PATH, HARVEST_PARQUET_DIR, INPUT_DIR, MEDIA_DB_PATH
+from cogapp_deps.dagster import create_parquet_pipeline
+
+from .resources import HARVEST_PARQUET_DIR, INPUT_DIR, MEDIA_DB_PATH
 
 
 @dlt.source(name="harvest")
@@ -72,14 +74,8 @@ def get_harvest_pipeline() -> dlt.Pipeline:
     Returns:
         Configured dlt pipeline pointing to Parquet filesystem destination.
     """
-    # Ensure harvest directory exists
-    HARVEST_PARQUET_DIR.mkdir(parents=True, exist_ok=True)
-
-    return dlt.pipeline(
+    return create_parquet_pipeline(
         pipeline_name="honey_duck_harvest_parquet",
-        destination=dlt.destinations.filesystem(
-            bucket_url=str(HARVEST_PARQUET_DIR),
-            layout="{table_name}/{load_id}.{file_id}.{ext}",
-        ),
+        destination_dir=HARVEST_PARQUET_DIR,
         dataset_name="raw",
     )

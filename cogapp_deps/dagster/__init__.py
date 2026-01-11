@@ -39,6 +39,20 @@ from cogapp_deps.dagster.validation import (
     validate_dataframe,
 )
 
+try:
+    import dlt as _dlt  # noqa: F401
+
+    from cogapp_deps.dagster.dlt_helpers import (
+        create_duckdb_pipeline,
+        create_parquet_pipeline,
+    )
+
+    _HAS_DLT = True
+except ImportError:
+    _HAS_DLT = False
+    create_duckdb_pipeline = None
+    create_parquet_pipeline = None
+
 __all__ = [
     # IO utilities
     "DuckDBPandasPolarsIOManager",
@@ -60,4 +74,7 @@ __all__ = [
     # Helpers
     "read_tables_from_duckdb",
     "add_dataframe_metadata",
+    # DLT helpers (optional)
+    "create_parquet_pipeline",
+    "create_duckdb_pipeline",
 ]
