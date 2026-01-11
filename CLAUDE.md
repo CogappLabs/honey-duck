@@ -31,10 +31,10 @@ honey_duck/
     ├── dlt_sources.py    # dlt source configuration
     ├── dlt_assets.py     # dagster-dlt asset wrapper
     ├── assets.py         # Original transform/output (processor classes)
-    ├── assets_polars.py  # Pure Polars implementation
-    ├── assets_pandas.py  # Pure Pandas implementation
+    ├── assets_polars.py  # Pure Polars implementation (split into steps)
     ├── assets_duckdb.py  # Pure DuckDB SQL implementation
     ├── assets_polars_fs.py # Polars with FilesystemIOManager
+    ├── assets_polars_ops.py # Graph-backed assets with ops (detailed observability)
     ├── resources.py      # Path constants and configuration
     ├── constants.py      # Business constants (thresholds, tiers)
     ├── schemas.py        # Pandera validation schemas
@@ -60,7 +60,7 @@ dagster_home/             # Dagster persistence directory
 
 ## Key Patterns
 
-**Asset graph** (4 parallel implementations sharing harvest layer):
+**Asset graph** (5 parallel implementations sharing harvest layer):
 ```
 # Polars implementation (split into steps for intermediate persistence)
 dlt_harvest_* (shared) ──→ sales_joined_polars ──→ sales_transform_polars ──→ sales_output_polars
@@ -68,16 +68,26 @@ dlt_harvest_* (shared) ──→ sales_joined_polars ──→ sales_transform_p
                        └──→ artworks_sales_agg_polars ─┼──→ artworks_transform_polars ──→ artworks_output_polars
                        └──→ artworks_media_polars ─────┘
 
-# Other implementations
+# Polars ops implementation (graph-backed assets - single asset with ops)
+dlt_harvest_* (shared) ──→ sales_transform_polars_ops ──→ sales_output_polars_ops
+                       └──→ artworks_transform_polars_ops ──→ artworks_output_polars_ops
+
+# Other implementations (single transform asset per pipeline)
 dlt_harvest_* ──→ sales_transform_<impl> ──→ sales_output_<impl>
               └──→ artworks_transform_<impl> ──→ artworks_output_<impl>
 ```
 
-**Implementations**: original (processor classes), polars, duckdb, polars_fs
+**Implementations**:
+- original (processor classes)
+- polars (split into steps for intermediate persistence)
+- polars_ops (graph-backed assets with ops for detailed observability)
+- duckdb (pure SQL)
+- polars_fs (FilesystemIOManager)
 
 **Jobs**:
 - `full_pipeline` - Original implementation with processor classes
-- `polars_pipeline` - Pure Polars expressions
+- `polars_pipeline` - Pure Polars expressions (split into steps)
+- `polars_ops_pipeline` - Graph-backed assets with ops (detailed observability)
 - `duckdb_pipeline` - Pure DuckDB SQL
 - `polars_fs_pipeline` - Polars with FilesystemIOManager
 
@@ -104,6 +114,19 @@ data/output/
 - Each step persists to Parquet via PolarsParquetIOManager
 - Enables debugging individual transformation steps
 - All assets return Polars DataFrames for IO manager compatibility
+
+**Graph-Backed Assets with Ops** (Detailed Observability Pattern):
+- Use `@dg.graph_asset` decorator to compose ops into a single asset
+- Each transformation step is an `@dg.op` with detailed logging
+- Provides op-level observability without intermediate persistence
+- Single asset appears in lineage graph (cleaner graph)
+- Best for: Proof-of-concept projects, complex pipelines needing detailed logs
+- Example: `assets_polars_ops.py`
+
+**When to use graph-backed assets vs split assets:**
+- **Split assets** (`polars_pipeline`): When you need intermediate Parquet files for debugging
+- **Graph-backed assets** (`polars_ops_pipeline`): When you need detailed op logs but not intermediate persistence
+- Users can choose based on their debugging/observability needs
 
 ## Adding New Assets
 

@@ -5,11 +5,12 @@ Includes:
 - Data quality checks for output assets
 
 Note: Freshness is handled via FreshnessPolicy on assets (not checks).
+Uses pandera.polars for validating Polars DataFrames.
 """
 
 import dagster as dg
-import pandas as pd
-import pandera.pandas as pa
+import pandera as pa
+import polars as pl
 
 from .assets import (
     artworks_output,
@@ -27,7 +28,7 @@ from .schemas import ArtworksTransformSchema, SalesTransformSchema
 
 
 @dg.asset_check(asset=sales_transform, blocking=True)
-def check_sales_transform_schema(sales_transform: pd.DataFrame) -> dg.AssetCheckResult:
+def check_sales_transform_schema(sales_transform: pl.DataFrame) -> dg.AssetCheckResult:
     """Validate sales_transform against Pandera schema.
 
     Blocking: If this fails, sales_output will not materialize.
@@ -53,7 +54,7 @@ def check_sales_transform_schema(sales_transform: pd.DataFrame) -> dg.AssetCheck
 
 @dg.asset_check(asset=artworks_transform, blocking=True)
 def check_artworks_transform_schema(
-    artworks_transform: pd.DataFrame,
+    artworks_transform: pl.DataFrame,
 ) -> dg.AssetCheckResult:
     """Validate artworks_transform against Pandera schema.
 
@@ -84,7 +85,7 @@ def check_artworks_transform_schema(
 
 
 @dg.asset_check(asset=sales_output)
-def check_sales_above_threshold(sales_output: pd.DataFrame) -> dg.AssetCheckResult:
+def check_sales_above_threshold(sales_output: pl.DataFrame) -> dg.AssetCheckResult:
     """Check that all sales in output meet the minimum threshold."""
     below_threshold = (sales_output["sale_price_usd"] < MIN_SALE_VALUE_USD).sum()
     passed = bool(below_threshold == 0)
@@ -102,14 +103,20 @@ def check_sales_above_threshold(sales_output: pd.DataFrame) -> dg.AssetCheckResu
 
 
 @dg.asset_check(asset=artworks_output)
-def check_valid_price_tiers(artworks_output: pd.DataFrame) -> dg.AssetCheckResult:
+def check_valid_price_tiers(artworks_output: pl.DataFrame) -> dg.AssetCheckResult:
     """Check that all artworks have a valid price tier."""
-    invalid_tiers = ~artworks_output["price_tier"].isin(PRICE_TIERS)
+    invalid_tiers = ~artworks_output["price_tier"].is_in(PRICE_TIERS)
     invalid_count = invalid_tiers.sum()
     passed = bool(invalid_count == 0)
 
-    # Convert to JSON-serializable dict (pandas to_dict handles numpy types)
-    tier_dist = artworks_output["price_tier"].value_counts().to_dict()
+    # Convert to JSON-serializable dict
+    tier_counts = artworks_output["price_tier"].value_counts()
+    tier_dist = dict(
+        zip(
+            tier_counts["price_tier"].to_list(),
+            tier_counts["count"].to_list(),
+        )
+    )
 
     return dg.AssetCheckResult(
         passed=passed,

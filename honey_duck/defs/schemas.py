@@ -2,9 +2,12 @@
 
 These schemas define the expected structure and constraints for transformed data.
 Used by blocking asset checks to prevent bad data from flowing downstream.
+
+Note: Uses pandera.polars for validating Polars DataFrames.
 """
 
-import pandera.pandas as pa
+import pandera.polars as pa
+from pandera.polars import Column
 
 
 class SalesTransformSchema(pa.DataFrameModel):
@@ -23,7 +26,7 @@ class SalesTransformSchema(pa.DataFrameModel):
     artist_name: str = pa.Field(nullable=False)
     nationality: str
     price_diff: int
-    pct_change: float
+    pct_change: float = pa.Field(nullable=True)
 
     class Config:
         coerce = True

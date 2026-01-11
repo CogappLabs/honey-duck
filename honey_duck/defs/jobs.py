@@ -69,3 +69,26 @@ polars_fs_pipeline_job = dg.define_asset_job(
     3. Output: Filter and write JSON (intermediate assets stored as pickle files)
     """,
 )
+
+
+# Polars with ops (graph-backed assets) pipeline
+polars_ops_pipeline_job = dg.define_asset_job(
+    name="polars_ops_pipeline",
+    selection=dg.AssetSelection.groups("harvest", "transform_polars_ops", "output_polars_ops"),
+    description="""
+    Graph-backed asset implementation using ops for detailed observability.
+
+    Demonstrates ops pattern for proof-of-concept / larger pipelines.
+    Each transformation step is an op with detailed logging and metadata.
+    Results in single asset in lineage graph with op-level observability.
+
+    Benefits:
+    - Detailed op-level logs and metadata for debugging
+    - Single asset in lineage graph (cleaner asset graph)
+    - No intermediate persistence (data flows through memory)
+
+    1. Harvest (dlt): Load raw data to DuckDB (shared)
+    2. Transform: Graph-backed assets with ops for join, aggregate, enrich
+    3. Output: Filter and write JSON
+    """,
+)

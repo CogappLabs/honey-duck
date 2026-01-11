@@ -3,7 +3,7 @@
 This module creates the single Definitions object that Dagster uses.
 All assets, jobs, and resources are combined here.
 
-Asset Graph (Original + 4 Implementation Variants)
+Asset Graph (Original + 5 Implementation Variants)
 --------------------------------------------------
 Each implementation follows this pattern:
 
@@ -14,9 +14,10 @@ Groups
 ------
 - harvest: Raw data loaded from CSV/SQLite into DuckDB via dlt (shared)
 - transform/output: Original implementation with processor classes
-- transform_polars/output_polars: Pure Polars expressions
+- transform_polars/output_polars: Pure Polars expressions (split into steps)
 - transform_duckdb/output_duckdb: Pure DuckDB SQL queries
 - transform_polars_fs/output_polars_fs: Polars with FilesystemIOManager
+- transform_polars_ops/output_polars_ops: Graph-backed assets with ops (detailed observability)
 
 IO Managers
 -----------
@@ -72,6 +73,14 @@ from .assets_polars_fs import (
     sales_transform_polars_fs,
 )
 
+# Polars with ops (graph-backed assets)
+from .assets_polars_ops import (
+    artworks_output_polars_ops,
+    artworks_transform_polars_ops,
+    sales_output_polars_ops,
+    sales_transform_polars_ops,
+)
+
 from .checks import (
     check_artworks_transform_schema,
     check_sales_above_threshold,
@@ -83,6 +92,7 @@ from .jobs import (
     duckdb_pipeline_job,
     full_pipeline_job,
     polars_fs_pipeline_job,
+    polars_ops_pipeline_job,
     polars_pipeline_job,
 )
 from .resources import DUCKDB_PATH, PARQUET_DIR
@@ -116,12 +126,18 @@ defs = dg.Definitions(
         artworks_transform_polars_fs,
         sales_output_polars_fs,
         artworks_output_polars_fs,
+        # Polars with ops (graph-backed assets for detailed observability)
+        sales_transform_polars_ops,
+        artworks_transform_polars_ops,
+        sales_output_polars_ops,
+        artworks_output_polars_ops,
     ],
     jobs=[
         full_pipeline_job,
         polars_pipeline_job,
         duckdb_pipeline_job,
         polars_fs_pipeline_job,
+        polars_ops_pipeline_job,
     ],
     asset_checks=[
         # Blocking Pandera schema checks (prevent downstream on failure)
