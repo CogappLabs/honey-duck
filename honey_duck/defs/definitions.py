@@ -14,15 +14,21 @@ Groups
 ------
 - harvest: Raw data loaded from CSV/SQLite into DuckDB via dlt (shared)
 - transform/output: Original implementation with processor classes
-- transform_polars/output_polars: Pure Polars expressions (DuckDB IO manager)
-- transform_pandas/output_pandas: Pure Pandas expressions (DuckDB IO manager)
-- transform_duckdb/output_duckdb: Pure DuckDB SQL queries (DuckDB IO manager)
+- transform_polars/output_polars: Pure Polars expressions (Parquet IO manager)
+- transform_pandas/output_pandas: Pure Pandas expressions (Parquet IO manager)
+- transform_duckdb/output_duckdb: Pure DuckDB SQL queries (Parquet IO manager)
 - transform_polars_fs/output_polars_fs: Pure Polars expressions (Filesystem IO manager)
 
 IO Managers
 -----------
-- io_manager (default): DuckDBPandasPolarsIOManager - stores DataFrames as DuckDB tables
+- io_manager (default): PolarsParquetIOManager - stores DataFrames as Parquet files
 - fs_io_manager: FilesystemIOManager - pickles DataFrames to files
+
+DuckDB Usage
+------------
+- DuckDB is still used for SQL transformations via processors
+- DuckDB resource provides connection to raw schema (dlt harvest data)
+- Inter-asset communication now uses Parquet instead of DuckDB tables
 
 Checks
 ------
@@ -34,8 +40,7 @@ import dagster as dg
 from dagster import FilesystemIOManager
 from dagster_dlt import DagsterDltResource
 from dagster_duckdb import DuckDBResource
-
-from cogapp_deps.dagster import DuckDBPandasPolarsIOManager
+from dagster_polars import PolarsParquetIOManager
 
 # Original implementation
 from .assets import artworks_output, artworks_transform, sales_output, sales_transform
@@ -86,7 +91,7 @@ from .jobs import (
     polars_fs_pipeline_job,
     polars_pipeline_job,
 )
-from .resources import DUCKDB_PATH
+from .resources import DUCKDB_PATH, PARQUET_DIR
 
 
 defs = dg.Definitions(
@@ -135,9 +140,8 @@ defs = dg.Definitions(
         check_valid_price_tiers,
     ],
     resources={
-        "io_manager": DuckDBPandasPolarsIOManager(
-            database=DUCKDB_PATH,
-            schema="main",
+        "io_manager": PolarsParquetIOManager(
+            base_dir=str(PARQUET_DIR),
         ),
         "fs_io_manager": FilesystemIOManager(),
         "dlt": DagsterDltResource(),

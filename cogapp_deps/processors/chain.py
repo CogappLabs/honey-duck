@@ -3,6 +3,8 @@
 Chain multiple Polars processors together - they are optimized as a single query.
 """
 
+from __future__ import annotations
+
 import pandas as pd
 import polars as pl
 

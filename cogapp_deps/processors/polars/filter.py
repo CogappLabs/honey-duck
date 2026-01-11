@@ -3,6 +3,8 @@
 Supports lazy evaluation for query optimization when chained.
 """
 
+from __future__ import annotations
+
 import pandas as pd
 
 try:

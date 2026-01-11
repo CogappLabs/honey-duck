@@ -3,6 +3,9 @@
 This module implements the transform and output layers using only inline
 Pandas expressions - no processor classes from cogapp_deps.
 
+Note: Assets convert to Polars DataFrames before returning for compatibility
+with the PolarsParquetIOManager. All transformations use Pandas.
+
 Asset Graph:
     dlt_harvest_* (shared) ──→ sales_transform_pandas ──→ sales_output_pandas
                            └──→ artworks_transform_pandas ──→ artworks_output_pandas
@@ -15,6 +18,7 @@ import dagster as dg
 import duckdb
 import numpy as np
 import pandas as pd
+import polars as pl
 
 from cogapp_deps.dagster import write_json_output
 
@@ -61,7 +65,7 @@ def _read_raw_table(table: str) -> pd.DataFrame:
     deps=HARVEST_DEPS,
     group_name="transform_pandas",
 )
-def sales_transform_pandas(context: dg.AssetExecutionContext) -> pd.DataFrame:
+def sales_transform_pandas(context: dg.AssetExecutionContext) -> pl.DataFrame:
     """Join sales with artworks and artists using pure Pandas expressions."""
     start_time = time.perf_counter()
 
@@ -112,7 +116,9 @@ def sales_transform_pandas(context: dg.AssetExecutionContext) -> pd.DataFrame:
         "processing_time_ms": round(elapsed_ms, 2),
     })
     context.log.info(f"Transformed {len(result)} sales records (Pandas) in {elapsed_ms:.1f}ms")
-    return result
+
+    # Convert to Polars for PolarsParquetIOManager
+    return pl.from_pandas(result)
 
 
 @dg.asset(
@@ -123,14 +129,17 @@ def sales_transform_pandas(context: dg.AssetExecutionContext) -> pd.DataFrame:
 )
 def sales_output_pandas(
     context: dg.AssetExecutionContext,
-    sales_transform_pandas: pd.DataFrame,
-) -> pd.DataFrame:
+    sales_transform_pandas: pl.DataFrame,
+) -> pl.DataFrame:
     """Filter high-value sales using pure Pandas and output to JSON."""
     start_time = time.perf_counter()
-    total_count = len(sales_transform_pandas)
+
+    # Convert from Polars to Pandas for processing
+    sales_df = sales_transform_pandas.to_pandas()
+    total_count = len(sales_df)
 
     # Filter using query() for readability
-    result = sales_transform_pandas.query(f"sale_price_usd >= {MIN_SALE_VALUE_USD}").copy()
+    result = sales_df.query(f"sale_price_usd >= {MIN_SALE_VALUE_USD}").copy()
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
     write_json_output(result, SALES_OUTPUT_PATH_PANDAS, context, extra_metadata={
@@ -140,7 +149,9 @@ def sales_output_pandas(
         "processing_time_ms": round(elapsed_ms, 2),
     })
     context.log.info(f"Output {len(result)} high-value sales to {SALES_OUTPUT_PATH_PANDAS} in {elapsed_ms:.1f}ms")
-    return result
+
+    # Convert to Polars for PolarsParquetIOManager
+    return pl.from_pandas(result)
 
 
 # -----------------------------------------------------------------------------
@@ -153,7 +164,7 @@ def sales_output_pandas(
     deps=HARVEST_DEPS,
     group_name="transform_pandas",
 )
-def artworks_transform_pandas(context: dg.AssetExecutionContext) -> pd.DataFrame:
+def artworks_transform_pandas(context: dg.AssetExecutionContext) -> pl.DataFrame:
     """Join artworks with artists, media, and aggregate sales using pure Pandas."""
     start_time = time.perf_counter()
 
@@ -252,7 +263,9 @@ def artworks_transform_pandas(context: dg.AssetExecutionContext) -> pd.DataFrame
         "processing_time_ms": round(elapsed_ms, 2),
     })
     context.log.info(f"Transformed {len(result)} artworks (Pandas) in {elapsed_ms:.1f}ms")
-    return result
+
+    # Convert to Polars for PolarsParquetIOManager
+    return pl.from_pandas(result)
 
 
 @dg.asset(
@@ -262,20 +275,25 @@ def artworks_transform_pandas(context: dg.AssetExecutionContext) -> pd.DataFrame
 )
 def artworks_output_pandas(
     context: dg.AssetExecutionContext,
-    artworks_transform_pandas: pd.DataFrame,
-) -> pd.DataFrame:
+    artworks_transform_pandas: pl.DataFrame,
+) -> pl.DataFrame:
     """Output artwork catalog to JSON using pure Pandas."""
     start_time = time.perf_counter()
 
-    tier_counts = artworks_transform_pandas["price_tier"].value_counts().to_dict()
+    # Convert from Polars to Pandas for processing
+    artworks_df = artworks_transform_pandas.to_pandas()
+
+    tier_counts = artworks_df["price_tier"].value_counts().to_dict()
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
     write_json_output(
-        artworks_transform_pandas, ARTWORKS_OUTPUT_PATH_PANDAS, context,
+        artworks_df, ARTWORKS_OUTPUT_PATH_PANDAS, context,
         extra_metadata={
             "price_tier_distribution": tier_counts,
             "processing_time_ms": round(elapsed_ms, 2),
         }
     )
-    context.log.info(f"Output {len(artworks_transform_pandas)} artworks to {ARTWORKS_OUTPUT_PATH_PANDAS} in {elapsed_ms:.1f}ms")
+    context.log.info(f"Output {len(artworks_df)} artworks to {ARTWORKS_OUTPUT_PATH_PANDAS} in {elapsed_ms:.1f}ms")
+
+    # Convert to Polars for PolarsParquetIOManager
     return artworks_transform_pandas

@@ -1,11 +1,11 @@
 """Resource registration for the honey-duck pipeline.
 
-This module configures the DuckDBPandasPolarsIOManager which handles:
-- Storing DataFrames as DuckDB tables between assets
-- Loading upstream asset data automatically
-- Persisting final outputs
+This module configures storage paths for the pipeline:
+- PolarsParquetIOManager stores DataFrames as Parquet files between assets
+- DuckDB is used for SQL transformations and dlt harvest storage
+- Final outputs are written as JSON files
 
-The DuckDB database file is stored in data/output/ alongside other outputs.
+Storage locations are all under data/output/ and can be overridden via environment variables.
 """
 
 import os
@@ -19,7 +19,15 @@ DATA_DIR = PROJECT_ROOT / "data"
 INPUT_DIR = DATA_DIR / "input"
 OUTPUT_DIR = DATA_DIR / "output"
 
-# IO Manager database path (can be overridden via environment variable)
+# Parquet IO Manager storage directory (can be overridden via environment variable)
+PARQUET_DIR = Path(
+    os.environ.get(
+        "HONEY_DUCK_PARQUET_DIR",
+        str(OUTPUT_DIR / "parquet"),
+    )
+)
+
+# DuckDB database path for dlt harvest and SQL transformations (can be overridden via environment variable)
 DUCKDB_PATH = os.environ.get(
     "HONEY_DUCK_DB_PATH",
     str(OUTPUT_DIR / "dagster.duckdb"),

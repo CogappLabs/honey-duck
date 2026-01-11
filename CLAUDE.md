@@ -43,7 +43,7 @@ honey_duck/
 
 cogapp_deps/              # Utilities (simulates external package)
 ├── dagster/              # Dagster helpers
-│   └── io.py             # DuckDBPandasPolarsIOManager
+│   └── io.py             # DuckDBPandasPolarsIOManager (legacy, not used)
 └── processors/           # DataFrame processors
     ├── pandas/           # PandasReplaceOnConditionProcessor
     ├── polars/           # PolarsFilterProcessor, PolarsStringProcessor
@@ -51,7 +51,7 @@ cogapp_deps/              # Utilities (simulates external package)
 
 data/
 ├── input/                # Source CSV files
-└── output/               # Generated output (*.duckdb, *.json)
+└── output/               # Generated output (*.parquet, *.json, *.duckdb)
 
 dagster_home/             # Dagster persistence directory
 ```
@@ -74,17 +74,36 @@ dlt_harvest_* (shared) ──→ sales_transform_<impl> ──→ sales_output_<
 - `polars_fs_pipeline` - Polars with FilesystemIOManager
 
 **IO Managers**:
-- `io_manager` (default): DuckDBPandasPolarsIOManager - stores DataFrames as DuckDB tables
-- `fs_io_manager`: FilesystemIOManager - pickles DataFrames to files
+- `io_manager` (default): PolarsParquetIOManager - stores DataFrames as Parquet files in `data/output/parquet/`
+- `fs_io_manager`: FilesystemIOManager - pickles DataFrames to files (used by polars_fs implementation)
 
-**dlt harvest**: CSV files loaded to DuckDB `raw` schema via dagster-dlt integration.
+**Storage**:
+- Inter-asset communication: Parquet files (via PolarsParquetIOManager)
+- dlt harvest: DuckDB `raw` schema (via dagster-dlt integration)
+- DuckDB still used for: SQL transformations via processors and dlt harvest storage
+- Final outputs: JSON files in `data/output/`
+
+**Note**: All asset implementations now return Polars DataFrames for compatibility with PolarsParquetIOManager.
+The Pandas implementation converts pandas → polars for return values.
 
 ## Adding New Assets
 
 1. Add asset function in `defs/assets.py`
-2. Decorate with `@dg.asset(kinds={"duckdb"}, group_name="...")`
-3. Add rich metadata via `context.add_output_metadata()`
-4. Add to `definitions.py` assets list
+2. Decorate with `@dg.asset(kinds={"polars"}, group_name="...")`
+3. **Return type must be `pl.DataFrame`** for PolarsParquetIOManager compatibility
+4. Add rich metadata via `context.add_output_metadata()`
+5. Add to `definitions.py` assets list
+
+**Important**: Assets must return Polars DataFrames. If using pandas/duckdb internally, convert at the end:
+```python
+# Pandas example
+result = some_pandas_operations(df)
+return pl.from_pandas(result)
+
+# DuckDB example
+result = conn.sql("SELECT * FROM table").pl()
+return result
+```
 
 ## Adding New dlt Sources
 
