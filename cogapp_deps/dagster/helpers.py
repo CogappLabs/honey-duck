@@ -145,7 +145,7 @@ class track_timing:
 
     def __init__(
         self,
-        context: dg.AssetExecutionContext,
+        context: dg.AssetExecutionContext | dg.OpExecutionContext,
         operation: str = "processing",
         log_message: str | None = None,
         output_name: str | None = None,

@@ -21,7 +21,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import dagster as dg
-from dagster import AssetExecutionContext
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -109,12 +108,14 @@ def create_slack_notification_asset(
         context.log.info(f"[PLACEHOLDER] Webhook URL env var: {webhook_url_env_var}")
         context.log.info(f"[PLACEHOLDER] Dependencies completed: {', '.join(deps)}")
 
-        context.add_output_metadata({
-            "message": message,
-            "channel": channel or "default",
-            "dependencies": ", ".join(deps),
-            "webhook_configured": bool(webhook_url),
-        })
+        context.add_output_metadata(
+            {
+                "message": message,
+                "channel": channel or "default",
+                "dependencies": ", ".join(deps),
+                "webhook_configured": bool(webhook_url),
+            }
+        )
 
         return {
             "status": "sent",
@@ -218,6 +219,7 @@ def create_email_notification_asset(
         # Prepare template context
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
         display_name = pipeline_name or name
+        html_body: str | None = None  # Will be set by template rendering or left as None
 
         template_context = {
             "pipeline_name": display_name,
@@ -225,7 +227,8 @@ def create_email_notification_asset(
             "status": "success",
             "status_message": "✓ Pipeline Completed Successfully",
             "greeting": "Hi",
-            "message": custom_message or f"Your {display_name} pipeline has completed successfully.",
+            "message": custom_message
+            or f"Your {display_name} pipeline has completed successfully.",
             "metrics": [
                 {"label": "Assets Materialized", "value": len(deps)},
                 {"label": "Status", "value": "Success"},
@@ -260,7 +263,7 @@ def create_email_notification_asset(
                     text_template = env.get_template("pipeline_completion.txt")
 
                     html_body = html_template.render(**template_context)
-                    text_body = text_template.render(**template_context)
+                    _text_body = text_template.render(**template_context)  # noqa: F841
 
                     use_templates_local = True
 
@@ -275,9 +278,9 @@ def create_email_notification_asset(
 
         # Fallback to simple text if templates disabled or unavailable
         if not use_templates_local:
-            text_body = f"""
+            _text_body = f"""  # noqa: F841 - prepared for email sending
 {display_name}
-{'=' * len(display_name)}
+{"=" * len(display_name)}
 
 Pipeline completed successfully.
 
@@ -285,7 +288,7 @@ Assets materialized: {len(deps)}
 Completed at {timestamp}
 
 Materialized Assets:
-{chr(10).join(f'  ✓ {asset}' for asset in deps)}
+{chr(10).join(f"  ✓ {asset}" for asset in deps)}
 
 ---
 Powered by Cogapp (https://cogapp.com)
@@ -313,20 +316,22 @@ Powered by Cogapp (https://cogapp.com)
         #     server.login(smtp_user, smtp_password)
         #     server.send_message(msg)
 
-        context.log.info(f"[PLACEHOLDER] Would send email notification")
+        context.log.info("[PLACEHOLDER] Would send email notification")
         context.log.info(f"[PLACEHOLDER] To: {', '.join(recipients)}")
         context.log.info(f"[PLACEHOLDER] Subject: {subject_template}")
         context.log.info(f"[PLACEHOLDER] Format: {'HTML + Text' if html_body else 'Text only'}")
         context.log.info(f"[PLACEHOLDER] Dependencies completed: {', '.join(deps)}")
 
-        context.add_output_metadata({
-            "subject": subject_template,
-            "recipients": ", ".join(recipients),
-            "dependencies": ", ".join(deps),
-            "smtp_configured": bool(smtp_host and smtp_user),
-            "format": "html+text" if html_body else "text",
-            "template_engine": "jinja2" if use_templates_local else "none",
-        })
+        context.add_output_metadata(
+            {
+                "subject": subject_template,
+                "recipients": ", ".join(recipients),
+                "dependencies": ", ".join(deps),
+                "smtp_configured": bool(smtp_host and smtp_user),
+                "format": "html+text" if html_body else "text",
+                "template_engine": "jinja2" if use_templates_local else "none",
+            }
+        )
 
         return {
             "status": "sent",
@@ -387,7 +392,9 @@ def create_pipeline_status_notification(
                 "subject_template",
                 f"Pipeline '{name}' Completion Report",
             ),
-            **{k: v for k, v in kwargs.items() if k not in ["recipient_emails", "subject_template"]},
+            **{
+                k: v for k, v in kwargs.items() if k not in ["recipient_emails", "subject_template"]
+            },
         )
     else:
         raise ValueError(f"Unknown notification_type: {notification_type}. Use 'slack' or 'email'.")

@@ -32,7 +32,6 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any, Iterator
-from urllib.parse import urlparse
 
 import dlt
 
@@ -109,7 +108,7 @@ def xml_file_source(
 
     # Extract fields from each record
     for idx, record in enumerate(records):
-        row = {}
+        row: dict[str, str | list[str | None] | None] = {}
 
         for field_name, xpath_expr in fields.items():
             # Evaluate XPath relative to record
@@ -121,25 +120,23 @@ def xml_file_source(
                     # Single value - check if it's text or element
                     if isinstance(result[0], str):
                         row[field_name] = result[0]
-                    elif hasattr(result[0], 'text'):
+                    elif hasattr(result[0], "text"):
                         row[field_name] = result[0].text
                     else:
                         row[field_name] = str(result[0])
                 else:
                     # Multiple values - return as list
-                    row[field_name] = [
-                        r.text if hasattr(r, 'text') else str(r) for r in result
-                    ]
+                    row[field_name] = [r.text if hasattr(r, "text") else str(r) for r in result]
             else:
                 # XPath didn't match - check if it's an attribute or text()
-                if xpath_expr.endswith('/text()'):
+                if xpath_expr.endswith("/text()"):
                     # Try direct text access
                     elem_path = xpath_expr[:-7]  # Remove /text()
                     elem = record.find(elem_path, namespaces=namespaces or {})
                     row[field_name] = elem.text if elem is not None else None
-                elif '@' in xpath_expr:
+                elif "@" in xpath_expr:
                     # Attribute access
-                    attr_name = xpath_expr.split('@')[1]
+                    attr_name = xpath_expr.split("@")[1]
                     row[field_name] = record.get(attr_name)
                 else:
                     row[field_name] = None
@@ -194,14 +191,14 @@ def xml_streaming_source(
 
     # Prepare namespace-aware tag
     ns = namespaces or {}
-    if ns and not record_tag.startswith('{'):
+    if ns and not record_tag.startswith("{"):
         # Add namespace to tag
-        default_ns = ns.get('', list(ns.values())[0] if ns else '')
+        default_ns = ns.get("", list(ns.values())[0] if ns else "")
         if default_ns:
             record_tag = f"{{{default_ns}}}{record_tag}"
 
     # Stream parse XML
-    context = ET.iterparse(file_path, events=('end',))
+    context = ET.iterparse(file_path, events=("end",))
 
     for event, elem in context:
         if elem.tag == record_tag:
@@ -210,14 +207,14 @@ def xml_streaming_source(
 
             for field_name, xpath_expr in fields.items():
                 # Simplified extraction for streaming
-                if xpath_expr.endswith('/text()'):
+                if xpath_expr.endswith("/text()"):
                     # Element text
-                    elem_path = xpath_expr[2:-7] if xpath_expr.startswith('./') else xpath_expr[:-7]
+                    elem_path = xpath_expr[2:-7] if xpath_expr.startswith("./") else xpath_expr[:-7]
                     child = elem.find(elem_path, ns)
                     row[field_name] = child.text if child is not None else None
-                elif '@' in xpath_expr:
+                elif "@" in xpath_expr:
                     # Attribute
-                    attr_name = xpath_expr.split('@')[1]
+                    attr_name = xpath_expr.split("@")[1]
                     row[field_name] = elem.get(attr_name)
                 else:
                     # Direct element
@@ -290,7 +287,9 @@ def xml_http_source(
     try:
         import requests
     except ImportError:
-        raise ImportError("requests package required for HTTP sources. Install with: pip install requests")
+        raise ImportError(
+            "requests package required for HTTP sources. Install with: pip install requests"
+        )
 
     print(f"Fetching XML from: {url}")
 
@@ -307,7 +306,7 @@ def xml_http_source(
 
     # Extract fields
     for record in records:
-        row = {}
+        row: dict[str, str | list[str | None] | None] = {}
 
         for field_name, xpath_expr in fields.items():
             result = record.findall(xpath_expr, namespaces=namespaces or {})
@@ -316,22 +315,20 @@ def xml_http_source(
                 if len(result) == 1:
                     if isinstance(result[0], str):
                         row[field_name] = result[0]
-                    elif hasattr(result[0], 'text'):
+                    elif hasattr(result[0], "text"):
                         row[field_name] = result[0].text
                     else:
                         row[field_name] = str(result[0])
                 else:
-                    row[field_name] = [
-                        r.text if hasattr(r, 'text') else str(r) for r in result
-                    ]
+                    row[field_name] = [r.text if hasattr(r, "text") else str(r) for r in result]
             else:
                 # Fallback extraction
-                if xpath_expr.endswith('/text()'):
+                if xpath_expr.endswith("/text()"):
                     elem_path = xpath_expr[:-7]
                     elem = record.find(elem_path, namespaces=namespaces or {})
                     row[field_name] = elem.text if elem is not None else None
-                elif '@' in xpath_expr:
-                    attr_name = xpath_expr.split('@')[1]
+                elif "@" in xpath_expr:
+                    attr_name = xpath_expr.split("@")[1]
                     row[field_name] = record.get(attr_name)
                 else:
                     row[field_name] = None

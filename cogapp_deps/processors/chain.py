@@ -40,18 +40,25 @@ class Chain:
 
         self.processors = processors
 
-    def process(self, df: pd.DataFrame | pl.DataFrame) -> pl.DataFrame:
+    def process(
+        self, df: pd.DataFrame | pl.DataFrame | pl.LazyFrame
+    ) -> pl.DataFrame | pl.LazyFrame:
         """Execute the processor chain with lazy optimization.
 
         Args:
-            df: Input DataFrame (pandas or polars)
+            df: Input DataFrame (pandas, polars DataFrame, or polars LazyFrame)
 
         Returns:
-            Processed Polars DataFrame
+            Processed DataFrame/LazyFrame (same type as input for polars types)
         """
-        # Convert pandas to polars LazyFrame
+        # Track if input was lazy (for return type)
+        input_is_lazy = isinstance(df, pl.LazyFrame)
+
+        # Convert to LazyFrame for processing
         if isinstance(df, pd.DataFrame):
             lf = pl.from_pandas(df).lazy()
+        elif isinstance(df, pl.LazyFrame):
+            lf = df
         else:
             lf = df.lazy()
 
@@ -59,7 +66,11 @@ class Chain:
         for processor in self.processors:
             lf = processor._apply(lf)
 
-        # Collect (single optimized execution)
+        # LazyFrame in -> LazyFrame out (for streaming)
+        if input_is_lazy:
+            return lf
+
+        # DataFrame in -> DataFrame out
         return lf.collect()
 
     def __repr__(self) -> str:

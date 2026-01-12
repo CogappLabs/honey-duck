@@ -172,15 +172,17 @@ def sales_transform_duckdb(
         result: pl.DataFrame = conn.sql(_sales_transform_sql(harvest_dir)).pl()
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
-    context.add_output_metadata({
-        "record_count": len(result),
-        "columns": result.columns,
-        "preview": dg.MetadataValue.md(result.head(5).to_pandas().to_markdown(index=False)),
-        "unique_artworks": result["artwork_id"].n_unique(),
-        "total_sales_value": float(result["sale_price_usd"].sum()),
-        "date_range": f"{str(result['sale_date'].min())} to {str(result['sale_date'].max())}",
-        "processing_time_ms": round(elapsed_ms, 2),
-    })
+    context.add_output_metadata(
+        {
+            "record_count": len(result),
+            "columns": result.columns,
+            "preview": dg.MetadataValue.md(result.head(5).to_pandas().to_markdown(index=False)),
+            "unique_artworks": result["artwork_id"].n_unique(),
+            "total_sales_value": float(result["sale_price_usd"].sum()),
+            "date_range": f"{str(result['sale_date'].min())} to {str(result['sale_date'].max())}",
+            "processing_time_ms": round(elapsed_ms, 2),
+        }
+    )
     context.log.info(f"Transformed {len(result)} sales records (DuckDB SQL) in {elapsed_ms:.1f}ms")
     return result
 
@@ -217,12 +219,17 @@ def sales_output_duckdb(
         """).fetchone()[0]
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
-    write_json_output(result, sales_path, context, extra_metadata={
-        "filtered_from": total_count,
-        "filter_threshold": f"${MIN_SALE_VALUE_USD:,}",
-        "total_value": float(total_value) if total_value else 0,
-        "processing_time_ms": round(elapsed_ms, 2),
-    })
+    write_json_output(
+        result,
+        sales_path,
+        context,
+        extra_metadata={
+            "filtered_from": total_count,
+            "filter_threshold": f"${MIN_SALE_VALUE_USD:,}",
+            "total_value": float(total_value) if total_value else 0,
+            "processing_time_ms": round(elapsed_ms, 2),
+        },
+    )
     context.log.info(f"Output {len(result)} high-value sales to {sales_path} in {elapsed_ms:.1f}ms")
     return result
 
@@ -250,15 +257,17 @@ def artworks_transform_duckdb(
         result: pl.DataFrame = conn.sql(_artworks_transform_sql(harvest_dir)).pl()
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
-    context.add_output_metadata({
-        "record_count": len(result),
-        "artworks_sold": int(result["has_sold"].sum()),
-        "artworks_unsold": int((~result["has_sold"]).sum()),
-        "artworks_with_media": int((result["media_count"] > 0).sum()),
-        "total_catalog_value": float(result["list_price_usd"].sum()),
-        "preview": dg.MetadataValue.md(result.head(5).to_pandas().to_markdown(index=False)),
-        "processing_time_ms": round(elapsed_ms, 2),
-    })
+    context.add_output_metadata(
+        {
+            "record_count": len(result),
+            "artworks_sold": int(result["has_sold"].sum()),
+            "artworks_unsold": int((~result["has_sold"]).sum()),
+            "artworks_with_media": int((result["media_count"] > 0).sum()),
+            "total_catalog_value": float(result["list_price_usd"].sum()),
+            "preview": dg.MetadataValue.md(result.head(5).to_pandas().to_markdown(index=False)),
+            "processing_time_ms": round(elapsed_ms, 2),
+        }
+    )
     context.log.info(f"Transformed {len(result)} artworks (DuckDB SQL) in {elapsed_ms:.1f}ms")
     return result
 
@@ -288,9 +297,16 @@ def artworks_output_duckdb(
         tier_dict = dict(zip(tier_counts["price_tier"], tier_counts["count"]))
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
-    write_json_output(artworks_transform_duckdb, artworks_path, context, extra_metadata={
-        "price_tier_distribution": tier_dict,
-        "processing_time_ms": round(elapsed_ms, 2),
-    })
-    context.log.info(f"Output {len(artworks_transform_duckdb)} artworks to {artworks_path} in {elapsed_ms:.1f}ms")
+    write_json_output(
+        artworks_transform_duckdb,
+        artworks_path,
+        context,
+        extra_metadata={
+            "price_tier_distribution": tier_dict,
+            "processing_time_ms": round(elapsed_ms, 2),
+        },
+    )
+    context.log.info(
+        f"Output {len(artworks_transform_duckdb)} artworks to {artworks_path} in {elapsed_ms:.1f}ms"
+    )
     return artworks_transform_duckdb

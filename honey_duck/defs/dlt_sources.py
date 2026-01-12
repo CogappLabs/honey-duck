@@ -24,6 +24,8 @@ from dlt.sources.filesystem import filesystem, read_csv
 from dlt.sources.sql_database import sql_database
 
 if TYPE_CHECKING:
+    from dlt.extract import DltResource
+
     from .resources import DatabaseResource, PathsResource
 
 
@@ -46,24 +48,33 @@ def create_honey_duck_source(
     """
 
     @dlt.source(name="harvest")
-    def _source():
+    def _source() -> list["DltResource"]:
         bucket_url = f"file://{paths.input_dir}"
 
         # CSV resources
-        sales = filesystem(
-            bucket_url=bucket_url,
-            file_glob="sales.csv",
-        ) | read_csv()
+        sales = (
+            filesystem(
+                bucket_url=bucket_url,
+                file_glob="sales.csv",
+            )
+            | read_csv()
+        )
 
-        artworks = filesystem(
-            bucket_url=bucket_url,
-            file_glob="artworks.csv",
-        ) | read_csv()
+        artworks = (
+            filesystem(
+                bucket_url=bucket_url,
+                file_glob="artworks.csv",
+            )
+            | read_csv()
+        )
 
-        artists = filesystem(
-            bucket_url=bucket_url,
-            file_glob="artists.csv",
-        ) | read_csv()
+        artists = (
+            filesystem(
+                bucket_url=bucket_url,
+                file_glob="artists.csv",
+            )
+            | read_csv()
+        )
 
         # SQLite resource - extract the media table resource
         media_source = sql_database(

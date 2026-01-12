@@ -21,10 +21,9 @@ import time
 from datetime import timedelta
 
 import dagster as dg
-import duckdb
 import polars as pl
 
-from cogapp_deps.dagster import write_json_output
+from cogapp_deps.dagster import read_harvest_table_lazy, write_json_output
 
 from .constants import (
     MIN_SALE_VALUE_USD,
@@ -38,17 +37,6 @@ from .resources import OutputPathsResource, PathsResource
 from .helpers import STANDARD_HARVEST_DEPS as HARVEST_DEPS
 
 
-def _read_raw_parquet_lazy(harvest_dir: str, table: str) -> pl.LazyFrame:
-    """Read raw Parquet files as Polars LazyFrame using DuckDB."""
-    conn = duckdb.connect(":memory:")
-    try:
-        return conn.sql(
-            f"SELECT * FROM read_parquet('{harvest_dir}/raw/{table}/**/*.parquet')"
-        ).pl().lazy()
-    finally:
-        conn.close()
-
-
 # -----------------------------------------------------------------------------
 # Sales Pipeline: sales_transform_polars_fs -> sales_output_polars_fs
 # -----------------------------------------------------------------------------
@@ -59,19 +47,21 @@ def _read_raw_parquet_lazy(harvest_dir: str, table: str) -> pl.LazyFrame:
     deps=HARVEST_DEPS,
     group_name="transform_polars_fs",
 )
-def sales_transform_polars_fs(context: dg.AssetExecutionContext, paths: PathsResource) -> pl.DataFrame:
+def sales_transform_polars_fs(
+    context: dg.AssetExecutionContext, paths: PathsResource
+) -> pl.DataFrame:
     """Join sales with artworks and artists using pure Polars lazy expressions."""
     start_time = time.perf_counter()
     harvest_dir = paths.harvest_dir
 
-    sales = _read_raw_parquet_lazy(harvest_dir, "sales_raw")
-    artworks = _read_raw_parquet_lazy(harvest_dir, "artworks_raw")
-    artists = _read_raw_parquet_lazy(harvest_dir, "artists_raw")
+    # Native Polars scan_parquet - no DuckDB overhead
+    sales = read_harvest_table_lazy(harvest_dir, "sales_raw")
+    artworks = read_harvest_table_lazy(harvest_dir, "artworks_raw")
+    artists = read_harvest_table_lazy(harvest_dir, "artists_raw")
 
     # Build lazy query: join -> select -> compute -> normalize -> sort
     result = (
-        sales
-        .join(artworks, on="artwork_id", how="left", suffix="_aw")
+        sales.join(artworks, on="artwork_id", how="left", suffix="_aw")
         .join(artists, on="artist_id", how="left", suffix="_ar")
         .select(
             "sale_id",
@@ -92,28 +82,32 @@ def sales_transform_polars_fs(context: dg.AssetExecutionContext, paths: PathsRes
             pl.when(pl.col("list_price_usd").is_null() | (pl.col("list_price_usd") == 0))
             .then(None)
             .otherwise(
-                ((pl.col("sale_price_usd") - pl.col("list_price_usd")) * 100.0
-                 / pl.col("list_price_usd")).round(1)
-            ).alias("pct_change"),
+                (
+                    (pl.col("sale_price_usd") - pl.col("list_price_usd"))
+                    * 100.0
+                    / pl.col("list_price_usd")
+                ).round(1)
+            )
+            .alias("pct_change"),
         )
-        .with_columns(
-            pl.col("artist_name").str.strip_chars().str.to_uppercase()
-        )
+        .with_columns(pl.col("artist_name").str.strip_chars().str.to_uppercase())
         .sort(["sale_date", "sale_id"], descending=[True, False])
         .collect()
     )
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
-    context.add_output_metadata({
-        "record_count": len(result),
-        "columns": result.columns,
-        "preview": dg.MetadataValue.md(result.head(5).to_pandas().to_markdown(index=False)),
-        "unique_artworks": result["artwork_id"].n_unique(),
-        "total_sales_value": float(result["sale_price_usd"].sum()),
-        "date_range": f"{str(result['sale_date'].min())} to {str(result['sale_date'].max())}",
-        "processing_time_ms": round(elapsed_ms, 2),
-        "io_manager": "PolarsParquetIOManager",
-    })
+    context.add_output_metadata(
+        {
+            "record_count": len(result),
+            "columns": result.columns,
+            "preview": dg.MetadataValue.md(result.head(5).to_pandas().to_markdown(index=False)),
+            "unique_artworks": result["artwork_id"].n_unique(),
+            "total_sales_value": float(result["sale_price_usd"].sum()),
+            "date_range": f"{str(result['sale_date'].min())} to {str(result['sale_date'].max())}",
+            "processing_time_ms": round(elapsed_ms, 2),
+            "io_manager": "PolarsParquetIOManager",
+        }
+    )
     context.log.info(f"Transformed {len(result)} sales records (Polars FS) in {elapsed_ms:.1f}ms")
     return result
 
@@ -131,26 +125,27 @@ def sales_output_polars_fs(
     sales_transform_polars_fs: pl.DataFrame,
     output_paths: OutputPathsResource,
 ) -> pl.DataFrame:
-    """Filter high-value sales using Polars lazy and output to JSON."""
+    """Filter high-value sales and output to JSON."""
     start_time = time.perf_counter()
     total_count = len(sales_transform_polars_fs)
     sales_path = output_paths.sales_polars_fs
 
-    result = (
-        sales_transform_polars_fs
-        .lazy()
-        .filter(pl.col("sale_price_usd") >= MIN_SALE_VALUE_USD)
-        .collect()
-    )
+    # Direct filter - no need for .lazy().collect() on DataFrame
+    result = sales_transform_polars_fs.filter(pl.col("sale_price_usd") >= MIN_SALE_VALUE_USD)
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
-    write_json_output(result, sales_path, context, extra_metadata={
-        "filtered_from": total_count,
-        "filter_threshold": f"${MIN_SALE_VALUE_USD:,}",
-        "total_value": float(result["sale_price_usd"].sum()),
-        "processing_time_ms": round(elapsed_ms, 2),
-        "io_manager": "PolarsParquetIOManager",
-    })
+    write_json_output(
+        result,
+        sales_path,
+        context,
+        extra_metadata={
+            "filtered_from": total_count,
+            "filter_threshold": f"${MIN_SALE_VALUE_USD:,}",
+            "total_value": float(result["sale_price_usd"].sum()),
+            "processing_time_ms": round(elapsed_ms, 2),
+            "io_manager": "PolarsParquetIOManager",
+        },
+    )
     context.log.info(f"Output {len(result)} high-value sales to {sales_path} in {elapsed_ms:.1f}ms")
     return result
 
@@ -165,23 +160,33 @@ def sales_output_polars_fs(
     deps=HARVEST_DEPS,
     group_name="transform_polars_fs",
 )
-def artworks_transform_polars_fs(context: dg.AssetExecutionContext, paths: PathsResource) -> pl.DataFrame:
+def artworks_transform_polars_fs(
+    context: dg.AssetExecutionContext, paths: PathsResource
+) -> pl.DataFrame:
     """Join artworks with artists, media, and aggregate sales using Polars lazy."""
     start_time = time.perf_counter()
     harvest_dir = paths.harvest_dir
 
-    sales = _read_raw_parquet_lazy(harvest_dir, "sales_raw")
-    artworks = _read_raw_parquet_lazy(harvest_dir, "artworks_raw")
-    artists = _read_raw_parquet_lazy(harvest_dir, "artists_raw")
-    media = _read_raw_parquet_lazy(harvest_dir, "media")
+    # Native Polars scan_parquet - no DuckDB overhead
+    sales = read_harvest_table_lazy(harvest_dir, "sales_raw")
+    artworks = read_harvest_table_lazy(harvest_dir, "artworks_raw")
+    artists = read_harvest_table_lazy(harvest_dir, "artists_raw")
+    media = read_harvest_table_lazy(harvest_dir, "media")
 
-    # Collect artwork_ids first for filtering
-    artwork_ids = artworks.select("artwork_id").collect()["artwork_id"]
+    # Build catalog: join artworks with artists
+    catalog = artworks.join(artists, on="artist_id", how="left").select(
+        "artwork_id",
+        "title",
+        "year",
+        "medium",
+        pl.col("price_usd").alias("list_price_usd"),
+        pl.col("name").alias("artist_name"),
+        "nationality",
+    )
 
-    # Aggregate sales per artwork
+    # Use semi-join to filter sales to only artworks in catalog (avoids early materialization)
     sales_per_artwork = (
-        sales
-        .filter(pl.col("artwork_id").is_in(artwork_ids))
+        sales.join(catalog.select("artwork_id"), on="artwork_id", how="semi")
         .group_by("artwork_id")
         .agg(
             pl.len().alias("sale_count"),
@@ -192,49 +197,34 @@ def artworks_transform_polars_fs(context: dg.AssetExecutionContext, paths: Paths
         )
     )
 
-    # Build catalog: join artworks with artists
-    catalog = (
-        artworks
-        .join(artists, on="artist_id", how="left")
-        .select(
-            "artwork_id",
-            "title",
-            "year",
-            "medium",
-            pl.col("price_usd").alias("list_price_usd"),
-            pl.col("name").alias("artist_name"),
-            "nationality",
-        )
-    )
-
     # Primary media: sort_order = 1
-    primary_media = (
-        media
-        .filter(pl.col("sort_order") == 1)
-        .select(
-            "artwork_id",
-            pl.col("filename").alias("primary_image"),
-            pl.col("alt_text").alias("primary_image_alt"),
-        )
+    primary_media = media.filter(pl.col("sort_order") == 1).select(
+        "artwork_id",
+        pl.col("filename").alias("primary_image"),
+        pl.col("alt_text").alias("primary_image_alt"),
     )
 
     # All media aggregated as struct list
     all_media = (
-        media
-        .sort("sort_order")
+        media.sort("sort_order")
         .group_by("artwork_id")
         .agg(
             pl.struct(
-                "sort_order", "filename", "media_type", "file_format",
-                "width_px", "height_px", "file_size_kb", "alt_text"
+                "sort_order",
+                "filename",
+                "media_type",
+                "file_format",
+                "width_px",
+                "height_px",
+                "file_size_kb",
+                "alt_text",
             ).alias("media")
         )
     )
 
     # Final assembly
     result = (
-        catalog
-        .join(sales_per_artwork, on="artwork_id", how="left")
+        catalog.join(sales_per_artwork, on="artwork_id", how="left")
         .join(primary_media, on="artwork_id", how="left")
         .join(all_media, on="artwork_id", how="left")
         .with_columns(
@@ -252,9 +242,7 @@ def artworks_transform_polars_fs(context: dg.AssetExecutionContext, paths: Paths
             pl.col("media").list.len().fill_null(0).alias("media_count"),
         )
         .with_columns(
-            pl.col("total_sales_value")
-            .rank(method="ordinal", descending=True)
-            .alias("sales_rank"),
+            pl.col("total_sales_value").rank(method="ordinal", descending=True).alias("sales_rank"),
             pl.col("artist_name").str.to_uppercase(),
         )
         .sort(["total_sales_value", "artwork_id"], descending=[True, False])
@@ -262,16 +250,18 @@ def artworks_transform_polars_fs(context: dg.AssetExecutionContext, paths: Paths
     )
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
-    context.add_output_metadata({
-        "record_count": len(result),
-        "artworks_sold": int(result["has_sold"].sum()),
-        "artworks_unsold": int((~result["has_sold"]).sum()),
-        "artworks_with_media": int((result["media_count"] > 0).sum()),
-        "total_catalog_value": float(result["list_price_usd"].sum()),
-        "preview": dg.MetadataValue.md(result.head(5).to_pandas().to_markdown(index=False)),
-        "processing_time_ms": round(elapsed_ms, 2),
-        "io_manager": "PolarsParquetIOManager",
-    })
+    context.add_output_metadata(
+        {
+            "record_count": len(result),
+            "artworks_sold": int(result["has_sold"].sum()),
+            "artworks_unsold": int((~result["has_sold"]).sum()),
+            "artworks_with_media": int((result["media_count"] > 0).sum()),
+            "total_catalog_value": float(result["list_price_usd"].sum()),
+            "preview": dg.MetadataValue.md(result.head(5).to_pandas().to_markdown(index=False)),
+            "processing_time_ms": round(elapsed_ms, 2),
+            "io_manager": "PolarsParquetIOManager",
+        }
+    )
     context.log.info(f"Transformed {len(result)} artworks (Polars FS) in {elapsed_ms:.1f}ms")
     return result
 
@@ -295,12 +285,16 @@ def artworks_output_polars_fs(
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
     write_json_output(
-        artworks_transform_polars_fs, artworks_path, context,
+        artworks_transform_polars_fs,
+        artworks_path,
+        context,
         extra_metadata={
             "price_tier_distribution": tier_counts,
             "processing_time_ms": round(elapsed_ms, 2),
             "io_manager": "PolarsParquetIOManager",
-        }
+        },
     )
-    context.log.info(f"Output {len(artworks_transform_polars_fs)} artworks to {artworks_path} in {elapsed_ms:.1f}ms")
+    context.log.info(
+        f"Output {len(artworks_transform_polars_fs)} artworks to {artworks_path} in {elapsed_ms:.1f}ms"
+    )
     return artworks_transform_polars_fs

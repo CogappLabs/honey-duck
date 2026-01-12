@@ -7,7 +7,6 @@ Note: Uses pandera.polars for validating Polars DataFrames.
 """
 
 import pandera.polars as pa
-from pandera.polars import Column
 
 
 class SalesTransformSchema(pa.DataFrameModel):

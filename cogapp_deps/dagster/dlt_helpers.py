@@ -10,7 +10,7 @@ import dlt
 
 # Optional DuckDB support
 try:
-    import duckdb
+    import duckdb  # noqa: F401 - import used for availability check
 
     _HAS_DUCKDB = True
 except ImportError:
@@ -127,8 +127,7 @@ def setup_harvest_parquet_views(
     """
     if not _HAS_DUCKDB:
         raise ImportError(
-            "duckdb is required for setup_harvest_parquet_views. "
-            "Install with: pip install duckdb"
+            "duckdb is required for setup_harvest_parquet_views. Install with: pip install duckdb"
         )
 
     # Validate and resolve harvest directory path to prevent injection

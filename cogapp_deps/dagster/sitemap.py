@@ -275,7 +275,8 @@ def create_sitemap_asset(
     url_column: str,
     base_url: str = "",
     lastmod_column: str | None = None,
-    changefreq: Literal["always", "hourly", "daily", "weekly", "monthly", "yearly", "never"] | None = None,
+    changefreq: Literal["always", "hourly", "daily", "weekly", "monthly", "yearly", "never"]
+    | None = None,
     priority: float | str | None = None,
     output_path: str | Path | None = None,
     group_name: str = "sitemaps",
@@ -309,7 +310,6 @@ def create_sitemap_asset(
         ...     priority="0.8",
         ... )
     """
-    import polars as pl
 
     if output_path is None:
         output_path = Path(f"data/output/sitemaps/{name}.xml")
@@ -369,12 +369,14 @@ def create_sitemap_asset(
         context.log.info(f"Generated sitemap with {url_count:,} URLs at {output_path}")
 
         # Add metadata
-        context.add_output_metadata({
-            "url_count": url_count,
-            "sitemap_path": str(output_path),
-            "sitemap_size_bytes": output_path.stat().st_size,
-            "base_url": base_url or "n/a",
-        })
+        context.add_output_metadata(
+            {
+                "url_count": url_count,
+                "sitemap_path": str(output_path),
+                "sitemap_size_bytes": output_path.stat().st_size,
+                "base_url": base_url or "n/a",
+            }
+        )
 
         return {
             "sitemap_path": str(output_path),
@@ -423,7 +425,6 @@ def create_image_sitemap_asset(
         ...     title_column="artwork_title",
         ... )
     """
-    import polars as pl
 
     if output_path is None:
         output_path = Path(f"data/output/sitemaps/{name}.xml")
@@ -471,10 +472,7 @@ def create_image_sitemap_asset(
             url_images[page_url].append(image_data)
 
         # Build URL list
-        urls = [
-            {"loc": page_url, "images": images}
-            for page_url, images in url_images.items()
-        ]
+        urls = [{"loc": page_url, "images": images} for page_url, images in url_images.items()]
 
         # Generate sitemap
         url_count = generate_image_sitemap_xml(urls, output_path)
@@ -486,12 +484,14 @@ def create_image_sitemap_asset(
             f"and {total_images:,} images at {output_path}"
         )
 
-        context.add_output_metadata({
-            "page_count": url_count,
-            "image_count": total_images,
-            "sitemap_path": str(output_path),
-            "sitemap_size_bytes": output_path.stat().st_size,
-        })
+        context.add_output_metadata(
+            {
+                "page_count": url_count,
+                "image_count": total_images,
+                "sitemap_path": str(output_path),
+                "sitemap_size_bytes": output_path.stat().st_size,
+            }
+        )
 
         return {
             "sitemap_path": str(output_path),

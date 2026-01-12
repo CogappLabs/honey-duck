@@ -11,6 +11,6 @@ import dagster as dg
 
 
 @dg.definitions
-def defs():
+def defs() -> dg.Definitions:
     """Load all Dagster definitions from the defs/ folder."""
     return dg.load_from_defs_folder(project_root=Path(__file__).parent.parent)

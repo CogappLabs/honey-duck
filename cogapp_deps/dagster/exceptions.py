@@ -75,9 +75,7 @@ class MissingTableError(DataValidationError):
         )
     """
 
-    def __init__(
-        self, asset_name: str, table_name: str, available_tables: list[str]
-    ) -> None:
+    def __init__(self, asset_name: str, table_name: str, available_tables: list[str]) -> None:
         self.table_name = table_name
         self.available_tables = available_tables
 
@@ -167,9 +165,7 @@ def raise_as_dagster_failure(error: Exception) -> None:
             {
                 "asset_name": dg.MetadataValue.text(error.asset_name),
                 "missing_columns": dg.MetadataValue.json(sorted(error.missing_columns)),
-                "available_columns": dg.MetadataValue.json(
-                    sorted(error.available_columns)
-                ),
+                "available_columns": dg.MetadataValue.json(sorted(error.available_columns)),
             }
         )
     elif isinstance(error, DataValidationError):
@@ -179,8 +175,6 @@ def raise_as_dagster_failure(error: Exception) -> None:
             }
         )
     elif isinstance(error, FileNotFoundError):
-        # Extract path from error message if available
-        error_str = str(error)
         metadata["suggestion"] = dg.MetadataValue.text(
             "Check that the database/file exists and path is correct"
         )

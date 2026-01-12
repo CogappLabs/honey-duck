@@ -37,10 +37,9 @@ from datetime import timedelta
 from typing import Iterator
 
 import dagster as dg
-import duckdb
 import polars as pl
 
-from cogapp_deps.dagster import write_json_output
+from cogapp_deps.dagster import read_harvest_table_lazy, write_json_output
 
 from .constants import (
     MIN_SALE_VALUE_USD,
@@ -49,17 +48,6 @@ from .constants import (
 )
 from .helpers import STANDARD_HARVEST_DEPS as HARVEST_DEPS
 from .resources import OutputPathsResource, PathsResource
-
-
-def _read_raw_parquet_lazy(harvest_dir: str, table: str) -> pl.LazyFrame:
-    """Read raw Parquet files as Polars LazyFrame using DuckDB."""
-    conn = duckdb.connect(":memory:")
-    try:
-        return conn.sql(
-            f"SELECT * FROM read_parquet('{harvest_dir}/raw/{table}/**/*.parquet')"
-        ).pl().lazy()
-    finally:
-        conn.close()
 
 
 # -----------------------------------------------------------------------------
@@ -100,9 +88,10 @@ def sales_pipeline_multi(
 
     # Step 1: Join sales with artworks and artists
     context.log.info("Loading and joining sales data...")
-    sales = _read_raw_parquet_lazy(harvest_dir, "sales_raw")
-    artworks = _read_raw_parquet_lazy(harvest_dir, "artworks_raw")
-    artists = _read_raw_parquet_lazy(harvest_dir, "artists_raw")
+    # Native Polars scan_parquet - no DuckDB overhead
+    sales = read_harvest_table_lazy(harvest_dir, "sales_raw")
+    artworks = read_harvest_table_lazy(harvest_dir, "artworks_raw")
+    artists = read_harvest_table_lazy(harvest_dir, "artists_raw")
 
     joined = (
         sales.join(artworks, on="artwork_id", suffix="_artworks")
@@ -142,7 +131,9 @@ def sales_pipeline_multi(
         [
             (pl.col("sale_price_usd") - pl.col("list_price_usd")).alias("price_diff"),
             (
-                (pl.col("sale_price_usd") - pl.col("list_price_usd")) / pl.col("list_price_usd") * 100
+                (pl.col("sale_price_usd") - pl.col("list_price_usd"))
+                / pl.col("list_price_usd")
+                * 100
             ).alias("pct_change"),
         ]
     )
@@ -156,7 +147,9 @@ def sales_pipeline_multi(
         metadata={
             "record_count": len(transformed),
             "high_value_threshold": dg.MetadataValue.text(f"${MIN_SALE_VALUE_USD:,}"),
-            "preview": dg.MetadataValue.md(transformed.head(5).to_pandas().to_markdown(index=False)),
+            "preview": dg.MetadataValue.md(
+                transformed.head(5).to_pandas().to_markdown(index=False)
+            ),
         },
     )
 
@@ -210,8 +203,9 @@ def artworks_pipeline_multi(
 
     # Step 1: Create base catalog
     context.log.info("Creating artwork catalog...")
-    artworks = _read_raw_parquet_lazy(harvest_dir, "artworks_raw")
-    artists = _read_raw_parquet_lazy(harvest_dir, "artists_raw")
+    # Native Polars scan_parquet - no DuckDB overhead
+    artworks = read_harvest_table_lazy(harvest_dir, "artworks_raw")
+    artists = read_harvest_table_lazy(harvest_dir, "artists_raw")
 
     catalog = (
         artworks.join(artists, on="artist_id", suffix="_artists")
@@ -236,7 +230,7 @@ def artworks_pipeline_multi(
 
     # Step 2: Aggregate sales data
     context.log.info("Aggregating sales data...")
-    sales = _read_raw_parquet_lazy(harvest_dir, "sales_raw")
+    sales = read_harvest_table_lazy(harvest_dir, "sales_raw")
 
     sales_agg = (
         sales.group_by("artwork_id")
@@ -261,7 +255,7 @@ def artworks_pipeline_multi(
 
     # Step 3: Join media information
     context.log.info("Loading media information...")
-    media = _read_raw_parquet_lazy(harvest_dir, "media")
+    media = read_harvest_table_lazy(harvest_dir, "media")
 
     # Get primary image (sort_order = 1) per artwork
     media_agg = (
@@ -356,10 +350,15 @@ def sales_output_polars_multi(
     result = sales_transform_polars_multi.filter(pl.col("list_price_usd") > PRICE_TIER_MID_MAX_USD)
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
-    write_json_output(result, sales_path, context, extra_metadata={
-        "premium_threshold": f"${PRICE_TIER_MID_MAX_USD:,}",
-        "processing_time_ms": round(elapsed_ms, 2),
-    })
+    write_json_output(
+        result,
+        sales_path,
+        context,
+        extra_metadata={
+            "premium_threshold": f"${PRICE_TIER_MID_MAX_USD:,}",
+            "processing_time_ms": round(elapsed_ms, 2),
+        },
+    )
     context.log.info(f"Output {len(result)} premium sales to {sales_path} in {elapsed_ms:.1f}ms")
     return result
 
@@ -391,9 +390,14 @@ def artworks_output_polars_multi(
     )
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
-    write_json_output(result, artworks_path, context, extra_metadata={
-        "tier_distribution": tier_dist,
-        "processing_time_ms": round(elapsed_ms, 2),
-    })
+    write_json_output(
+        result,
+        artworks_path,
+        context,
+        extra_metadata={
+            "tier_distribution": tier_dist,
+            "processing_time_ms": round(elapsed_ms, 2),
+        },
+    )
     context.log.info(f"Output {len(result)} top artworks to {artworks_path} in {elapsed_ms:.1f}ms")
     return result

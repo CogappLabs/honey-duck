@@ -104,9 +104,7 @@ def claude_message_batches(
     try:
         from anthropic import Anthropic
     except ImportError:
-        raise ImportError(
-            "anthropic package not found. Install with: pip install anthropic"
-        )
+        raise ImportError("anthropic package not found. Install with: pip install anthropic")
 
     api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
@@ -231,7 +229,7 @@ def claude_message_batches(
             }
 
 
-@dlt.resource(
+@dlt.resource(  # type: ignore[call-overload]
     name="voyage_embeddings",
     write_disposition="append",
     columns={
@@ -246,7 +244,7 @@ def claude_message_batches(
     },
 )
 def voyage_embeddings_batch(
-    texts: list[str] | list[dict[str, Any]],
+    texts: list[str | dict[str, Any]],
     model: str = "voyage-3",
     input_type: str = "document",
     api_key: str | None = None,
@@ -304,9 +302,7 @@ def voyage_embeddings_batch(
     try:
         import voyageai
     except ImportError:
-        raise ImportError(
-            "voyageai package not found. Install with: pip install voyageai"
-        )
+        raise ImportError("voyageai package not found. Install with: pip install voyageai")
 
     api_key = api_key or os.getenv("VOYAGE_API_KEY")
     if not api_key:
@@ -323,10 +319,12 @@ def voyage_embeddings_batch(
         if isinstance(item, str):
             normalized_texts.append({"id": f"embedding_{idx}", "text": item})
         else:
-            normalized_texts.append({
-                "id": item.get("id", f"embedding_{idx}"),
-                "text": item["text"],
-            })
+            normalized_texts.append(
+                {
+                    "id": item.get("id", f"embedding_{idx}"),
+                    "text": item["text"],
+                }
+            )
 
     # Process in batches
     total_batches = (len(normalized_texts) + batch_size - 1) // batch_size
@@ -336,10 +334,7 @@ def voyage_embeddings_batch(
         end_idx = min(start_idx + batch_size, len(normalized_texts))
         batch = normalized_texts[start_idx:end_idx]
 
-        print(
-            f"Processing batch {batch_idx + 1}/{total_batches} "
-            f"({len(batch)} texts)..."
-        )
+        print(f"Processing batch {batch_idx + 1}/{total_batches} ({len(batch)} texts)...")
 
         batch_texts = [item["text"] for item in batch]
 

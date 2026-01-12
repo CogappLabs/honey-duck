@@ -33,8 +33,13 @@ Data Sources (all in single dlt source):
 - SQLite database (media) via sql_database source
 """
 
+from typing import TYPE_CHECKING, Iterator
+
 import dagster as dg
 from dagster_dlt import DagsterDltResource, DagsterDltTranslator
+
+if TYPE_CHECKING:
+    from dlt.extract.resource import DltResource
 
 from .dlt_sources import create_harvest_pipeline, create_honey_duck_source
 from .resources import DatabaseResource, PathsResource
@@ -43,9 +48,10 @@ from .resources import DatabaseResource, PathsResource
 class HoneyDuckDltTranslator(DagsterDltTranslator):
     """Custom translator to map dlt resources to Dagster asset keys."""
 
-    def get_asset_key(self, resource) -> dg.AssetKey:
+    def get_asset_key(self, resource: "DltResource") -> dg.AssetKey:
         """Map dlt resource names to our asset key convention."""
         return dg.AssetKey(f"dlt_harvest_{resource.name}")
+
 
 # Define the asset specs for each table produced by dlt
 HARVEST_ASSET_SPECS = [
@@ -85,7 +91,7 @@ def dlt_harvest_assets(
     dlt: DagsterDltResource,
     paths: PathsResource,
     database: DatabaseResource,
-):
+) -> Iterator[dg.MaterializeResult]:
     """Harvest all raw data using dlt with runtime-configured paths.
 
     This asset materializes:

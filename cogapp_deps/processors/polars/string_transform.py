@@ -67,22 +67,28 @@ class PolarsStringProcessor:
             return lf.with_columns(pl.col(self.column).str.strip_chars())
         return lf
 
-    def process(self, df: pd.DataFrame | "pl.DataFrame") -> "pl.DataFrame":
+    def process(
+        self, df: pd.DataFrame | "pl.DataFrame" | "pl.LazyFrame"
+    ) -> "pl.DataFrame | pl.LazyFrame":
         """Apply the string transformation.
 
         Args:
-            df: Input DataFrame (pandas or polars)
+            df: Input DataFrame (pandas, polars DataFrame, or polars LazyFrame)
 
         Returns:
-            Transformed Polars DataFrame
+            Transformed DataFrame/LazyFrame (same type as input for polars types)
         """
+        # LazyFrame in -> LazyFrame out (for streaming)
+        if isinstance(df, pl.LazyFrame):
+            return self._apply(df)
+
         # Convert pandas to polars if needed
         if isinstance(df, pd.DataFrame):
             pl_df = pl.from_pandas(df)
         else:
             pl_df = df
 
-        # Apply transformation via lazy for optimization
+        # DataFrame in -> DataFrame out
         return self._apply(pl_df.lazy()).collect()
 
     def __repr__(self) -> str:
@@ -113,4 +119,8 @@ def uppercase_column(df: pd.DataFrame, column: str) -> pd.DataFrame:
         return df
 
     processor = PolarsStringProcessor(column, "upper")
-    return processor.process(df)
+    result = processor.process(df)
+    # Convert back to pandas for backwards compatibility
+    if hasattr(result, "to_pandas"):
+        return result.to_pandas()
+    return result  # type: ignore[return-value]

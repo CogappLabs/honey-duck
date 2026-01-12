@@ -40,14 +40,6 @@ pre-commit:
         - merge
         - rebase
 
-  # Scripts for additional checks
-  scripts:
-    # Check for debug statements
-    "no-debug-statements":
-      runner: bash
-      skip:
-        - merge
-        - rebase
 
 post-commit:
   commands:

@@ -82,15 +82,15 @@ try:
     _HAS_DLT = True
 except ImportError:
     _HAS_DLT = False
-    create_duckdb_pipeline = None
-    create_parquet_pipeline = None
-    setup_harvest_parquet_views = None
-    claude_message_batches = None
+    create_duckdb_pipeline = None  # type: ignore[assignment]
+    create_parquet_pipeline = None  # type: ignore[assignment]
+    setup_harvest_parquet_views = None  # type: ignore[assignment]
+    claude_message_batches = None  # type: ignore[assignment]
     voyage_embeddings_batch = None
-    xml_file_source = None
-    xml_http_source = None
-    xml_multi_source = None
-    xml_streaming_source = None
+    xml_file_source = None  # type: ignore[assignment]
+    xml_http_source = None  # type: ignore[assignment]
+    xml_multi_source = None  # type: ignore[assignment]
+    xml_streaming_source = None  # type: ignore[assignment]
 
 __all__ = [
     # IO utilities

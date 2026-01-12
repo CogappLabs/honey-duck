@@ -53,7 +53,7 @@ def read_parquet_table_lazy(
 
     # Check parquet directory exists
     if not parquet_dir.exists():
-        error = FileNotFoundError(
+        error: Exception = FileNotFoundError(
             f"[{asset_name}] Parquet directory not found at {parquet_dir}. "
             f"Did you run the harvest job first?"
         )
@@ -69,9 +69,7 @@ def read_parquet_table_lazy(
     # Read all Parquet files in table directory
     parquet_files = list(table_dir.glob("*.parquet"))
     if not parquet_files:
-        error = FileNotFoundError(
-            f"[{asset_name}] No Parquet files found in {table_dir}"
-        )
+        error = FileNotFoundError(f"[{asset_name}] No Parquet files found in {table_dir}")
         raise_as_dagster_failure(error)
 
     # Read using scan_parquet which supports multiple files
@@ -129,9 +127,8 @@ def read_duckdb_table_lazy(
 
     # Check database exists
     if not db_path.exists():
-        error = FileNotFoundError(
-            f"[{asset_name}] Database not found at {db_path}. "
-            f"Did you run the harvest job first?"
+        error: Exception = FileNotFoundError(
+            f"[{asset_name}] Database not found at {db_path}. Did you run the harvest job first?"
         )
         raise_as_dagster_failure(error)
 

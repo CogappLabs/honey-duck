@@ -5,8 +5,7 @@ Provides JSON IO Manager for writing final outputs using Dagster's IO system.
 
 from __future__ import annotations
 
-from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 import dagster as dg
 import duckdb
@@ -74,15 +73,18 @@ class JSONIOManager(UPathIOManager):
 
         # Get preview as pandas for markdown rendering
         preview_df = conn.sql("SELECT * FROM _df LIMIT 10").df()
-        record_count = conn.sql("SELECT COUNT(*) FROM _df").fetchone()[0]
+        result = conn.sql("SELECT COUNT(*) FROM _df").fetchone()
+        record_count = result[0] if result else 0
         conn.close()
 
         # Add metadata
-        context.add_output_metadata({
-            "record_count": record_count,
-            "json_output": dg.MetadataValue.path(output_path_str),
-            "preview": dg.MetadataValue.md(preview_df.to_markdown(index=False)),
-        })
+        context.add_output_metadata(
+            {
+                "record_count": record_count,
+                "json_output": dg.MetadataValue.path(output_path_str),
+                "preview": dg.MetadataValue.md(preview_df.to_markdown(index=False)),
+            }
+        )
 
         context.log.info(f"Wrote {record_count:,} records to {path}")
 
@@ -98,8 +100,8 @@ class JSONIOManager(UPathIOManager):
         """
         import polars as pl
 
-        # Load JSON file as Polars DataFrame
-        df = pl.read_json(path)
+        # Load JSON file as Polars DataFrame (convert UPath to str for polars compatibility)
+        df = pl.read_json(str(path))
 
         context.log.info(f"Loaded {len(df):,} records from {path}")
 
@@ -290,7 +292,7 @@ class ElasticsearchIOManager(dg.IOManager):
         if isinstance(obj, pl.DataFrame):
             records = obj.to_dicts()
         else:  # pandas
-            records = obj.to_dict("records")
+            records = cast(list[dict[str, Any]], obj.to_dict("records"))
 
         context.log.info(f"Indexing {len(records):,} documents to '{index_name}'")
 
@@ -298,7 +300,6 @@ class ElasticsearchIOManager(dg.IOManager):
         from elasticsearch.helpers import bulk
 
         start_time = time.perf_counter()
-        errors = []
 
         # Generate bulk actions
         def generate_actions():
@@ -333,19 +334,20 @@ class ElasticsearchIOManager(dg.IOManager):
         if failed_items:
             error_sample = failed_items[:5]  # First 5 errors
             context.log.warning(
-                f"Failed to index {len(failed_items)} documents. "
-                f"Sample errors: {error_sample}"
+                f"Failed to index {len(failed_items)} documents. Sample errors: {error_sample}"
             )
 
         # Add metadata
-        context.add_output_metadata({
-            "index_name": index_name,
-            "document_count": success_count,
-            "failed_count": len(failed_items) if failed_items else 0,
-            "bulk_size": self.bulk_size,
-            "index_time_ms": round(elapsed_ms, 2),
-            "elasticsearch_host": self.hosts[0],
-        })
+        context.add_output_metadata(
+            {
+                "index_name": index_name,
+                "document_count": success_count,
+                "failed_count": len(failed_items) if failed_items else 0,
+                "bulk_size": self.bulk_size,
+                "index_time_ms": round(elapsed_ms, 2),
+                "elasticsearch_host": self.hosts[0],
+            }
+        )
 
         context.log.info(
             f"Successfully indexed {success_count:,} documents to '{index_name}' "
@@ -372,8 +374,7 @@ class ElasticsearchIOManager(dg.IOManager):
         # Check if index exists
         if not client.indices.exists(index=index_name):
             raise ValueError(
-                f"Index '{index_name}' does not exist. "
-                f"Materialize the upstream asset first."
+                f"Index '{index_name}' does not exist. Materialize the upstream asset first."
             )
 
         # Get all documents (for large indices, use scan/scroll instead)
@@ -502,8 +503,7 @@ class OpenSearchIOManager(dg.IOManager):
                 from opensearchpy import OpenSearch
             except ImportError:
                 raise ImportError(
-                    "opensearch-py package not found. Install with: "
-                    "pip install opensearch-py"
+                    "opensearch-py package not found. Install with: pip install opensearch-py"
                 )
 
             client_kwargs = {
@@ -576,7 +576,7 @@ class OpenSearchIOManager(dg.IOManager):
         if isinstance(obj, pl.DataFrame):
             records = obj.to_dicts()
         else:  # pandas
-            records = obj.to_dict("records")
+            records = cast(list[dict[str, Any]], obj.to_dict("records"))
 
         context.log.info(f"Indexing {len(records):,} documents to '{index_name}'")
 
@@ -613,18 +613,19 @@ class OpenSearchIOManager(dg.IOManager):
         if failed_items:
             error_sample = failed_items[:5]
             context.log.warning(
-                f"Failed to index {len(failed_items)} documents. "
-                f"Sample errors: {error_sample}"
+                f"Failed to index {len(failed_items)} documents. Sample errors: {error_sample}"
             )
 
-        context.add_output_metadata({
-            "index_name": index_name,
-            "document_count": success_count,
-            "failed_count": len(failed_items) if failed_items else 0,
-            "bulk_size": self.bulk_size,
-            "index_time_ms": round(elapsed_ms, 2),
-            "opensearch_host": self.hosts[0],
-        })
+        context.add_output_metadata(
+            {
+                "index_name": index_name,
+                "document_count": success_count,
+                "failed_count": len(failed_items) if failed_items else 0,
+                "bulk_size": self.bulk_size,
+                "index_time_ms": round(elapsed_ms, 2),
+                "opensearch_host": self.hosts[0],
+            }
+        )
 
         context.log.info(
             f"Successfully indexed {success_count:,} documents to '{index_name}' "
@@ -640,8 +641,7 @@ class OpenSearchIOManager(dg.IOManager):
 
         if not client.indices.exists(index=index_name):
             raise ValueError(
-                f"Index '{index_name}' does not exist. "
-                f"Materialize the upstream asset first."
+                f"Index '{index_name}' does not exist. Materialize the upstream asset first."
             )
 
         count_response = client.count(index=index_name)

@@ -85,8 +85,7 @@ class DuckDBJoinProcessor:
             # If left_key contains '.', use as-is; otherwise prefix with 'a.'
             left_ref = left_key if "." in left_key else f"a.{left_key}"
             join_clauses.append(
-                f"{self.join_type} JOIN {table} {alias} "
-                f"ON {left_ref} = {alias}.{right_key}"
+                f"{self.join_type} JOIN {table} {alias} ON {left_ref} = {alias}.{right_key}"
             )
 
         joins_sql = "\n        ".join(join_clauses)

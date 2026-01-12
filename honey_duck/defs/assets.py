@@ -63,14 +63,11 @@ from .constants import (
     PRICE_TIER_BUDGET_MAX_USD,
     PRICE_TIER_MID_MAX_USD,
 )
+from .helpers import STANDARD_HARVEST_DEPS as HARVEST_DEPS
 from .resources import OutputPathsResource, PathsResource
 
 # Configure DuckDB processors to use in-memory database for Parquet processing
 configure_duckdb(db_path=":memory:", read_only=False)
-
-
-# Use centralized harvest dependencies for consistency
-from .helpers import STANDARD_HARVEST_DEPS as HARVEST_DEPS
 
 
 # -----------------------------------------------------------------------------
@@ -89,7 +86,8 @@ def sales_transform(context: dg.AssetExecutionContext, paths: PathsResource) -> 
     harvest_dir = paths.harvest_dir
 
     # Extract: join sales → artworks → artists (from Parquet files)
-    result = DuckDBQueryProcessor(sql=f"""
+    result = DuckDBQueryProcessor(
+        sql=f"""
         SELECT
             s.sale_id,
             s.artwork_id,
@@ -108,10 +106,12 @@ def sales_transform(context: dg.AssetExecutionContext, paths: PathsResource) -> 
             ON s.artwork_id = aw.artwork_id
         LEFT JOIN read_parquet('{harvest_dir}/raw/artists_raw/**/*.parquet') ar
             ON aw.artist_id = ar.artist_id
-    """).process()
+    """
+    ).process()
 
     # Transform: add price metrics (with division safety)
-    result = DuckDBSQLProcessor(sql="""
+    result = DuckDBSQLProcessor(
+        sql="""
         SELECT *,
             sale_price_usd - list_price_usd AS price_diff,
             CASE
@@ -120,27 +120,32 @@ def sales_transform(context: dg.AssetExecutionContext, paths: PathsResource) -> 
             END AS pct_change
         FROM _input
         ORDER BY sale_date DESC, sale_id
-    """).process(result)
+    """
+    ).process(result)
 
     # Transform: normalize artist names (Chain converts to Polars)
-    result: pl.DataFrame = Chain([  # type: ignore[no-redef]
-        PolarsStringProcessor("artist_name", "strip"),
-        PolarsStringProcessor("artist_name", "upper"),
-    ]).process(result)
+    result: pl.DataFrame = Chain(
+        [  # type: ignore[no-redef]
+            PolarsStringProcessor("artist_name", "strip"),
+            PolarsStringProcessor("artist_name", "upper"),
+        ]
+    ).process(result)
 
     # Report
     elapsed_ms = (time.perf_counter() - start_time) * 1000
-    context.add_output_metadata({
-        "record_count": len(result),
-        "columns": result.columns,
-        "preview": dg.MetadataValue.md(
-            result.head(5).to_pandas().to_markdown(index=False)  # type: ignore[operator]
-        ),
-        "unique_artworks": result["artwork_id"].n_unique(),
-        "total_sales_value": float(result["sale_price_usd"].sum()),
-        "date_range": f"{str(result['sale_date'].min())} to {str(result['sale_date'].max())}",
-        "processing_time_ms": round(elapsed_ms, 2),
-    })
+    context.add_output_metadata(
+        {
+            "record_count": len(result),
+            "columns": result.columns,
+            "preview": dg.MetadataValue.md(
+                result.head(5).to_pandas().to_markdown(index=False)  # type: ignore[operator]
+            ),
+            "unique_artworks": result["artwork_id"].n_unique(),
+            "total_sales_value": float(result["sale_price_usd"].sum()),
+            "date_range": f"{str(result['sale_date'].min())} to {str(result['sale_date'].max())}",
+            "processing_time_ms": round(elapsed_ms, 2),
+        }
+    )
     context.log.info(f"Transformed {len(result)} sales records in {elapsed_ms:.1f}ms")
     return result  # type: ignore[return-value]
 
@@ -164,18 +169,23 @@ def sales_output(
     sales_path = output_paths.sales
 
     # Transform: filter high-value sales
-    result = PolarsFilterProcessor(
-        "sale_price_usd", MIN_SALE_VALUE_USD, ">="
-    ).process(sales_transform)
+    result = PolarsFilterProcessor("sale_price_usd", MIN_SALE_VALUE_USD, ">=").process(
+        sales_transform
+    )
 
     # Output
     elapsed_ms = (time.perf_counter() - start_time) * 1000
-    write_json_output(result, sales_path, context, extra_metadata={
-        "filtered_from": total_count,
-        "filter_threshold": f"${MIN_SALE_VALUE_USD:,}",
-        "total_value": float(result["sale_price_usd"].sum()),
-        "processing_time_ms": round(elapsed_ms, 2),
-    })
+    write_json_output(
+        result,
+        sales_path,
+        context,
+        extra_metadata={
+            "filtered_from": total_count,
+            "filter_threshold": f"${MIN_SALE_VALUE_USD:,}",
+            "total_value": float(result["sale_price_usd"].sum()),
+            "processing_time_ms": round(elapsed_ms, 2),
+        },
+    )
     context.log.info(f"Output {len(result)} high-value sales to {sales_path} in {elapsed_ms:.1f}ms")
     return result
 
@@ -196,7 +206,8 @@ def artworks_transform(context: dg.AssetExecutionContext, paths: PathsResource) 
     harvest_dir = paths.harvest_dir
 
     # Extract: aggregate sales per artwork (from Parquet files)
-    sales_per_artwork = DuckDBQueryProcessor(sql=f"""
+    sales_per_artwork = DuckDBQueryProcessor(
+        sql=f"""
         SELECT
             s.artwork_id,
             COUNT(*) AS sale_count,
@@ -208,10 +219,12 @@ def artworks_transform(context: dg.AssetExecutionContext, paths: PathsResource) 
         JOIN read_parquet('{harvest_dir}/raw/artworks_raw/**/*.parquet') aw
             ON s.artwork_id = aw.artwork_id
         GROUP BY s.artwork_id
-    """).process()
+    """
+    ).process()
 
     # Extract: build artwork catalog (from Parquet files)
-    catalog = DuckDBQueryProcessor(sql=f"""
+    catalog = DuckDBQueryProcessor(
+        sql=f"""
         SELECT
             aw.artwork_id,
             aw.title,
@@ -223,20 +236,26 @@ def artworks_transform(context: dg.AssetExecutionContext, paths: PathsResource) 
         FROM read_parquet('{harvest_dir}/raw/artworks_raw/**/*.parquet') aw
         LEFT JOIN read_parquet('{harvest_dir}/raw/artists_raw/**/*.parquet') ar
             ON aw.artist_id = ar.artist_id
-    """).process()
+    """
+    ).process()
 
     # Extract: process media (from Parquet files)
-    media_df = DuckDBQueryProcessor(sql=f"""
+    media_df = DuckDBQueryProcessor(
+        sql=f"""
         SELECT * FROM read_parquet('{harvest_dir}/raw/media/**/*.parquet')
-    """).process()
+    """
+    ).process()
 
-    primary_media = DuckDBSQLProcessor(sql="""
+    primary_media = DuckDBSQLProcessor(
+        sql="""
         SELECT artwork_id, filename AS primary_image, alt_text AS primary_image_alt
         FROM _input
         WHERE sort_order = 1
-    """).process(media_df)
+    """
+    ).process(media_df)
 
-    all_media = DuckDBSQLProcessor(sql="""
+    all_media = DuckDBSQLProcessor(
+        sql="""
         SELECT artwork_id,
             list({
                 'sort_order': sort_order, 'filename': filename, 'media_type': media_type,
@@ -245,11 +264,13 @@ def artworks_transform(context: dg.AssetExecutionContext, paths: PathsResource) 
             } ORDER BY sort_order) AS media
         FROM _input
         GROUP BY artwork_id
-    """).process(media_df)
+    """
+    ).process(media_df)
 
     # Transform: final assembly - join all intermediate results
     # Price tier thresholds: budget < $500k, mid < $3M, premium >= $3M
-    result = DuckDBSQLProcessor(sql=f"""
+    result = DuckDBSQLProcessor(
+        sql=f"""
         SELECT
             c.*,
             COALESCE(s.sale_count, 0) AS sale_count,
@@ -273,28 +294,34 @@ def artworks_transform(context: dg.AssetExecutionContext, paths: PathsResource) 
         LEFT JOIN primary_media pm ON c.artwork_id = pm.artwork_id
         LEFT JOIN all_media am ON c.artwork_id = am.artwork_id
         ORDER BY COALESCE(s.total_sales_value, 0) DESC, c.artwork_id
-    """).process(catalog, tables={
-        "sales_per_artwork": sales_per_artwork,
-        "primary_media": primary_media,
-        "all_media": all_media,
-    })
+    """
+    ).process(
+        catalog,
+        tables={
+            "sales_per_artwork": sales_per_artwork,
+            "primary_media": primary_media,
+            "all_media": all_media,
+        },
+    )
 
     # Transform: normalize artist names (converts to Polars)
     result: pl.DataFrame = PolarsStringProcessor("artist_name", "upper").process(result)  # type: ignore[no-redef]
 
     # Report
     elapsed_ms = (time.perf_counter() - start_time) * 1000
-    context.add_output_metadata({
-        "record_count": len(result),
-        "artworks_sold": int(result["has_sold"].sum()),
-        "artworks_unsold": int((~result["has_sold"]).sum()),
-        "artworks_with_media": int((result["media_count"] > 0).sum()),
-        "total_catalog_value": float(result["list_price_usd"].sum()),
-        "preview": dg.MetadataValue.md(
-            result.head(5).to_pandas().to_markdown(index=False)  # type: ignore[operator]
-        ),
-        "processing_time_ms": round(elapsed_ms, 2),
-    })
+    context.add_output_metadata(
+        {
+            "record_count": len(result),
+            "artworks_sold": int(result["has_sold"].sum()),
+            "artworks_unsold": int((~result["has_sold"]).sum()),
+            "artworks_with_media": int((result["media_count"] > 0).sum()),
+            "total_catalog_value": float(result["list_price_usd"].sum()),
+            "preview": dg.MetadataValue.md(
+                result.head(5).to_pandas().to_markdown(index=False)  # type: ignore[operator]
+            ),
+            "processing_time_ms": round(elapsed_ms, 2),
+        }
+    )
     context.log.info(f"Transformed {len(result)} artworks in {elapsed_ms:.1f}ms")
     return result  # type: ignore[return-value]
 
@@ -318,9 +345,16 @@ def artworks_output(
     tier_counts = dict(zip(vc["price_tier"].to_list(), vc["count"].to_list()))
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
-    write_json_output(artworks_transform, artworks_path, context, extra_metadata={
-        "price_tier_distribution": tier_counts,
-        "processing_time_ms": round(elapsed_ms, 2),
-    })
-    context.log.info(f"Output {len(artworks_transform)} artworks to {artworks_path} in {elapsed_ms:.1f}ms")
+    write_json_output(
+        artworks_transform,
+        artworks_path,
+        context,
+        extra_metadata={
+            "price_tier_distribution": tier_counts,
+            "processing_time_ms": round(elapsed_ms, 2),
+        },
+    )
+    context.log.info(
+        f"Output {len(artworks_transform)} artworks to {artworks_path} in {elapsed_ms:.1f}ms"
+    )
     return artworks_transform

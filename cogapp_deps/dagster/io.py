@@ -11,8 +11,9 @@ from typing import TYPE_CHECKING, Sequence
 import dagster as dg
 import duckdb
 import pandas as pd
+from dagster._core.storage.db_io_manager import TableSlice
 from dagster_duckdb import DuckDBIOManager
-from dagster_duckdb.io_manager import DbTypeHandler, DuckDBIOManager as _BaseDuckDBIOManager
+from dagster_duckdb.io_manager import DbTypeHandler
 from dagster_duckdb_pandas import DuckDBPandasTypeHandler
 from dagster_duckdb_polars import DuckDBPolarsTypeHandler
 
@@ -42,7 +43,7 @@ class DuckDBRelationTypeHandler(DbTypeHandler):
     def handle_output(
         self,
         context: dg.OutputContext,
-        table_slice: "_BaseDuckDBIOManager.TableSlice",
+        table_slice: "TableSlice",
         obj: duckdb.DuckDBPyRelation,
         connection: duckdb.DuckDBPyConnection,
     ) -> None:
@@ -63,11 +64,10 @@ class DuckDBRelationTypeHandler(DbTypeHandler):
     def load_input(
         self,
         context: dg.InputContext,
-        table_slice: "_BaseDuckDBIOManager.TableSlice",
+        table_slice: "TableSlice",
         connection: duckdb.DuckDBPyConnection,
     ):
         """Load a table as a Polars DataFrame for downstream compatibility."""
-        import polars as pl
 
         table_name = f"{table_slice.schema}.{table_slice.table}"
         return connection.sql(f"SELECT * FROM {table_name}").pl()
@@ -128,7 +128,7 @@ def read_table(table_name: str, schema: str = "main") -> pd.DataFrame:
 
 def write_json_output(
     df: pd.DataFrame | "pl.DataFrame",
-    output_path: Path,
+    output_path: str | Path,
     context: dg.AssetExecutionContext,
     extra_metadata: dict | None = None,
     output_name: str | None = None,
@@ -165,7 +165,8 @@ def write_json_output(
 
     # Get preview as pandas for markdown rendering
     preview_df = conn.sql("SELECT * FROM _df LIMIT 10").df()
-    record_count = conn.sql("SELECT COUNT(*) FROM _df").fetchone()[0]
+    result = conn.sql("SELECT COUNT(*) FROM _df").fetchone()
+    record_count = result[0] if result else 0
     conn.close()
 
     context.add_output_metadata(
@@ -273,7 +274,7 @@ def write_json_and_return(
 def write_json_from_duckdb(
     conn: duckdb.DuckDBPyConnection,
     sql: str,
-    output_path: Path,
+    output_path: str | Path,
     context: dg.AssetExecutionContext,
     extra_metadata: dict | None = None,
     output_name: str | None = None,
@@ -299,11 +300,15 @@ def write_json_from_duckdb(
     Returns:
         Number of records written
     """
+    # Convert string to Path if needed
+    if isinstance(output_path, str):
+        output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Get record count and preview before export
     result = conn.sql(sql)
-    record_count = result.count("*").fetchone()[0]
+    count_result = result.count("*").fetchone()
+    record_count = count_result[0] if count_result else 0
     preview_df = conn.sql(f"SELECT * FROM ({sql}) LIMIT 10").df()
 
     # Use DuckDB's native JSON export

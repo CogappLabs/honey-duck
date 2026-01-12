@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 import polars as pl
 
 if TYPE_CHECKING:
-    import duckdb
+    pass
 
 
 class DuckDBSQLProcessor:
@@ -39,39 +39,51 @@ class DuckDBSQLProcessor:
         ...     LEFT JOIN categories b ON a.category_id = b.id
         ... \"\"\")
         >>> result = processor.process(products_df, tables={"categories": categories_df})
+
+    For lazy output (enables downstream streaming):
+        >>> processor = DuckDBSQLProcessor(sql="SELECT * FROM _input", lazy=True)
+        >>> lazy_result = processor.process(input_df)  # Returns LazyFrame
     """
 
-    def __init__(self, sql: str):
+    def __init__(self, sql: str, lazy: bool = False):
         """Initialize SQL processor.
 
         Args:
             sql: SQL query to execute. Use "_input" to reference input DataFrame.
+            lazy: If True, return LazyFrame for downstream streaming.
         """
         self.sql = sql
+        self.lazy = lazy
 
     def process(
         self,
-        df: pl.DataFrame,
-        tables: dict[str, pl.DataFrame] | None = None,
-    ) -> pl.DataFrame:
-        """Execute the SQL and return result as Polars DataFrame.
+        df: pl.DataFrame | pl.LazyFrame,
+        tables: dict[str, pl.DataFrame | pl.LazyFrame] | None = None,
+    ) -> pl.DataFrame | pl.LazyFrame:
+        """Execute the SQL and return result.
 
         Args:
-            df: Input DataFrame, registered as "_input" table.
+            df: Input DataFrame/LazyFrame, registered as "_input" table.
             tables: Additional DataFrames to register as named tables for JOINs.
 
         Returns:
-            Polars DataFrame with query results.
+            Polars DataFrame or LazyFrame (if lazy=True).
         """
         import duckdb as ddb
 
         conn = ddb.connect(":memory:")
         try:
-            conn.register("_input", df)
+            # Collect LazyFrames for DuckDB registration
+            input_df = df.collect() if isinstance(df, pl.LazyFrame) else df
+            conn.register("_input", input_df)
             if tables:
                 for name, table_df in tables.items():
-                    conn.register(name, table_df)
-            return conn.sql(self.sql).pl()
+                    resolved = (
+                        table_df.collect() if isinstance(table_df, pl.LazyFrame) else table_df
+                    )
+                    conn.register(name, resolved)
+            result = conn.sql(self.sql).pl()
+            return result.lazy() if self.lazy else result
         finally:
             conn.close()
 
@@ -97,21 +109,27 @@ class DuckDBQueryProcessor:
         ...     WHERE s.sale_date > '2024-01-01'
         ... \"\"\")
         >>> result = processor.process()
+
+    For lazy output (enables downstream streaming):
+        >>> processor = DuckDBQueryProcessor(sql="SELECT * FROM raw.sales", lazy=True)
+        >>> lazy_result = processor.process()  # Returns LazyFrame
     """
 
-    def __init__(self, sql: str):
+    def __init__(self, sql: str, lazy: bool = False):
         """Initialize query processor.
 
         Args:
             sql: SQL query to execute against configured database.
+            lazy: If True, return LazyFrame for downstream streaming.
         """
         self.sql = sql
+        self.lazy = lazy
 
-    def process(self) -> pl.DataFrame:
+    def process(self) -> pl.DataFrame | pl.LazyFrame:
         """Execute the SQL against configured database and return result.
 
         Returns:
-            Polars DataFrame with query results.
+            Polars DataFrame or LazyFrame (if lazy=True).
 
         Raises:
             RuntimeError: If database is not configured or connection fails.
@@ -120,7 +138,8 @@ class DuckDBQueryProcessor:
 
         conn = get_connection()
         try:
-            return conn.sql(self.sql).pl()
+            result = conn.sql(self.sql).pl()
+            return result.lazy() if self.lazy else result
         finally:
             conn.close()
 

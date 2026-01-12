@@ -21,15 +21,12 @@ Connection Configuration:
 
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import Any
 
 import duckdb
 
-if TYPE_CHECKING:
-    pass
-
 # Module-level configuration
-_config = {
+_config: dict[str, Any] = {
     "db_path": os.environ.get("DUCKDB_PROCESSOR_PATH", ":memory:"),
     "read_only": False,
 }
@@ -61,10 +58,11 @@ def get_connection(read_only: bool | None = None) -> duckdb.DuckDBPyConnection:
     return duckdb.connect(_config["db_path"], read_only=ro)
 
 
-from .aggregate import DuckDBAggregateProcessor
-from .join import DuckDBJoinProcessor
-from .sql import DuckDBQueryProcessor, DuckDBSQLProcessor
-from .window import DuckDBWindowProcessor
+# Imports after configure/get_connection definitions (processors may use them)
+from .aggregate import DuckDBAggregateProcessor  # noqa: E402
+from .join import DuckDBJoinProcessor  # noqa: E402
+from .sql import DuckDBQueryProcessor, DuckDBSQLProcessor  # noqa: E402
+from .window import DuckDBWindowProcessor  # noqa: E402
 
 __all__ = [
     "configure",
