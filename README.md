@@ -16,7 +16,7 @@ cp .env.example .env
 uv run dagster dev
 
 # Or run pipeline via CLI
-uv run dagster job execute -j full_pipeline
+uv run dagster job execute -j processors_pipeline
 ```
 
 Open http://localhost:3000 and click **"Materialize all"** to run the pipeline!
@@ -29,7 +29,7 @@ Open http://localhost:3000 and click **"Materialize all"** to run the pipeline!
 1. **[Quick Start Tutorial](docs/QUICK_START_TUTORIAL.md)** ⭐ - Build your first asset in 15 minutes
 2. **[Getting Started Guide](docs/GETTING_STARTED.md)** - In-depth Dagster introduction
 3. **[PATTERNS.md](honey_duck/defs/PATTERNS.md)** - Copy-paste asset patterns
-4. **[Cogapp Deps API](docs/COGAPP_DEPS_API.md)** - Complete utility reference
+4. **[Cogapp Deps API](cogapp_deps/README.md)** - Complete utility reference
 
 ### 📖 Core Documentation
 
@@ -68,28 +68,30 @@ Uses [dlt](https://dlthub.com/) (data load tool) for CSV harvesting with automat
 
 ## Asset Graph
 
-5 parallel implementations sharing the harvest layer:
+6 parallel implementations sharing the harvest layer:
 
 ```
 dlt_harvest_* (shared) ──→ sales_transform_<impl> ──→ sales_output_<impl>
-                       └──→ artworks_transform_<impl> ──→ artworks_output_<impl>
+                       └──→ artworks_*_<impl> ──→ artworks_output_<impl>
 ```
 
 **Implementations:**
-| Suffix | Description | IO Manager |
-|--------|-------------|------------|
-| (none) | Original with processor classes | DuckDB |
-| `_polars` | Pure Polars expressions | DuckDB |
-| `_pandas` | Pure Pandas expressions | DuckDB |
-| `_duckdb` | Pure DuckDB SQL queries | DuckDB |
-| `_polars_fs` | Pure Polars expressions | Filesystem (pickle) |
+| Suffix | Description | Features |
+|--------|-------------|----------|
+| (none) | Original with processor classes | Processor pattern |
+| `_polars` | Pure Polars with intermediate steps | Lazy evaluation, visualization |
+| `_duckdb` | Pure DuckDB SQL queries | SQL-based transforms |
+| `_polars_fs` | Polars variant (different group) | Same logic, separate group |
+| `_polars_ops` | Graph-backed assets with ops | Detailed observability |
+| `_polars_multi` | Multi-asset pattern | Tightly coupled steps |
 
 **Jobs:**
-- `full_pipeline` - Original implementation
-- `polars_pipeline` - Pure Polars
-- `pandas_pipeline` - Pure Pandas
+- `processors_pipeline` - Original implementation with processor classes
+- `polars_pipeline` - Pure Polars with intermediate step assets
 - `duckdb_pipeline` - Pure DuckDB SQL
-- `polars_fs_pipeline` - Polars with FilesystemIOManager
+- `polars_fs_pipeline` - Polars variant
+- `polars_ops_pipeline` - Graph-backed assets (ops)
+- `polars_multi_pipeline` - Multi-asset pattern
 
 ## Project Structure
 
@@ -112,7 +114,9 @@ honey_duck/
     checks.py           # Asset checks
 
 cogapp_deps/            # Utilities (simulates external package)
+  README.md             # Complete API reference
   dagster/              # Dagster helpers
+    helpers.py          # track_timing, altair_to_metadata, table_preview_to_metadata
     io.py               # DuckDBPandasPolarsIOManager
   processors/           # DataFrame processors
     pandas/             # PandasReplaceOnConditionProcessor

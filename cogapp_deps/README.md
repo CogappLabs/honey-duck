@@ -8,6 +8,7 @@ Complete reference for the `cogapp_deps` reusable utilities library.
 - [Validation](#validation)
 - [Error Handling](#error-handling)
 - [Metadata](#metadata)
+- [Visualization](#visualization)
 - [IO Managers](#io-managers)
 - [DLT Helpers](#dlt-helpers)
 - [API Sources](#api-sources)
@@ -251,6 +252,99 @@ def my_asset(context: dg.AssetExecutionContext) -> pl.DataFrame:
 **Logs**: `"Completed {operation_name} in {time}ms"`
 
 **Adds to Metadata**: `processing_time_ms` for the wrapped operation
+
+---
+
+## Visualization
+
+### `altair_to_metadata()`
+
+Convert an Altair chart to Dagster metadata with embedded PNG.
+
+```python
+from cogapp_deps.dagster import altair_to_metadata
+
+@dg.asset
+def my_asset(context: dg.AssetExecutionContext) -> pl.DataFrame:
+    result = transform()
+
+    # Create chart using Polars built-in Altair integration
+    chart = result.plot.bar(x="category", y="count", color="category")
+    chart = chart.properties(title="Distribution", width=300, height=200)
+
+    # Add to metadata as base64-encoded PNG
+    context.add_output_metadata(altair_to_metadata(chart, "distribution_chart"))
+
+    return result
+```
+
+**Parameters**:
+- `chart` (alt.Chart): Altair Chart object (e.g., from `df.plot.bar()`)
+- `title` (str): Metadata key name (default: "chart")
+
+**Returns**: `dict[str, MetadataValue]` - Dictionary with embedded PNG in markdown
+
+**Note**: Requires `altair` and `vl-convert-python` packages.
+
+---
+
+### `table_preview_to_metadata()`
+
+Convert a Polars DataFrame to a markdown table for Dagster metadata.
+
+```python
+from cogapp_deps.dagster import table_preview_to_metadata
+
+@dg.asset
+def my_asset(context: dg.AssetExecutionContext) -> pl.DataFrame:
+    result = transform()
+
+    # Add markdown table preview to metadata
+    context.add_output_metadata(
+        table_preview_to_metadata(
+            result.head(5),
+            title="top_results",
+            header="Top 5 Results by Value",
+        )
+    )
+
+    return result
+```
+
+**Parameters**:
+- `df` (pl.DataFrame): Polars DataFrame to preview
+- `title` (str): Metadata key name (default: "preview")
+- `header` (str | None): Optional header text above the table
+- `max_rows` (int): Maximum rows to include (default: 10)
+
+**Returns**: `dict[str, MetadataValue]` - Dictionary with markdown table
+
+---
+
+### Example: Combined Visualization
+
+```python
+from cogapp_deps.dagster import altair_to_metadata, table_preview_to_metadata
+
+@dg.asset
+def sales_summary(context: dg.AssetExecutionContext, sales: pl.DataFrame) -> pl.DataFrame:
+    # Aggregate by category
+    summary = sales.group_by("category").agg(
+        pl.len().alias("count"),
+        pl.col("value").sum().alias("total_value"),
+    ).sort("total_value", descending=True)
+
+    # Bar chart of totals
+    chart = summary.plot.bar(x="category", y="total_value")
+
+    # Add both visualizations
+    context.add_output_metadata({
+        **altair_to_metadata(chart, "value_by_category"),
+        **table_preview_to_metadata(summary, "summary_table", "Sales by Category"),
+    })
+
+    return summary
+```
 
 ---
 

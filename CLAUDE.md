@@ -47,7 +47,7 @@ cogapp_deps/              # Utilities (simulates external package)
 ├── dagster/              # Dagster helpers
 │   ├── __init__.py       # Exports write_json_output, track_timing, etc.
 │   ├── io.py             # DuckDBPandasPolarsIOManager (unused)
-│   └── helpers.py        # track_timing, add_dataframe_metadata, read_harvest_*
+│   └── helpers.py        # track_timing, add_dataframe_metadata, altair_to_metadata, etc.
 └── processors/           # DataFrame processors
     ├── pandas/           # PandasReplaceOnConditionProcessor
     ├── polars/           # PolarsFilterProcessor, PolarsStringProcessor
@@ -127,6 +127,59 @@ non-deterministic parallel execution in Dagster.
 1. Add resource to `dlt_sources.py` honey_duck_source function
 2. Asset key will be auto-generated as `dlt_harvest_{name}`
 3. Data written to `data/harvest/raw/{name}/`
+
+## Polars Best Practices
+
+**Consolidate `with_columns` chains** - Multiple expressions in a single `with_columns` run in parallel:
+```python
+# ✅ GOOD - parallel execution
+result = df.with_columns(
+    pl.col("a").alias("x"),
+    pl.col("b").alias("y"),
+    pl.col("c").str.to_uppercase(),
+)
+
+# ❌ BAD - sequential execution
+result = df.with_columns(pl.col("a").alias("x"))
+result = result.with_columns(pl.col("b").alias("y"))
+```
+
+**Use `sort_by` inside aggregations** - `sort()` before `group_by()` doesn't guarantee order within groups:
+```python
+# ✅ GOOD - sorted within each group
+result = df.group_by("id").agg(
+    pl.struct("a", "b").sort_by("a").alias("items")
+)
+
+# ❌ BAD - sort order not preserved after group_by
+result = df.sort("a").group_by("id").agg(pl.struct("a", "b").alias("items"))
+```
+
+**Prefer semi-joins over `is_in()`** - Avoids early materialization:
+```python
+# ✅ GOOD - stays lazy
+result = sales.join(artworks.select("id"), on="id", how="semi")
+
+# ❌ BAD - forces collect of ids
+result = sales.filter(pl.col("id").is_in(artworks["id"]))
+```
+
+## Visualization Helpers
+
+Add charts and tables to Dagster asset metadata:
+
+```python
+from cogapp_deps.dagster import altair_to_metadata, table_preview_to_metadata
+
+# Bar chart (Altair via Polars .plot)
+chart = df.plot.bar(x="category", y="count")
+context.add_output_metadata(altair_to_metadata(chart, "distribution_chart"))
+
+# Markdown table preview
+context.add_output_metadata(
+    table_preview_to_metadata(df.head(5), "preview", "Top 5 Results")
+)
+```
 
 ## Known Limitations
 
