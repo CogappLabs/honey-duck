@@ -75,7 +75,7 @@ def add_dataframe_metadata(
     df: pl.DataFrame,
     output_name: str | None = None,
     mapping_key: str | None = None,
-    **extra_metadata,
+    **extra_metadata: dg.MetadataValue | str | int | float | bool | None,
 ) -> None:
     """Add standard metadata for a DataFrame result.
 

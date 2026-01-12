@@ -30,8 +30,7 @@ class JSONIOManager(UPathIOManager):
     - Automatically creates parent directories
     - Provides standard metadata (record count, preview, path)
 
-    Args:
-        base_path: Base directory for JSON outputs (default: "data/output/json")
+    Attributes:
         extension: File extension (default: ".json")
 
     Example:
@@ -123,14 +122,13 @@ class ElasticsearchIOManager(dg.IOManager):
     - Handles both write (dump) and read (load) operations
 
     Args:
-        hosts: Elasticsearch host(s) (e.g., ["http://localhost:9200"])
-        index_prefix: Prefix for index names (e.g., "dagster_")
-        api_key: Elasticsearch API key (recommended for security)
-        basic_auth: Tuple of (username, password) if not using API key
-        verify_certs: Whether to verify SSL certificates (default: True)
-        bulk_size: Number of documents per bulk request (default: 500)
-        custom_mappings: Optional dict of {asset_name: mapping_dict}
-        es_kwargs: Additional kwargs for Elasticsearch constructor
+        hosts (list[str]): Elasticsearch host(s) (e.g., ["http://localhost:9200"])
+        index_prefix (str): Prefix for index names (e.g., "dagster_")
+        api_key (str | None): Elasticsearch API key (recommended for security)
+        basic_auth (tuple[str, str] | None): Tuple of (username, password) if not using API key
+        verify_certs (bool): Whether to verify SSL certificates (default: True)
+        bulk_size (int): Number of documents per bulk request (default: 500)
+        custom_mappings (dict | None): Optional dict of {asset_name: mapping_dict}
 
     Environment Variables (recommended for credentials):
         ELASTICSEARCH_HOST: Comma-separated hosts
@@ -426,16 +424,15 @@ class OpenSearchIOManager(dg.IOManager):
     - Handles both write (dump) and read (load) operations
 
     Args:
-        hosts: OpenSearch host(s) (e.g., ["https://search-domain.us-east-1.es.amazonaws.com"])
-        index_prefix: Prefix for index names (e.g., "dagster_")
-        http_auth: Tuple of (username, password) for basic auth
-        use_ssl: Whether to use SSL (default: True)
-        verify_certs: Whether to verify SSL certificates (default: True)
-        bulk_size: Number of documents per bulk request (default: 500)
-        custom_mappings: Optional dict of {asset_name: mapping_dict}
-        aws_auth: Whether to use AWS SigV4 auth (requires boto3)
-        region: AWS region (required if aws_auth=True)
-        opensearch_kwargs: Additional kwargs for OpenSearch constructor
+        hosts (list[str]): OpenSearch host(s) (e.g., ["https://search-domain.us-east-1.es.amazonaws.com"])
+        index_prefix (str): Prefix for index names (e.g., "dagster_")
+        http_auth (tuple[str, str] | None): Tuple of (username, password) for basic auth
+        use_ssl (bool): Whether to use SSL (default: True)
+        verify_certs (bool): Whether to verify SSL certificates (default: True)
+        bulk_size (int): Number of documents per bulk request (default: 500)
+        custom_mappings (dict | None): Optional dict of {asset_name: mapping_dict}
+        aws_auth (bool): Whether to use AWS SigV4 auth (requires boto3)
+        region (str | None): AWS region (required if aws_auth=True)
 
     Environment Variables:
         OPENSEARCH_HOST: OpenSearch endpoint URL

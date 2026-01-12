@@ -11,7 +11,7 @@ Every commit automatically runs:
 3. **MyPy Type Checking** - Static type analysis
 4. **Pytest Tests** - Full test suite
 
-**If any check fails, the commit is prevented** ❌
+**If any check fails, the commit is prevented** 
 
 ---
 
