@@ -24,7 +24,9 @@ from cogapp_deps.dagster.exceptions import (
 )
 from cogapp_deps.dagster.helpers import (
     add_dataframe_metadata,
+    altair_to_metadata,
     read_tables_from_duckdb,
+    table_preview_to_metadata,
     track_timing,
 )
 from cogapp_deps.dagster.io import (
@@ -120,6 +122,9 @@ __all__ = [
     "read_tables_from_duckdb",
     "add_dataframe_metadata",
     "track_timing",
+    # Visualization helpers
+    "altair_to_metadata",
+    "table_preview_to_metadata",
     # Notifications
     "create_slack_notification_asset",
     "create_email_notification_asset",

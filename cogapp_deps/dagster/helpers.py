@@ -4,12 +4,20 @@ Reduces boilerplate when creating assets by providing common utilities
 for metadata, table reading, and more. Use with standard Dagster decorators.
 """
 
+from __future__ import annotations
+
+import base64
+import io
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import dagster as dg
 import polars as pl
 
 from .validation import read_duckdb_table_lazy
+
+if TYPE_CHECKING:
+    import altair as alt
 
 
 def read_tables_from_duckdb(
@@ -185,3 +193,68 @@ class track_timing:
                 self.context.log.info(f"Completed {self.operation} in {self.elapsed_ms:.1f}ms")
 
         return False  # Don't suppress exceptions
+
+
+def altair_to_metadata(chart: alt.Chart, title: str = "chart") -> dict[str, dg.MetadataValue]:
+    """Convert an Altair chart to Dagster metadata with embedded PNG.
+
+    Creates a base64-encoded PNG image and wraps it in markdown for display
+    in the Dagster UI asset metadata panel.
+
+    Args:
+        chart: Altair Chart object (e.g., from df.plot.bar())
+        title: Metadata key name (default: "chart")
+
+    Returns:
+        Dictionary with single key containing MetadataValue.md() with embedded image
+
+    Example:
+        >>> chart = result.plot.bar(x="category", y="count")
+        >>> context.add_output_metadata(altair_to_metadata(chart, "distribution"))
+    """
+    # Save chart to PNG bytes
+    png_bytes = io.BytesIO()
+    chart.save(png_bytes, format="png")
+    png_bytes.seek(0)
+
+    # Encode as base64 and wrap in markdown
+    b64_data = base64.b64encode(png_bytes.read()).decode("utf-8")
+    md_content = f"![{title}](data:image/png;base64,{b64_data})"
+
+    return {title: dg.MetadataValue.md(md_content)}
+
+
+def table_preview_to_metadata(
+    df: pl.DataFrame,
+    title: str = "preview",
+    header: str | None = None,
+    max_rows: int = 10,
+) -> dict[str, dg.MetadataValue]:
+    """Convert a Polars DataFrame to a markdown table for Dagster metadata.
+
+    Creates a clean markdown table preview suitable for Dagster UI display.
+
+    Args:
+        df: Polars DataFrame to preview
+        title: Metadata key name (default: "preview")
+        header: Optional header text to display above the table
+        max_rows: Maximum rows to include (default: 10)
+
+    Returns:
+        Dictionary with single key containing MetadataValue.md() with markdown table
+
+    Example:
+        >>> context.add_output_metadata(
+        ...     table_preview_to_metadata(
+        ...         result.head(5),
+        ...         title="top_sales",
+        ...         header="Top 5 Sales by Value"
+        ...     )
+        ... )
+    """
+    md_table = df.head(max_rows).to_pandas().to_markdown(index=False)
+    if header:
+        md_content = f"### {header}\n\n{md_table}"
+    else:
+        md_content = md_table
+    return {title: dg.MetadataValue.md(md_content)}

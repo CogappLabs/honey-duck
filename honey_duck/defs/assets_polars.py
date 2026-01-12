@@ -21,7 +21,12 @@ from datetime import timedelta
 import dagster as dg
 import polars as pl
 
-from cogapp_deps.dagster import read_harvest_table_lazy, write_json_output
+from cogapp_deps.dagster import (
+    altair_to_metadata,
+    read_harvest_table_lazy,
+    table_preview_to_metadata,
+    write_json_output,
+)
 
 from .constants import (
     MIN_SALE_VALUE_USD,
@@ -400,6 +405,7 @@ def artworks_output_polars(
     """Output artwork catalog to JSON.
 
     Accepts LazyFrame, collects for JSON output - single materialization point.
+    Includes visualizations: price tier bar chart and styled top artworks table.
     """
     start_time = time.perf_counter()
     artworks_path = output_paths.artworks_polars
@@ -407,8 +413,20 @@ def artworks_output_polars(
     # Single collect point for entire pipeline
     result = artworks_transform_polars.collect()
 
-    vc = result["price_tier"].value_counts()
+    vc = result["price_tier"].value_counts().sort("price_tier")
     tier_counts = dict(zip(vc["price_tier"].to_list(), vc["count"].to_list()))
+
+    # Create price tier bar chart using Polars built-in Altair integration
+    tier_chart = vc.plot.bar(
+        x="price_tier",
+        y="count",
+        color="price_tier",
+    ).properties(title="Artworks by Price Tier", width=300, height=200)
+
+    # Create markdown table of top 5 artworks by sales value
+    top_artworks = result.select(
+        "title", "artist_name", "price_tier", "total_sales_value", "sale_count"
+    ).head(5)
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
     write_json_output(
@@ -418,6 +436,8 @@ def artworks_output_polars(
         extra_metadata={
             "price_tier_distribution": tier_counts,
             "processing_time_ms": round(elapsed_ms, 2),
+            **altair_to_metadata(tier_chart, "price_tier_chart"),
+            **table_preview_to_metadata(top_artworks, "top_artworks", "Top 5 Artworks by Sales"),
         },
     )
     context.log.info(f"Output {len(result)} artworks to {artworks_path} in {elapsed_ms:.1f}ms")
