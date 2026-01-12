@@ -3,7 +3,7 @@
 This module creates the single Definitions object that Dagster uses.
 All assets, jobs, and resources are combined here.
 
-Asset Graph (Original + 6 Implementation Variants)
+Asset Graph (Original + 5 Implementation Variants)
 --------------------------------------------------
 Each implementation follows this pattern:
 
@@ -12,7 +12,7 @@ Each implementation follows this pattern:
 
 Groups
 ------
-- harvest: Raw data loaded from CSV/SQLite into DuckDB via dlt (shared)
+- harvest: Raw data loaded from CSV/SQLite via dlt (shared)
 - transform/output: Original implementation with processor classes
 - transform_polars/output_polars: Pure Polars expressions (split into steps)
 - transform_duckdb/output_duckdb: Pure DuckDB SQL queries
@@ -23,13 +23,16 @@ Groups
 IO Managers
 -----------
 - io_manager (default): PolarsParquetIOManager - stores DataFrames as Parquet files
-- fs_io_manager: FilesystemIOManager - pickles DataFrames to files
 
-DuckDB Usage
-------------
-- DuckDB is still used for SQL transformations via processors
-- DuckDB resource provides connection to raw schema (dlt harvest data)
-- Inter-asset communication now uses Parquet instead of DuckDB tables
+Storage Pattern (all Parquet)
+-----------------------------
+- Harvest layer: dlt writes Parquet to data/harvest/raw/
+- Transform/Output layers: Parquet files in data/storage/
+
+Data Flow
+---------
+dlt handles its own IO (bypasses Dagster IO manager). Downstream assets
+read dlt-produced Parquet files directly via DuckDB's read_parquet().
 
 Checks
 ------
@@ -38,7 +41,6 @@ Checks
 """
 
 import dagster as dg
-from dagster import FilesystemIOManager
 from dagster_dlt import DagsterDltResource
 from dagster_duckdb import DuckDBResource
 from dagster_polars import PolarsParquetIOManager
@@ -46,7 +48,7 @@ from dagster_polars import PolarsParquetIOManager
 # Original implementation
 from .assets import artworks_output, artworks_transform, sales_output, sales_transform
 
-# Pure Polars implementation
+# Pure Polars implementation (split steps for intermediate persistence)
 from .assets_polars import (
     artworks_catalog_polars,
     artworks_media_polars,
@@ -105,7 +107,16 @@ from .jobs import (
     polars_ops_pipeline_job,
     polars_pipeline_job,
 )
-from .resources import DUCKDB_PATH, PARQUET_DIR
+from .resources import (
+    DatabaseResource,
+    OUTPUT_DIR,
+    OutputPathsResource,
+    PathsResource,
+    STORAGE_DIR,
+)
+
+# Path constant for DuckDB database - shared across resources
+DUCKDB_PATH = str(OUTPUT_DIR / "dagster.duckdb")
 
 
 defs = dg.Definitions(
@@ -164,13 +175,18 @@ defs = dg.Definitions(
         check_valid_price_tiers,
     ],
     resources={
+        # ConfigurableResource instances for path configuration
+        "paths": PathsResource(),
+        "output_paths": OutputPathsResource(),
+        "database": DatabaseResource(),
+        # IO managers
         "io_manager": PolarsParquetIOManager(
-            base_dir=str(PARQUET_DIR),
+            base_dir=str(STORAGE_DIR),
         ),
-        "fs_io_manager": FilesystemIOManager(),
+        # External resources
         "dlt": DagsterDltResource(),
         "duckdb": DuckDBResource(
-            database=DUCKDB_PATH,
+            database=DUCKDB_PATH,  # Use shared path constant
         ),
     },
 )

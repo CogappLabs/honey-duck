@@ -5,11 +5,10 @@ Includes:
 - Data quality checks for output assets
 
 Note: Freshness is handled via FreshnessPolicy on assets (not checks).
-Uses pandera.polars for validating Polars DataFrames.
 """
 
 import dagster as dg
-import pandera as pa
+import pandera.polars as pa
 import polars as pl
 
 from .assets import (
@@ -95,7 +94,7 @@ def check_sales_above_threshold(sales_output: pl.DataFrame) -> dg.AssetCheckResu
         metadata={
             "threshold": dg.MetadataValue.text(f"${MIN_SALE_VALUE_USD:,}"),
             "min_sale_price": dg.MetadataValue.float(
-                float(sales_output["sale_price_usd"].min())
+                float(sales_output["sale_price_usd"].min())  # type: ignore[arg-type]
             ),
             "below_threshold_count": dg.MetadataValue.int(int(below_threshold)),
         },
@@ -110,13 +109,8 @@ def check_valid_price_tiers(artworks_output: pl.DataFrame) -> dg.AssetCheckResul
     passed = bool(invalid_count == 0)
 
     # Convert to JSON-serializable dict
-    tier_counts = artworks_output["price_tier"].value_counts()
-    tier_dist = dict(
-        zip(
-            tier_counts["price_tier"].to_list(),
-            tier_counts["count"].to_list(),
-        )
-    )
+    vc = artworks_output["price_tier"].value_counts()
+    tier_dist = dict(zip(vc["price_tier"].to_list(), vc["count"].to_list()))
 
     return dg.AssetCheckResult(
         passed=passed,

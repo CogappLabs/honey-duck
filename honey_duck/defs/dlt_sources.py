@@ -1,7 +1,8 @@
-"""dlt sources for harvesting data from various sources.
+"""dlt source factories for harvesting data from various sources.
 
-This module provides generic dlt sources that can be configured
-to load data from filesystems, APIs, databases, and other sources.
+This module provides factory functions that create dlt sources and pipelines
+with injected path configuration. This enables runtime configuration via
+Dagster's ConfigurableResource pattern.
 
 Sources:
 - CSV files via filesystem source
@@ -14,68 +15,88 @@ The filesystem source supports:
 - Azure Blob (az://)
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import dlt
 from dlt.sources.filesystem import filesystem, read_csv
 from dlt.sources.sql_database import sql_database
 
-from cogapp_deps.dagster import create_parquet_pipeline
+if TYPE_CHECKING:
+    from .resources import DatabaseResource, PathsResource
 
-from .resources import HARVEST_PARQUET_DIR, INPUT_DIR, MEDIA_DB_PATH
 
+def create_honey_duck_source(
+    paths: PathsResource,
+    database: DatabaseResource,
+) -> dlt.sources.DltSource:
+    """Create harvest source combining CSV files and SQLite database.
 
-@dlt.source(name="harvest")
-def honey_duck_source():
-    """Harvest source combining CSV files and SQLite database.
+    Args:
+        paths: PathsResource with input_dir for CSV files
+        database: DatabaseResource with media_db_path for SQLite
 
-    Creates named resources:
-    - sales_raw: Sales transactions (CSV)
-    - artworks_raw: Artwork catalog (CSV)
-    - artists_raw: Artist reference data (CSV)
-    - media: Media references (SQLite)
-
-    All resources are loaded in a single dlt.run() call,
-    avoiding DuckDB lock conflicts.
+    Returns:
+        dlt source with named resources:
+        - sales_raw: Sales transactions (CSV)
+        - artworks_raw: Artwork catalog (CSV)
+        - artists_raw: Artist reference data (CSV)
+        - media: Media references (SQLite)
     """
-    bucket_url = f"file://{INPUT_DIR}"
 
-    # CSV resources
-    sales = filesystem(
-        bucket_url=bucket_url,
-        file_glob="sales.csv",
-    ) | read_csv()
+    @dlt.source(name="harvest")
+    def _source():
+        bucket_url = f"file://{paths.input_dir}"
 
-    artworks = filesystem(
-        bucket_url=bucket_url,
-        file_glob="artworks.csv",
-    ) | read_csv()
+        # CSV resources
+        sales = filesystem(
+            bucket_url=bucket_url,
+            file_glob="sales.csv",
+        ) | read_csv()
 
-    artists = filesystem(
-        bucket_url=bucket_url,
-        file_glob="artists.csv",
-    ) | read_csv()
+        artworks = filesystem(
+            bucket_url=bucket_url,
+            file_glob="artworks.csv",
+        ) | read_csv()
 
-    # SQLite resource - extract the media table resource
-    media_source = sql_database(
-        credentials=f"sqlite:///{MEDIA_DB_PATH}",
-    )
-    media = media_source.resources["media"]
+        artists = filesystem(
+            bucket_url=bucket_url,
+            file_glob="artists.csv",
+        ) | read_csv()
 
-    return [
-        sales.with_name("sales_raw"),
-        artworks.with_name("artworks_raw"),
-        artists.with_name("artists_raw"),
-        media,
-    ]
+        # SQLite resource - extract the media table resource
+        media_source = sql_database(
+            credentials=f"sqlite:///{database.media_db_path}",
+        )
+        media = media_source.resources["media"]
+
+        return [
+            sales.with_name("sales_raw"),
+            artworks.with_name("artworks_raw"),
+            artists.with_name("artists_raw"),
+            media,
+        ]
+
+    return _source()
 
 
-def get_harvest_pipeline() -> dlt.Pipeline:
-    """Get the dlt pipeline for harvesting to Parquet files.
+def create_harvest_pipeline(paths: PathsResource) -> dlt.Pipeline:
+    """Create the dlt pipeline for harvesting to Parquet files.
+
+    Args:
+        paths: PathsResource with harvest_dir for output location
 
     Returns:
         Configured dlt pipeline pointing to Parquet filesystem destination.
+        Data is written to {harvest_dir}/raw/{table_name}/
+        State is stored in {harvest_dir}/ (same directory)
     """
-    return create_parquet_pipeline(
-        pipeline_name="honey_duck_harvest_parquet",
-        destination_dir=HARVEST_PARQUET_DIR,
+    return dlt.pipeline(
+        pipeline_name="honey_duck_harvest",
+        destination=dlt.destinations.filesystem(
+            bucket_url=paths.harvest_dir,
+        ),
         dataset_name="raw",
+        pipelines_dir=paths.harvest_dir,
     )

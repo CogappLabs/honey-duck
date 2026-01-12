@@ -1,17 +1,21 @@
-"""Graph-backed asset implementation using ops for detailed observability.
+"""Graph-backed asset implementation using ops for transform layer.
 
-This module demonstrates the graph-backed asset pattern for proof-of-concept:
-- Each transformation step is an op with detailed logging and metadata
-- Ops are composed into @graph_asset decorated functions
-- Results in single asset in lineage graph with op-level observability
-- No intermediate persistence (data flows through memory)
+This module demonstrates a hybrid pattern:
+- Harvest layer: Regular assets (dlt-based, shared with other pipelines)
+- Transform layer: Ops composed in @graph_asset
+- Output layer: Regular assets
 
-Use this pattern when:
-- You want detailed op-level logs and metadata for debugging
-- Intermediate persistence is not required
-- You're building complex multi-step transformations
+The @graph_asset pattern gives op-level observability (retries, step logs)
+while maintaining proper asset dependencies in the lineage graph.
 
-For intermediate persistence, use the split asset pattern in assets_polars.py instead.
+Pattern for declaring asset dependencies with @graph_asset:
+1. Use `ins` with `AssetIn(key=..., dagster_type=Nothing)` to declare dependencies
+2. Accept Nothing-typed parameters in the graph function
+3. First op uses `ins={"_dep": In(Nothing)}` to accept the Nothing values
+4. Pass the Nothing values from graph function to first op
+
+This establishes asset lineage (shows in UI) while ops read data directly
+from files (no data flows through the Nothing dependency chain).
 
 Asset Graph:
     dlt_harvest_* ──→ sales_transform_polars_ops ──→ sales_output_polars_ops
@@ -22,27 +26,36 @@ import time
 from datetime import timedelta
 
 import dagster as dg
+from dagster import Nothing
+import duckdb
 import polars as pl
 
 from cogapp_deps.dagster import (
-    read_harvest_tables_lazy,
-    read_parquet_table_lazy,
     track_timing,
     write_json_output,
 )
 
-from .config import CONFIG
 from .constants import (
     MIN_SALE_VALUE_USD,
     PRICE_TIER_BUDGET_MAX_USD,
     PRICE_TIER_MID_MAX_USD,
 )
-from .helpers import STANDARD_HARVEST_DEPS as HARVEST_DEPS
-from .resources import (
-    ARTWORKS_OUTPUT_PATH_POLARS_OPS,
-    HARVEST_PARQUET_DIR,
-    SALES_OUTPUT_PATH_POLARS_OPS,
-)
+from .resources import OutputPathsResource, HARVEST_DIR
+
+
+def _read_raw_parquet_lazy(harvest_dir: str, table: str) -> pl.LazyFrame:
+    """Read raw Parquet files as Polars LazyFrame using DuckDB."""
+    conn = duckdb.connect(":memory:")
+    try:
+        return conn.sql(
+            f"SELECT * FROM read_parquet('{harvest_dir}/raw/{table}/**/*.parquet')"
+        ).pl().lazy()
+    finally:
+        conn.close()
+
+
+# Default harvest directory for ops (ops don't get resource injection)
+_DEFAULT_HARVEST_DIR = str(HARVEST_DIR)
 
 
 # -----------------------------------------------------------------------------
@@ -50,27 +63,18 @@ from .resources import (
 # -----------------------------------------------------------------------------
 
 
-@dg.op
+@dg.op(ins={"_dep1": dg.In(Nothing), "_dep2": dg.In(Nothing), "_dep3": dg.In(Nothing)})
 def join_sales_data(context: dg.OpExecutionContext) -> pl.DataFrame:
-    """Op: Join sales with artworks and artists.
-
-    Demonstrates batch reading in ops context for large datasets.
-    """
+    """Op: Join sales with artworks and artists."""
     with track_timing(context, "join"):
-        # Batch read with validation
-        tables = read_harvest_tables_lazy(
-            HARVEST_PARQUET_DIR,
-            ("sales_raw", ["sale_id", "artwork_id", "sale_date", "sale_price_usd", "buyer_country"]),
-            ("artworks_raw", ["artwork_id", "artist_id", "title", "year", "medium", "price_usd"]),
-            ("artists_raw", ["artist_id", "name", "nationality"]),
-            asset_name="join_sales_data",
-        )
+        sales = _read_raw_parquet_lazy(_DEFAULT_HARVEST_DIR, "sales_raw")
+        artworks = _read_raw_parquet_lazy(_DEFAULT_HARVEST_DIR, "artworks_raw")
+        artists = _read_raw_parquet_lazy(_DEFAULT_HARVEST_DIR, "artists_raw")
 
-        # Join and select columns
         result = (
-            tables["sales_raw"]
-            .join(tables["artworks_raw"], on="artwork_id", how="left", suffix="_aw")
-            .join(tables["artists_raw"], on="artist_id", how="left", suffix="_ar")
+            sales
+            .join(artworks, on="artwork_id", how="left", suffix="_aw")
+            .join(artists, on="artist_id", how="left", suffix="_ar")
             .select(
                 "sale_id",
                 "artwork_id",
@@ -100,7 +104,6 @@ def add_sales_metrics(context: dg.OpExecutionContext, joined_data: pl.DataFrame)
     """Op: Add computed columns and normalize artist names."""
     start_time = time.perf_counter()
 
-    # Add price metrics, normalize artist names, and sort (chained for readability)
     result = (
         joined_data
         .lazy()
@@ -121,8 +124,6 @@ def add_sales_metrics(context: dg.OpExecutionContext, joined_data: pl.DataFrame)
     )
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
-
-    # Calculate metadata for logging
     total_value = float(result["sale_price_usd"].sum())
     avg_price = total_value / len(result)
     date_range = f"{str(result['sale_date'].min())} to {str(result['sale_date'].max())}"
@@ -136,24 +137,29 @@ def add_sales_metrics(context: dg.OpExecutionContext, joined_data: pl.DataFrame)
 
 
 # -----------------------------------------------------------------------------
-# Sales Graph-Backed Asset
+# Sales Graph-Backed Asset (ops composed via @graph_asset)
 # -----------------------------------------------------------------------------
 
 
 @dg.graph_asset(
     kinds={"polars"},
     group_name="transform_polars_ops",
+    ins={
+        "_sales": dg.AssetIn(key="dlt_harvest_sales_raw", dagster_type=Nothing),
+        "_artworks": dg.AssetIn(key="dlt_harvest_artworks_raw", dagster_type=Nothing),
+        "_artists": dg.AssetIn(key="dlt_harvest_artists_raw", dagster_type=Nothing),
+    },
 )
-def sales_transform_polars_ops() -> pl.DataFrame:
+def sales_transform_polars_ops(_sales: None, _artworks: None, _artists: None) -> pl.DataFrame:
     """Transform sales data using ops for detailed observability.
 
-    Graph-backed asset provides:
-    - Op-level logging and metadata for each transformation step
-    - Single asset in lineage graph
-    - No intermediate persistence (data flows through memory)
+    Graph-backed asset with Nothing-typed inputs:
+    - Declares dependencies on harvest assets (shows in lineage graph)
+    - Ops read data directly from Parquet files
+    - Op-level logs and potential retries
     """
-    # Execute ops in sequence
-    joined = join_sales_data()
+    # Wire Nothing inputs to first op to establish dependency chain
+    joined = join_sales_data(_dep1=_sales, _dep2=_artworks, _dep3=_artists)
     transformed = add_sales_metrics(joined)
     return transformed
 
@@ -163,23 +169,18 @@ def sales_transform_polars_ops() -> pl.DataFrame:
 # -----------------------------------------------------------------------------
 
 
-@dg.op
+@dg.op(ins={
+    "_dep1": dg.In(Nothing),
+    "_dep2": dg.In(Nothing),
+    "_dep3": dg.In(Nothing),
+    "_dep4": dg.In(Nothing),
+})
 def build_artwork_catalog(context: dg.OpExecutionContext) -> pl.DataFrame:
     """Op: Build artwork catalog by joining artworks with artists."""
     start_time = time.perf_counter()
 
-    artworks = read_parquet_table_lazy(
-        HARVEST_PARQUET_DIR / "raw",
-        "artworks_raw",
-        required_columns=["artwork_id", "artist_id", "title", "year", "medium", "price_usd"],
-        asset_name="build_artwork_catalog",
-    )
-    artists = read_parquet_table_lazy(
-        HARVEST_PARQUET_DIR / "raw",
-        "artists_raw",
-        required_columns=["artist_id", "name", "nationality"],
-        asset_name="build_artwork_catalog",
-    )
+    artworks = _read_raw_parquet_lazy(_DEFAULT_HARVEST_DIR, "artworks_raw")
+    artists = _read_raw_parquet_lazy(_DEFAULT_HARVEST_DIR, "artists_raw")
 
     result = (
         artworks
@@ -209,12 +210,7 @@ def aggregate_sales_metrics(context: dg.OpExecutionContext, catalog: pl.DataFram
     """Op: Aggregate sales metrics per artwork."""
     start_time = time.perf_counter()
 
-    sales = read_parquet_table_lazy(
-        HARVEST_PARQUET_DIR / "raw",
-        "sales_raw",
-        required_columns=["artwork_id", "sale_price_usd", "sale_date"],
-        asset_name="aggregate_sales_metrics",
-    )
+    sales = _read_raw_parquet_lazy(_DEFAULT_HARVEST_DIR, "sales_raw")
     artwork_ids = catalog["artwork_id"]
 
     result = (
@@ -245,15 +241,8 @@ def prepare_media_data(context: dg.OpExecutionContext) -> pl.DataFrame:
     """Op: Prepare media data - primary image and all media aggregated."""
     start_time = time.perf_counter()
 
-    media = read_parquet_table_lazy(
-        HARVEST_PARQUET_DIR / "raw",
-        "media",
-        required_columns=["artwork_id", "sort_order", "filename", "alt_text", "media_type",
-                         "file_format", "width_px", "height_px", "file_size_kb"],
-        asset_name="prepare_media_data",
-    )
+    media = _read_raw_parquet_lazy(_DEFAULT_HARVEST_DIR, "media")
 
-    # Primary media (sort_order = 1) and all media aggregated (chained for readability)
     primary_media = (
         media
         .filter(pl.col("sort_order") == 1)
@@ -276,7 +265,6 @@ def prepare_media_data(context: dg.OpExecutionContext) -> pl.DataFrame:
         )
     )
 
-    # Join primary with aggregated
     result = (
         primary_media
         .join(all_media, on="artwork_id", how="outer")
@@ -300,7 +288,6 @@ def join_and_enrich_artworks(
     """Op: Join catalog, sales aggregates, and media with computed fields."""
     start_time = time.perf_counter()
 
-    # Join all intermediate results and add computed fields (chained for readability)
     result = (
         catalog
         .lazy()
@@ -327,12 +314,10 @@ def join_and_enrich_artworks(
             pl.col("artist_name").str.to_uppercase(),
         )
         .sort(["total_sales_value", "artwork_id"], descending=[True, False])
-        .collect()  # Single materialization point
+        .collect()
     )
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
-
-    # Calculate metadata
     artworks_sold = int(result["has_sold"].sum())
     artworks_unsold = int((~result["has_sold"]).sum())
     artworks_with_media = int((result["media_count"] > 0).sum())
@@ -355,17 +340,27 @@ def join_and_enrich_artworks(
 @dg.graph_asset(
     kinds={"polars"},
     group_name="transform_polars_ops",
+    ins={
+        "_sales": dg.AssetIn(key="dlt_harvest_sales_raw", dagster_type=Nothing),
+        "_artworks": dg.AssetIn(key="dlt_harvest_artworks_raw", dagster_type=Nothing),
+        "_artists": dg.AssetIn(key="dlt_harvest_artists_raw", dagster_type=Nothing),
+        "_media": dg.AssetIn(key="dlt_harvest_media", dagster_type=Nothing),
+    },
 )
-def artworks_transform_polars_ops() -> pl.DataFrame:
+def artworks_transform_polars_ops(
+    _sales: None, _artworks: None, _artists: None, _media: None
+) -> pl.DataFrame:
     """Transform artworks data using ops for detailed observability.
 
-    Graph-backed asset provides:
-    - Op-level logging and metadata for each transformation step
-    - Single asset in lineage graph
-    - No intermediate persistence (data flows through memory)
+    Graph-backed asset with Nothing-typed inputs:
+    - Declares dependencies on harvest assets (shows in lineage graph)
+    - Ops read data directly from Parquet files
+    - Op-level logs and potential retries
     """
-    # Execute ops in sequence
-    catalog = build_artwork_catalog()
+    # Wire Nothing inputs to first op to establish dependency chain
+    catalog = build_artwork_catalog(
+        _dep1=_sales, _dep2=_artworks, _dep3=_artists, _dep4=_media
+    )
     sales_agg = aggregate_sales_metrics(catalog)
     media = prepare_media_data()
     transformed = join_and_enrich_artworks(catalog, sales_agg, media)
@@ -379,6 +374,7 @@ def artworks_transform_polars_ops() -> pl.DataFrame:
 
 @dg.asset(
     kinds={"polars", "json"},
+    # Depends on artworks output to ensure deterministic ordering in JSON files.
     deps=["artworks_output_polars_ops"],
     group_name="output_polars_ops",
     freshness_policy=dg.FreshnessPolicy.time_window(fail_window=timedelta(hours=24)),
@@ -386,12 +382,13 @@ def artworks_transform_polars_ops() -> pl.DataFrame:
 def sales_output_polars_ops(
     context: dg.AssetExecutionContext,
     sales_transform_polars_ops: pl.DataFrame,
+    output_paths: OutputPathsResource,
 ) -> pl.DataFrame:
     """Filter high-value sales and output to JSON."""
     start_time = time.perf_counter()
     total_count = len(sales_transform_polars_ops)
+    sales_path = output_paths.sales_polars_ops
 
-    # Use lazy for filtering
     result = (
         sales_transform_polars_ops
         .lazy()
@@ -400,14 +397,14 @@ def sales_output_polars_ops(
     )
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
-    write_json_output(result, SALES_OUTPUT_PATH_POLARS_OPS, context, extra_metadata={
+    write_json_output(result, sales_path, context, extra_metadata={
         "filtered_from": total_count,
         "filter_threshold": f"${MIN_SALE_VALUE_USD:,}",
         "total_value": float(result["sale_price_usd"].sum()),
         "processing_time_ms": round(elapsed_ms, 2),
     })
     context.log.info(
-        f"Output {len(result):,} high-value sales to {SALES_OUTPUT_PATH_POLARS_OPS} in {elapsed_ms:.1f}ms"
+        f"Output {len(result):,} high-value sales to {sales_path} in {elapsed_ms:.1f}ms"
     )
     return result
 
@@ -420,22 +417,24 @@ def sales_output_polars_ops(
 def artworks_output_polars_ops(
     context: dg.AssetExecutionContext,
     artworks_transform_polars_ops: pl.DataFrame,
+    output_paths: OutputPathsResource,
 ) -> pl.DataFrame:
     """Output artwork catalog to JSON."""
     start_time = time.perf_counter()
+    artworks_path = output_paths.artworks_polars_ops
 
     vc = artworks_transform_polars_ops["price_tier"].value_counts()
     tier_counts = dict(zip(vc["price_tier"].to_list(), vc["count"].to_list()))
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
     write_json_output(
-        artworks_transform_polars_ops, ARTWORKS_OUTPUT_PATH_POLARS_OPS, context,
+        artworks_transform_polars_ops, artworks_path, context,
         extra_metadata={
             "price_tier_distribution": tier_counts,
             "processing_time_ms": round(elapsed_ms, 2),
         }
     )
     context.log.info(
-        f"Output {len(artworks_transform_polars_ops):,} artworks to {ARTWORKS_OUTPUT_PATH_POLARS_OPS} in {elapsed_ms:.1f}ms"
+        f"Output {len(artworks_transform_polars_ops):,} artworks to {artworks_path} in {elapsed_ms:.1f}ms"
     )
     return artworks_transform_polars_ops

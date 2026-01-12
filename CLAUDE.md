@@ -4,8 +4,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-### Local Development
-
 ```bash
 # Install dependencies
 uv sync
@@ -23,228 +21,116 @@ uv run dagster job execute -j full_pipeline
 uv run pytest
 ```
 
-### Docker Deployment
-
-```bash
-# Development (with hot reload)
-make dev                  # Start dev environment
-make dev-logs             # View logs
-make dev-down             # Stop dev environment
-
-# Production
-make build                # Build production images
-make up                   # Start production stack
-make logs                 # View logs
-make ps                   # Check status
-make down                 # Stop services
-
-# Maintenance
-make backup               # Backup database and data
-make clean                # Remove all containers/volumes
-make health               # Check service health
-
-# See docs/DEPLOYMENT.md for full deployment guide
-```
-
 ## Structure
 
 ```
 honey_duck/
 ├── __init__.py           # Package metadata
 └── defs/
-    ├── definitions.py    # Combined Dagster Definitions
+    ├── definitions.py    # Combined Dagster Definitions (6 jobs)
     ├── dlt_sources.py    # dlt source configuration
     ├── dlt_assets.py     # dagster-dlt asset wrapper
     ├── assets.py         # Original transform/output (processor classes)
-    ├── assets_polars.py  # Pure Polars implementation (split into steps)
+    ├── assets_polars.py  # Pure Polars with split intermediate steps
     ├── assets_duckdb.py  # Pure DuckDB SQL implementation
-    ├── assets_polars_fs.py # Polars with FilesystemIOManager
-    ├── assets_polars_ops.py # Graph-backed assets with ops (detailed observability)
-    ├── config.py         # Project-specific configuration
-    ├── helpers.py        # Project-specific helper wrappers
-    ├── resources.py      # Path constants and configuration
+    ├── assets_polars_fs.py   # Polars variant (same logic, different group)
+    ├── assets_polars_ops.py  # Graph-backed assets with ops
+    ├── assets_polars_multi.py # Multi-asset pattern
+    ├── helpers.py        # STANDARD_HARVEST_DEPS constant
+    ├── resources.py      # ConfigurableResource classes for path config
     ├── constants.py      # Business constants (thresholds, tiers)
     ├── schemas.py        # Pandera validation schemas
-    ├── jobs.py           # Job definitions
-    └── checks.py         # Asset checks
+    ├── jobs.py           # Job definitions (6 jobs)
+    └── checks.py         # Asset checks (Pandera + quality)
 
-cogapp_deps/              # Reusable utilities (simulates external package)
-├── dagster/              # Generic Dagster utilities
-│   ├── io.py             # JSON output helpers
-│   ├── exceptions.py     # Exception classes (PipelineError, ConfigurationError, etc.)
-│   ├── validation.py     # Data validation (read_duckdb_table_lazy, validate_dataframe)
-│   └── helpers.py        # Generic helpers (read_tables_from_duckdb, add_dataframe_metadata)
+cogapp_deps/              # Utilities (simulates external package)
+├── dagster/              # Dagster helpers
+│   ├── __init__.py       # Exports write_json_output, track_timing, etc.
+│   ├── io.py             # DuckDBPandasPolarsIOManager (unused)
+│   └── helpers.py        # track_timing, add_dataframe_metadata, read_harvest_*
 └── processors/           # DataFrame processors
+    ├── pandas/           # PandasReplaceOnConditionProcessor
     ├── polars/           # PolarsFilterProcessor, PolarsStringProcessor
-    └── duckdb/           # DuckDBQueryProcessor, DuckDBSQLProcessor, etc.
+    └── duckdb/           # DuckDBJoinProcessor, DuckDBWindowProcessor
 
 data/
 ├── input/                # Source CSV files
-└── output/               # Generated outputs (organized by type)
-    ├── json/             # Asset JSON outputs
-    ├── storage/          # IO manager Parquet files (inter-asset communication)
-    └── dlt/              # DuckDB database for dlt harvest
+├── output/               # Final outputs (JSON files per implementation)
+├── storage/              # IO manager intermediate storage (Parquet)
+└── harvest/              # dlt raw Parquet data + pipeline state
 
 dagster_home/             # Dagster persistence directory
 ```
 
-## Code Organization
-
-**honey_duck/** - Project-specific code:
-- Business logic (assets, transforms, outputs)
-- Project-specific configuration (HoneyDuckConfig)
-- Business constants (price tiers, thresholds)
-- Pandera schemas (data validation)
-- Asset checks
-
-**cogapp_deps/** - Generic, reusable utilities:
-- Exception classes (ConfigurationError, MissingTableError, etc.)
-- Data validation (read_duckdb_table_lazy, validate_dataframe)
-- Generic helpers (read_tables_from_duckdb, add_dataframe_metadata)
-- DataFrame processors (Polars, DuckDB)
-
-**When adding new code:**
-- If it's generic and reusable across pipelines → `cogapp_deps/`
-- If it's specific to honey_duck business logic → `honey_duck/`
-
 ## Key Patterns
 
-**Asset graph** (5 parallel implementations sharing harvest layer):
+**Asset graph** (6 parallel implementations sharing harvest layer):
+
 ```
-# Polars implementation (split into steps for intermediate persistence)
-dlt_harvest_* (shared) ──→ sales_joined_polars ──→ sales_transform_polars ──→ sales_output_polars
-                       └──→ artworks_catalog_polars ──┐
-                       └──→ artworks_sales_agg_polars ─┼──→ artworks_transform_polars ──→ artworks_output_polars
-                       └──→ artworks_media_polars ─────┘
-
-# Polars ops implementation (graph-backed assets - single asset with ops)
-dlt_harvest_* (shared) ──→ sales_transform_polars_ops ──→ sales_output_polars_ops
-                       └──→ artworks_transform_polars_ops ──→ artworks_output_polars_ops
-
-# Other implementations (single transform asset per pipeline)
-dlt_harvest_* ──→ sales_transform_<impl> ──→ sales_output_<impl>
-              └──→ artworks_transform_<impl> ──→ artworks_output_<impl>
+                      ┌──→ sales_transform ──→ sales_output (original)
+                      ├──→ sales_joined_polars ──→ sales_transform_polars ──→ sales_output_polars
+dlt_harvest_* (shared)├──→ sales_transform_duckdb ──→ sales_output_duckdb
+                      ├──→ sales_transform_polars_fs ──→ sales_output_polars_fs
+                      ├──→ sales_transform_polars_ops ──→ sales_output_polars_ops
+                      └──→ sales_pipeline_multi ──→ sales_output_polars_multi
+                      (same pattern for artworks with more intermediate steps in polars)
 ```
 
-**Implementations**:
-- original (processor classes)
-- polars (split into steps for intermediate persistence)
-- polars_ops (graph-backed assets with ops for detailed observability)
-- duckdb (pure SQL)
-- polars_fs (FilesystemIOManager)
+**Implementations** (6 total):
+1. **original** - Processor classes (assets.py)
+2. **polars** - Split intermediate steps for observability (assets_polars.py)
+3. **duckdb** - Pure DuckDB SQL queries (assets_duckdb.py)
+4. **polars_fs** - Polars variant, same logic different group (assets_polars_fs.py)
+5. **polars_ops** - Graph-backed assets with ops for detailed observability (assets_polars_ops.py)
+6. **polars_multi** - Multi-asset pattern for tightly coupled steps (assets_polars_multi.py)
 
-**Jobs**:
+**Jobs** (6 total):
 - `full_pipeline` - Original implementation with processor classes
-- `polars_pipeline` - Pure Polars expressions (split into steps)
-- `polars_ops_pipeline` - Graph-backed assets with ops (detailed observability)
+- `polars_pipeline` - Pure Polars with intermediate step assets
 - `duckdb_pipeline` - Pure DuckDB SQL
-- `polars_fs_pipeline` - Polars with FilesystemIOManager
+- `polars_fs_pipeline` - Polars variant
+- `polars_ops_pipeline` - Graph-backed assets (ops)
+- `polars_multi_pipeline` - Multi-asset pattern
+
+**ConfigurableResource Pattern**:
+All path configuration uses Dagster's ConfigurableResource for runtime injection:
+- `PathsResource` - harvest_dir, data_dir
+- `OutputPathsResource` - output paths per implementation
+- `DatabaseResource` - DuckDB database path
 
 **IO Managers**:
-- `io_manager` (default): PolarsParquetIOManager - stores DataFrames as Parquet files in `data/output/storage/`
-- `fs_io_manager`: FilesystemIOManager - pickles DataFrames to files (used by polars_fs implementation)
+- `io_manager` (default): PolarsParquetIOManager - stores Polars DataFrames as Parquet
+- `pandas_io_manager`: DuckDBPandasIOManager - stores Pandas DataFrames in DuckDB
 
-**Storage Organization**:
-```
-data/output/
-├── json/     - Asset JSON outputs (sales_output.json, artworks_output.json, etc.)
-├── storage/  - IO manager Parquet files (inter-asset communication)
-└── dlt/      - DuckDB database for dlt harvest (dagster.duckdb)
-```
+**Storage pattern**:
+- Harvest layer: dlt writes Parquet to `data/harvest/raw/`
+- Transform/output layers: Parquet files in `data/storage/`
+- Final outputs: JSON files in `data/output/`
+- Pandas pipeline: DuckDB tables (exception, uses pandas_io_manager)
 
-**DuckDB Usage**:
-- DuckDB is used for: SQL transformations via processors and dlt harvest storage
-- dlt harvest: CSV/SQLite loaded to DuckDB `raw` schema (via dagster-dlt)
-- DuckDB processors now return Polars DataFrames (using `.pl()` instead of `.df()`)
-- Inter-asset communication: Uses Parquet files (not DuckDB tables)
-
-**Intermediate Asset Persistence**:
-- Polars pipeline splits transformations into logical steps
-- Each step persists to Parquet via PolarsParquetIOManager
-- Enables debugging individual transformation steps
-- All assets return Polars DataFrames for IO manager compatibility
-
-**Graph-Backed Assets with Ops** (Detailed Observability Pattern):
-- Use `@dg.graph_asset` decorator to compose ops into a single asset
-- Each transformation step is an `@dg.op` with detailed logging
-- Provides op-level observability without intermediate persistence
-- Single asset appears in lineage graph (cleaner graph)
-- Best for: Proof-of-concept projects, complex pipelines needing detailed logs
-- Example: `assets_polars_ops.py`
-
-**When to use graph-backed assets vs split assets:**
-- **Split assets** (`polars_pipeline`): When you need intermediate Parquet files for debugging
-- **Graph-backed assets** (`polars_ops_pipeline`): When you need detailed op logs but not intermediate persistence
-- Users can choose based on their debugging/observability needs
+**Output dependency ordering**:
+Sales outputs depend on artworks outputs (`deps=["artworks_output_*"]`) to ensure
+deterministic asset ordering for consistent JSON output. This is a workaround for
+non-deterministic parallel execution in Dagster.
 
 ## Adding New Assets
 
-**See `defs/PATTERNS.md` for detailed examples with minimal boilerplate.**
-
-### Quick Start
-
-**Use standard Dagster decorators with helper functions for automatic error handling:**
-
-```python
-import dagster as dg
-import polars as pl
-from cogapp_deps.dagster import (
-    read_harvest_tables_lazy,
-    track_timing,
-    add_dataframe_metadata,
-)
-from honey_duck.defs.helpers import AssetGroups, STANDARD_HARVEST_DEPS
-from honey_duck.defs.resources import HARVEST_PARQUET_DIR
-
-@dg.asset(kinds={"polars"}, group_name=AssetGroups.TRANSFORM_POLARS, deps=STANDARD_HARVEST_DEPS)
-def my_transform(context: dg.AssetExecutionContext) -> pl.DataFrame:
-    """Transform with automatic timing, validation, and metadata."""
-
-    with track_timing(context, "transformation"):
-        # Read tables with automatic validation (batch read)
-        tables = read_harvest_tables_lazy(
-            HARVEST_PARQUET_DIR,
-            ("sales_raw", ["sale_id", "sale_price_usd"]),
-            ("artworks_raw", ["artwork_id", "title"]),
-            asset_name="my_transform",
-        )
-
-        result = (
-            tables["sales_raw"]
-            .join(tables["artworks_raw"], on="artwork_id")
-            .filter(pl.col("sale_price_usd") > 1000)
-            .collect()
-        )
-
-    # Add standard metadata (record count, preview, columns, processing_time_ms)
-    add_dataframe_metadata(context, result)
-    return result
-```
-
-**What you get from helper functions:**
-- ✅ Automatic timing tracking and logging
-- ✅ Error handling with clear, actionable messages
-- ✅ Table/column validation (raises MissingTableError, MissingColumnError)
-- ✅ Standard metadata (record count, preview, columns, processing_time_ms)
-- ✅ Lists available tables/columns when validation fails
-
-### Standard Dagster Patterns
-
-1. Add asset function in `defs/assets.py`
-2. Decorate with `@dg.asset(kinds={"polars"}, group_name="...")`
-3. **Return type must be `pl.DataFrame`** for PolarsParquetIOManager compatibility
-4. Add rich metadata via `context.add_output_metadata()`
-5. Add to `definitions.py` assets list
-
-**Important**: Assets must return Polars DataFrames. If using DuckDB internally, convert at the end:
-```python
-# DuckDB example
-result = conn.sql("SELECT * FROM table").pl()
-return result
-```
+1. Add asset function in appropriate `defs/assets_*.py` file
+2. Import `STANDARD_HARVEST_DEPS` from `helpers.py` for consistent dependencies
+3. Decorate with `@dg.asset(kinds={"polars"}, group_name="...", deps=STANDARD_HARVEST_DEPS)`
+4. Inject resources: `paths: PathsResource`, `output_paths: OutputPathsResource`
+5. Add rich metadata via `context.add_output_metadata()`
+6. Add to `definitions.py` assets list
 
 ## Adding New dlt Sources
 
 1. Add resource to `dlt_sources.py` honey_duck_source function
-2. Asset key will be auto-generated as `dlt_honey_duck_harvest_{name}`
-3. Table created in `raw` schema
+2. Asset key will be auto-generated as `dlt_harvest_{name}`
+3. Data written to `data/harvest/raw/{name}/`
+
+## Known Limitations
+
+**Graph-backed ops** (assets_polars_ops.py): Individual ops within a @graph_asset
+cannot receive ConfigurableResource injection. These ops use a module-level
+`_DEFAULT_HARVEST_DIR` constant. This is a Dagster limitation - ops don't participate
+in resource injection the way assets do.

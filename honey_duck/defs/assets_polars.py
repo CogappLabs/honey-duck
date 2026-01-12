@@ -15,15 +15,15 @@ Asset Graph:
                            └──→ artworks_media_polars ─────┘
 """
 
+import time
 from datetime import timedelta
 
 import dagster as dg
+import duckdb
 import polars as pl
 
 from cogapp_deps.dagster import (
     add_dataframe_metadata,
-    read_harvest_table_lazy,
-    read_harvest_tables_lazy,
     track_timing,
     write_json_output,
 )
@@ -34,20 +34,18 @@ from .constants import (
     PRICE_TIER_MID_MAX_USD,
 )
 from .helpers import STANDARD_HARVEST_DEPS as HARVEST_DEPS
-from .resources import (
-    ARTWORKS_OUTPUT_PATH_POLARS,
-    HARVEST_PARQUET_DIR,
-    SALES_OUTPUT_PATH_POLARS,
-)
+from .resources import OutputPathsResource, PathsResource
 
 
-def _read_raw_table_lazy(table: str) -> pl.LazyFrame:
-    """Read table from Parquet files as Polars LazyFrame."""
-    return read_harvest_table_lazy(
-        HARVEST_PARQUET_DIR,
-        table,
-        asset_name="polars_pipeline",
-    )
+def _read_raw_parquet_lazy(harvest_dir: str, table: str) -> pl.LazyFrame:
+    """Read raw Parquet files as Polars LazyFrame using DuckDB."""
+    conn = duckdb.connect(":memory:")
+    try:
+        return conn.sql(
+            f"SELECT * FROM read_parquet('{harvest_dir}/raw/{table}/**/*.parquet')"
+        ).pl().lazy()
+    finally:
+        conn.close()
 
 
 # -----------------------------------------------------------------------------
@@ -60,29 +58,26 @@ def _read_raw_table_lazy(table: str) -> pl.LazyFrame:
     deps=HARVEST_DEPS,
     group_name="transform_polars",
 )
-def sales_joined_polars(context: dg.AssetExecutionContext) -> pl.DataFrame:
+def sales_joined_polars(
+    context: dg.AssetExecutionContext,
+    paths: PathsResource,
+) -> pl.DataFrame:
     """Join sales with artworks and artists.
 
-    Demonstrates new helper patterns:
-    - read_harvest_tables_lazy() for batch reading
-    - track_timing() context manager for automatic timing
-    - add_dataframe_metadata() for standard metadata
+    Uses ConfigurableResource injection for runtime path configuration.
     """
     with track_timing(context, "sales join"):
-        # Read multiple tables in one call with validation
-        tables = read_harvest_tables_lazy(
-            HARVEST_PARQUET_DIR,
-            ("sales_raw", None),
-            ("artworks_raw", None),
-            ("artists_raw", None),
-            asset_name="sales_joined_polars",
-        )
+        harvest_dir = paths.harvest_dir
+
+        sales = _read_raw_parquet_lazy(harvest_dir, "sales_raw")
+        artworks = _read_raw_parquet_lazy(harvest_dir, "artworks_raw")
+        artists = _read_raw_parquet_lazy(harvest_dir, "artists_raw")
 
         # Join and select columns
         result = (
-            tables["sales_raw"]
-            .join(tables["artworks_raw"], on="artwork_id", how="left", suffix="_aw")
-            .join(tables["artists_raw"], on="artist_id", how="left", suffix="_ar")
+            sales
+            .join(artworks, on="artwork_id", how="left", suffix="_aw")
+            .join(artists, on="artist_id", how="left", suffix="_ar")
             .select(
                 "sale_id",
                 "artwork_id",
@@ -152,6 +147,10 @@ def sales_transform_polars(
 
 @dg.asset(
     kinds={"polars", "json"},
+    # Depends on artworks_output_polars to ensure deterministic ordering:
+    # Without this, Dagster may materialize outputs in parallel with non-deterministic
+    # row ordering in JSON files (due to parallel execution). This artificial dependency
+    # ensures artworks is written first, making sales output consistent across runs.
     deps=["artworks_output_polars"],
     group_name="output_polars",
     freshness_policy=dg.FreshnessPolicy.time_window(fail_window=timedelta(hours=24)),
@@ -159,10 +158,12 @@ def sales_transform_polars(
 def sales_output_polars(
     context: dg.AssetExecutionContext,
     sales_transform_polars: pl.DataFrame,
+    output_paths: OutputPathsResource,
 ) -> pl.DataFrame:
     """Filter high-value sales using Polars lazy and output to JSON."""
     start_time = time.perf_counter()
     total_count = len(sales_transform_polars)
+    sales_path = output_paths.sales_polars
 
     # Use lazy for filtering
     result = (
@@ -173,13 +174,13 @@ def sales_output_polars(
     )
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
-    write_json_output(result, SALES_OUTPUT_PATH_POLARS, context, extra_metadata={
+    write_json_output(result, sales_path, context, extra_metadata={
         "filtered_from": total_count,
         "filter_threshold": f"${MIN_SALE_VALUE_USD:,}",
         "total_value": float(result["sale_price_usd"].sum()),
         "processing_time_ms": round(elapsed_ms, 2),
     })
-    context.log.info(f"Output {len(result)} high-value sales to {SALES_OUTPUT_PATH_POLARS} in {elapsed_ms:.1f}ms")
+    context.log.info(f"Output {len(result)} high-value sales to {sales_path} in {elapsed_ms:.1f}ms")
     return result
 
 
@@ -193,12 +194,16 @@ def sales_output_polars(
     deps=HARVEST_DEPS,
     group_name="transform_polars",
 )
-def artworks_catalog_polars(context: dg.AssetExecutionContext) -> pl.DataFrame:
+def artworks_catalog_polars(
+    context: dg.AssetExecutionContext,
+    paths: PathsResource,
+) -> pl.DataFrame:
     """Build artwork catalog by joining artworks with artists."""
     start_time = time.perf_counter()
+    harvest_dir = paths.harvest_dir
 
-    artworks = _read_raw_table_lazy("artworks_raw")
-    artists = _read_raw_table_lazy("artists_raw")
+    artworks = _read_raw_parquet_lazy(harvest_dir, "artworks_raw")
+    artists = _read_raw_parquet_lazy(harvest_dir, "artists_raw")
 
     result = (
         artworks
@@ -233,12 +238,14 @@ def artworks_catalog_polars(context: dg.AssetExecutionContext) -> pl.DataFrame:
 )
 def artworks_sales_agg_polars(
     context: dg.AssetExecutionContext,
+    paths: PathsResource,
     artworks_catalog_polars: pl.DataFrame,
 ) -> pl.DataFrame:
     """Aggregate sales metrics per artwork."""
     start_time = time.perf_counter()
+    harvest_dir = paths.harvest_dir
 
-    sales = _read_raw_table_lazy("sales_raw")
+    sales = _read_raw_parquet_lazy(harvest_dir, "sales_raw")
 
     # Get artwork_ids from catalog for filtering
     artwork_ids = artworks_catalog_polars["artwork_id"]
@@ -273,11 +280,15 @@ def artworks_sales_agg_polars(
     deps=HARVEST_DEPS,
     group_name="transform_polars",
 )
-def artworks_media_polars(context: dg.AssetExecutionContext) -> pl.DataFrame:
+def artworks_media_polars(
+    context: dg.AssetExecutionContext,
+    paths: PathsResource,
+) -> pl.DataFrame:
     """Prepare media data: primary image and all media aggregated."""
     start_time = time.perf_counter()
+    harvest_dir = paths.harvest_dir
 
-    media = _read_raw_table_lazy("media")
+    media = _read_raw_parquet_lazy(harvest_dir, "media")
 
     # Primary media (sort_order = 1) and all media aggregated (chained for readability)
     primary_media = (
@@ -385,20 +396,22 @@ def artworks_transform_polars(
 def artworks_output_polars(
     context: dg.AssetExecutionContext,
     artworks_transform_polars: pl.DataFrame,
+    output_paths: OutputPathsResource,
 ) -> pl.DataFrame:
     """Output artwork catalog to JSON using pure Polars."""
     start_time = time.perf_counter()
+    artworks_path = output_paths.artworks_polars
 
     vc = artworks_transform_polars["price_tier"].value_counts()
     tier_counts = dict(zip(vc["price_tier"].to_list(), vc["count"].to_list()))
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
     write_json_output(
-        artworks_transform_polars, ARTWORKS_OUTPUT_PATH_POLARS, context,
+        artworks_transform_polars, artworks_path, context,
         extra_metadata={
             "price_tier_distribution": tier_counts,
             "processing_time_ms": round(elapsed_ms, 2),
         }
     )
-    context.log.info(f"Output {len(artworks_transform_polars)} artworks to {ARTWORKS_OUTPUT_PATH_POLARS} in {elapsed_ms:.1f}ms")
+    context.log.info(f"Output {len(artworks_transform_polars)} artworks to {artworks_path} in {elapsed_ms:.1f}ms")
     return artworks_transform_polars

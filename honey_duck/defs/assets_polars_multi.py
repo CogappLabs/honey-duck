@@ -4,6 +4,16 @@ This module demonstrates the multi-asset pattern where one function produces
 multiple related assets. Each intermediate step is yielded separately but
 computed together in a single function.
 
+Key features:
+- Each output has `kinds` for better UI filtering
+- Each output has `description` for documentation
+- IO manager persists each intermediate step
+- External deps declared via `deps` parameter
+
+Note: `internal_asset_deps` cannot be combined with external `deps` in Dagster.
+The internal dependency chain (joined → transform) is implicit via yield order
+but won't show as edges in the asset graph.
+
 Use this pattern when:
 - Intermediate steps are tightly coupled and should run together
 - You want each step persisted independently (via IO manager)
@@ -14,39 +24,42 @@ For independent steps, use split assets (assets_polars.py).
 For single-asset observability, use graph-backed ops (assets_polars_ops.py).
 
 Asset Graph:
-    dlt_harvest_* ──→ sales_pipeline_multi:
-                      ├─→ sales_joined_polars_multi
-                      └─→ sales_transform_polars_multi ──→ sales_output_polars_multi
-                  └──→ artworks_pipeline_multi:
-                      ├─→ artworks_catalog_polars_multi
-                      ├─→ artworks_sales_agg_polars_multi
-                      ├─→ artworks_media_polars_multi
-                      └─→ artworks_transform_polars_multi ──→ artworks_output_polars_multi
+    dlt_harvest_* ──→ sales_joined_polars_multi ──→ sales_output_polars_multi
+                  │   sales_transform_polars_multi ─┘
+                  └──→ artworks_catalog_polars_multi
+                      artworks_sales_agg_polars_multi
+                      artworks_media_polars_multi
+                      artworks_transform_polars_multi ──→ artworks_output_polars_multi
 """
 
+import time
 from datetime import timedelta
 from typing import Iterator
 
 import dagster as dg
+import duckdb
 import polars as pl
 
-from cogapp_deps.dagster import (
-    read_harvest_tables_lazy,
-    write_json_and_return,
-)
+from cogapp_deps.dagster import write_json_output
 
-from .config import CONFIG
 from .constants import (
     MIN_SALE_VALUE_USD,
     PRICE_TIER_BUDGET_MAX_USD,
     PRICE_TIER_MID_MAX_USD,
 )
 from .helpers import STANDARD_HARVEST_DEPS as HARVEST_DEPS
-from .resources import (
-    ARTWORKS_OUTPUT_PATH_POLARS_MULTI,
-    HARVEST_PARQUET_DIR,
-    SALES_OUTPUT_PATH_POLARS_MULTI,
-)
+from .resources import OutputPathsResource, PathsResource
+
+
+def _read_raw_parquet_lazy(harvest_dir: str, table: str) -> pl.LazyFrame:
+    """Read raw Parquet files as Polars LazyFrame using DuckDB."""
+    conn = duckdb.connect(":memory:")
+    try:
+        return conn.sql(
+            f"SELECT * FROM read_parquet('{harvest_dir}/raw/{table}/**/*.parquet')"
+        ).pl().lazy()
+    finally:
+        conn.close()
 
 
 # -----------------------------------------------------------------------------
@@ -56,13 +69,24 @@ from .resources import (
 
 @dg.multi_asset(
     outs={
-        "sales_joined_polars_multi": dg.AssetOut(io_manager_key="io_manager"),
-        "sales_transform_polars_multi": dg.AssetOut(io_manager_key="io_manager"),
+        "sales_joined_polars_multi": dg.AssetOut(
+            kinds={"polars"},
+            io_manager_key="io_manager",
+            description="Joined sales with artworks and artists",
+        ),
+        "sales_transform_polars_multi": dg.AssetOut(
+            kinds={"polars"},
+            io_manager_key="io_manager",
+            description="Filtered and enriched sales data",
+        ),
     },
-    group_name="transform_polars_multi",
     deps=HARVEST_DEPS,
+    group_name="transform_polars_multi",
 )
-def sales_pipeline_multi(context: dg.AssetExecutionContext) -> Iterator[dg.Output]:
+def sales_pipeline_multi(
+    context: dg.AssetExecutionContext,
+    paths: PathsResource,
+) -> Iterator[dg.Output]:
     """Multi-asset: Sales pipeline with intermediate persistence.
 
     Produces two assets in one function:
@@ -70,19 +94,15 @@ def sales_pipeline_multi(context: dg.AssetExecutionContext) -> Iterator[dg.Outpu
     2. sales_transform_polars_multi - Filtered and enriched sales
 
     Each output is persisted via IO manager and tracked separately in lineage.
+    Internal dependencies show joined → transform in the asset graph.
     """
+    harvest_dir = paths.harvest_dir
+
     # Step 1: Join sales with artworks and artists
     context.log.info("Loading and joining sales data...")
-    tables = read_harvest_tables_lazy(
-        HARVEST_PARQUET_DIR,
-        ("sales_raw", ["sale_id", "artwork_id", "sale_date", "sale_price_usd", "buyer_country"]),
-        ("artworks_raw", ["artwork_id", "artist_id", "title", "year", "medium", "price_usd"]),
-        ("artists_raw", ["artist_id", "name", "nationality"]),
-        asset_name="sales_pipeline_multi",
-    )
-    sales = tables["sales_raw"]
-    artworks = tables["artworks_raw"]
-    artists = tables["artists_raw"]
+    sales = _read_raw_parquet_lazy(harvest_dir, "sales_raw")
+    artworks = _read_raw_parquet_lazy(harvest_dir, "artworks_raw")
+    artists = _read_raw_parquet_lazy(harvest_dir, "artists_raw")
 
     joined = (
         sales.join(artworks, on="artwork_id", suffix="_artworks")
@@ -148,15 +168,34 @@ def sales_pipeline_multi(context: dg.AssetExecutionContext) -> Iterator[dg.Outpu
 
 @dg.multi_asset(
     outs={
-        "artworks_catalog_polars_multi": dg.AssetOut(io_manager_key="io_manager"),
-        "artworks_sales_agg_polars_multi": dg.AssetOut(io_manager_key="io_manager"),
-        "artworks_media_polars_multi": dg.AssetOut(io_manager_key="io_manager"),
-        "artworks_transform_polars_multi": dg.AssetOut(io_manager_key="io_manager"),
+        "artworks_catalog_polars_multi": dg.AssetOut(
+            kinds={"polars"},
+            io_manager_key="io_manager",
+            description="Base artwork catalog joined with artists",
+        ),
+        "artworks_sales_agg_polars_multi": dg.AssetOut(
+            kinds={"polars"},
+            io_manager_key="io_manager",
+            description="Aggregated sales metrics per artwork",
+        ),
+        "artworks_media_polars_multi": dg.AssetOut(
+            kinds={"polars"},
+            io_manager_key="io_manager",
+            description="Media information per artwork",
+        ),
+        "artworks_transform_polars_multi": dg.AssetOut(
+            kinds={"polars"},
+            io_manager_key="io_manager",
+            description="Complete enriched artwork catalog",
+        ),
     },
-    group_name="transform_polars_multi",
     deps=HARVEST_DEPS,
+    group_name="transform_polars_multi",
 )
-def artworks_pipeline_multi(context: dg.AssetExecutionContext) -> Iterator[dg.Output]:
+def artworks_pipeline_multi(
+    context: dg.AssetExecutionContext,
+    paths: PathsResource,
+) -> Iterator[dg.Output]:
     """Multi-asset: Artworks pipeline with multiple intermediate steps.
 
     Produces four assets in one function:
@@ -165,18 +204,14 @@ def artworks_pipeline_multi(context: dg.AssetExecutionContext) -> Iterator[dg.Ou
     3. artworks_media_polars_multi - Media information
     4. artworks_transform_polars_multi - Complete enriched catalog
 
-    Demonstrates multi-asset with multiple dependent steps.
+    Internal dependencies show catalog/sales_agg/media → transform in the asset graph.
     """
+    harvest_dir = paths.harvest_dir
+
     # Step 1: Create base catalog
     context.log.info("Creating artwork catalog...")
-    tables = read_harvest_tables_lazy(
-        HARVEST_PARQUET_DIR,
-        ("artworks_raw", ["artwork_id", "artist_id", "title", "year", "medium", "price_usd"]),
-        ("artists_raw", ["artist_id", "name", "nationality"]),
-        asset_name="artworks_pipeline_multi",
-    )
-    artworks = tables["artworks_raw"]
-    artists = tables["artists_raw"]
+    artworks = _read_raw_parquet_lazy(harvest_dir, "artworks_raw")
+    artists = _read_raw_parquet_lazy(harvest_dir, "artists_raw")
 
     catalog = (
         artworks.join(artists, on="artist_id", suffix="_artists")
@@ -201,12 +236,7 @@ def artworks_pipeline_multi(context: dg.AssetExecutionContext) -> Iterator[dg.Ou
 
     # Step 2: Aggregate sales data
     context.log.info("Aggregating sales data...")
-    sales_tables = read_harvest_tables_lazy(
-        HARVEST_PARQUET_DIR,
-        ("sales_raw", ["artwork_id", "sale_date", "sale_price_usd"]),
-        asset_name="artworks_pipeline_multi",
-    )
-    sales = sales_tables["sales_raw"]
+    sales = _read_raw_parquet_lazy(harvest_dir, "sales_raw")
 
     sales_agg = (
         sales.group_by("artwork_id")
@@ -231,12 +261,7 @@ def artworks_pipeline_multi(context: dg.AssetExecutionContext) -> Iterator[dg.Ou
 
     # Step 3: Join media information
     context.log.info("Loading media information...")
-    media_tables = read_harvest_tables_lazy(
-        HARVEST_PARQUET_DIR,
-        ("media", ["artwork_id"]),
-        asset_name="artworks_pipeline_multi",
-    )
-    media = media_tables["media"]
+    media = _read_raw_parquet_lazy(harvest_dir, "media")
 
     # Get primary image (sort_order = 1) per artwork
     media_agg = (
@@ -319,21 +344,24 @@ def artworks_pipeline_multi(context: dg.AssetExecutionContext) -> Iterator[dg.Ou
 def sales_output_polars_multi(
     context: dg.AssetExecutionContext,
     sales_transform_polars_multi: pl.DataFrame,
+    output_paths: OutputPathsResource,
 ) -> pl.DataFrame:
     """Output: High-value sales filtered by premium artworks.
 
     Depends on: sales_transform_polars_multi (from multi-asset)
     """
+    start_time = time.perf_counter()
+    sales_path = output_paths.sales_polars_multi
+
     result = sales_transform_polars_multi.filter(pl.col("list_price_usd") > PRICE_TIER_MID_MAX_USD)
 
-    return write_json_and_return(
-        result,
-        SALES_OUTPUT_PATH_POLARS_MULTI,
-        context,
-        extra_metadata={
-            "premium_threshold": f"${PRICE_TIER_MID_MAX_USD:,}",
-        },
-    )
+    elapsed_ms = (time.perf_counter() - start_time) * 1000
+    write_json_output(result, sales_path, context, extra_metadata={
+        "premium_threshold": f"${PRICE_TIER_MID_MAX_USD:,}",
+        "processing_time_ms": round(elapsed_ms, 2),
+    })
+    context.log.info(f"Output {len(result)} premium sales to {sales_path} in {elapsed_ms:.1f}ms")
+    return result
 
 
 @dg.asset(
@@ -344,11 +372,15 @@ def sales_output_polars_multi(
 def artworks_output_polars_multi(
     context: dg.AssetExecutionContext,
     artworks_transform_polars_multi: pl.DataFrame,
+    output_paths: OutputPathsResource,
 ) -> pl.DataFrame:
     """Output: Artworks catalog with sales rank <= 10 per tier.
 
     Depends on: artworks_transform_polars_multi (from multi-asset)
     """
+    start_time = time.perf_counter()
+    artworks_path = output_paths.artworks_polars_multi
+
     result = artworks_transform_polars_multi.filter(pl.col("sales_rank") <= 10).sort(
         ["price_tier", "sales_rank"]
     )
@@ -358,11 +390,10 @@ def artworks_output_polars_multi(
         zip(tier_counts["price_tier"].to_list(), tier_counts["count"].to_list(), strict=False)
     )
 
-    return write_json_and_return(
-        result,
-        ARTWORKS_OUTPUT_PATH_POLARS_MULTI,
-        context,
-        extra_metadata={
-            "tier_distribution": tier_dist,
-        },
-    )
+    elapsed_ms = (time.perf_counter() - start_time) * 1000
+    write_json_output(result, artworks_path, context, extra_metadata={
+        "tier_distribution": tier_dist,
+        "processing_time_ms": round(elapsed_ms, 2),
+    })
+    context.log.info(f"Output {len(result)} top artworks to {artworks_path} in {elapsed_ms:.1f}ms")
+    return result

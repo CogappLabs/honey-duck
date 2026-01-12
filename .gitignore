@@ -16,8 +16,14 @@ uv.lock
 *.db
 *.duckdb
 
-# Output files
+# Output files (final JSON outputs)
 data/output/
+
+# IO manager storage (intermediate Parquet)
+data/storage/
+
+# Harvest data (dlt raw Parquet + pipeline state)
+data/harvest/
 
 # Dagster
 dagster_home/

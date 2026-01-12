@@ -1,106 +1,86 @@
-"""Resource registration for the honey-duck pipeline.
+"""Resource configuration for the honey-duck pipeline.
 
-This module configures storage paths for the pipeline:
-- PolarsParquetIOManager stores DataFrames as Parquet files between assets
-- DuckDB is used for SQL transformations and dlt harvest storage
-- Final outputs are written as JSON files
+This module defines ConfigurableResource classes for runtime configuration:
+- PathsResource: Core directory paths (input, output, storage, harvest)
+- OutputPathsResource: JSON output file paths for each implementation
+- DatabaseResource: Database file paths (DuckDB, SQLite)
 
-Directory structure under data/output/:
-- json/     - Asset JSON outputs
-- storage/  - IO manager Parquet files (inter-asset communication)
-- dlt/      - DuckDB database for dlt harvest
-
-All paths can be overridden via environment variables.
+These resources are injected into assets at runtime, enabling:
+- Type-safe configuration
+- Environment-specific overrides
+- Launch-time configuration
+- Better testability
 """
 
-import os
 from pathlib import Path
 
 import dagster as dg
 
-# Resolve paths relative to project root
+# -----------------------------------------------------------------------------
+# Base Path Constants (used as defaults for ConfigurableResource)
+# -----------------------------------------------------------------------------
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
 INPUT_DIR = DATA_DIR / "input"
 OUTPUT_DIR = DATA_DIR / "output"
+STORAGE_DIR = DATA_DIR / "storage"  # IO manager intermediate storage
+HARVEST_DIR = DATA_DIR / "harvest"  # dlt raw Parquet data
 
-# Output subdirectories for organized storage
-JSON_OUTPUT_DIR = OUTPUT_DIR / "json"
-STORAGE_DIR = OUTPUT_DIR / "storage"
-DLT_DIR = OUTPUT_DIR / "dlt"
 
-# Parquet IO Manager storage directory (can be overridden via environment variable)
-PARQUET_DIR = Path(
-    os.environ.get(
-        "HONEY_DUCK_PARQUET_DIR",
-        str(STORAGE_DIR),
-    )
-)
+# -----------------------------------------------------------------------------
+# ConfigurableResource Classes
+# -----------------------------------------------------------------------------
 
-# DuckDB database path for dlt harvest and SQL transformations (can be overridden via environment variable)
-DUCKDB_PATH = os.environ.get(
-    "HONEY_DUCK_DB_PATH",
-    str(DLT_DIR / "dagster.duckdb"),
-)
 
-# Parquet harvest directory for dlt output
-HARVEST_PARQUET_DIR = Path(
-    os.environ.get(
-        "HONEY_DUCK_HARVEST_PARQUET_DIR",
-        str(DLT_DIR / "harvest_parquet"),
-    )
-)
+class PathsResource(dg.ConfigurableResource):
+    """Core directory paths for the pipeline.
 
-# SQLite media database path
-MEDIA_DB_PATH = INPUT_DIR / "media.db"
+    All paths can be overridden at launch time or via environment variables.
+    """
 
-# JSON output file paths (configurable via environment variables)
-SALES_OUTPUT_PATH = Path(
-    os.environ.get("HONEY_DUCK_SALES_OUTPUT", str(JSON_OUTPUT_DIR / "sales_output.json"))
-)
-ARTWORKS_OUTPUT_PATH = Path(
-    os.environ.get("HONEY_DUCK_ARTWORKS_OUTPUT", str(JSON_OUTPUT_DIR / "artworks_output.json"))
-)
+    input_dir: str = str(INPUT_DIR)
+    output_dir: str = str(OUTPUT_DIR)
+    storage_dir: str = str(STORAGE_DIR)
+    harvest_dir: str = str(HARVEST_DIR)
 
-# Polars implementation output paths
-SALES_OUTPUT_PATH_POLARS = Path(
-    os.environ.get("HONEY_DUCK_SALES_OUTPUT_POLARS", str(JSON_OUTPUT_DIR / "sales_output_polars.json"))
-)
-ARTWORKS_OUTPUT_PATH_POLARS = Path(
-    os.environ.get("HONEY_DUCK_ARTWORKS_OUTPUT_POLARS", str(JSON_OUTPUT_DIR / "artworks_output_polars.json"))
-)
 
-# DuckDB SQL implementation output paths
-SALES_OUTPUT_PATH_DUCKDB = Path(
-    os.environ.get("HONEY_DUCK_SALES_OUTPUT_DUCKDB", str(JSON_OUTPUT_DIR / "sales_output_duckdb.json"))
-)
-ARTWORKS_OUTPUT_PATH_DUCKDB = Path(
-    os.environ.get("HONEY_DUCK_ARTWORKS_OUTPUT_DUCKDB", str(JSON_OUTPUT_DIR / "artworks_output_duckdb.json"))
-)
+class OutputPathsResource(dg.ConfigurableResource):
+    """JSON output file paths for each implementation variant.
 
-# Polars filesystem IO manager implementation output paths
-SALES_OUTPUT_PATH_POLARS_FS = Path(
-    os.environ.get("HONEY_DUCK_SALES_OUTPUT_POLARS_FS", str(JSON_OUTPUT_DIR / "sales_output_polars_fs.json"))
-)
-ARTWORKS_OUTPUT_PATH_POLARS_FS = Path(
-    os.environ.get("HONEY_DUCK_ARTWORKS_OUTPUT_POLARS_FS", str(JSON_OUTPUT_DIR / "artworks_output_polars_fs.json"))
-)
+    Each implementation (original, polars, duckdb, polars_fs, polars_ops, polars_multi)
+    has its own output paths to avoid conflicts when running pipelines in parallel.
+    """
 
-# Polars ops (graph-backed assets) implementation output paths
-SALES_OUTPUT_PATH_POLARS_OPS = Path(
-    os.environ.get("HONEY_DUCK_SALES_OUTPUT_POLARS_OPS", str(JSON_OUTPUT_DIR / "sales_output_polars_ops.json"))
-)
-ARTWORKS_OUTPUT_PATH_POLARS_OPS = Path(
-    os.environ.get("HONEY_DUCK_ARTWORKS_OUTPUT_POLARS_OPS", str(JSON_OUTPUT_DIR / "artworks_output_polars_ops.json"))
-)
+    # Original implementation
+    sales: str = str(OUTPUT_DIR / "sales_output.json")
+    artworks: str = str(OUTPUT_DIR / "artworks_output.json")
 
-# Polars multi-asset implementation output paths
-SALES_OUTPUT_PATH_POLARS_MULTI = Path(
-    os.environ.get("HONEY_DUCK_SALES_OUTPUT_POLARS_MULTI", str(JSON_OUTPUT_DIR / "sales_output_polars_multi.json"))
-)
-ARTWORKS_OUTPUT_PATH_POLARS_MULTI = Path(
-    os.environ.get("HONEY_DUCK_ARTWORKS_OUTPUT_POLARS_MULTI", str(JSON_OUTPUT_DIR / "artworks_output_polars_multi.json"))
-)
+    # Polars implementation (split steps)
+    sales_polars: str = str(OUTPUT_DIR / "sales_output_polars.json")
+    artworks_polars: str = str(OUTPUT_DIR / "artworks_output_polars.json")
+
+    # DuckDB SQL implementation
+    sales_duckdb: str = str(OUTPUT_DIR / "sales_output_duckdb.json")
+    artworks_duckdb: str = str(OUTPUT_DIR / "artworks_output_duckdb.json")
+
+    # Polars filesystem IO manager implementation
+    sales_polars_fs: str = str(OUTPUT_DIR / "sales_output_polars_fs.json")
+    artworks_polars_fs: str = str(OUTPUT_DIR / "artworks_output_polars_fs.json")
+
+    # Polars ops (graph-backed assets) implementation
+    sales_polars_ops: str = str(OUTPUT_DIR / "sales_output_polars_ops.json")
+    artworks_polars_ops: str = str(OUTPUT_DIR / "artworks_output_polars_ops.json")
+
+    # Polars multi-asset implementation
+    sales_polars_multi: str = str(OUTPUT_DIR / "sales_output_polars_multi.json")
+    artworks_polars_multi: str = str(OUTPUT_DIR / "artworks_output_polars_multi.json")
+
+
+class DatabaseResource(dg.ConfigurableResource):
+    """Database file paths for DuckDB and SQLite."""
+
+    duckdb_path: str = str(OUTPUT_DIR / "dagster.duckdb")
+    media_db_path: str = str(INPUT_DIR / "media.db")
 
 
 # -----------------------------------------------------------------------------
@@ -136,11 +116,7 @@ csv_artists = dg.AssetSpec(
 sqlite_media = dg.AssetSpec(
     key="sqlite_media",
     description="Media references SQLite database",
-    metadata={"path": str(MEDIA_DB_PATH)},
+    metadata={"path": str(INPUT_DIR / "media.db")},
     kinds={"sqlite"},
     group_name="source",
 )
-
-
-# Note: Resources are registered in __init__.py to avoid duplication
-# when using load_from_defs_folder

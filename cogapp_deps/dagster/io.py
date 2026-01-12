@@ -153,6 +153,9 @@ def write_json_output(
         output_name: (Optional) For multi-output assets - specify which output this metadata is for
         mapping_key: (Optional) For dynamic partitions - specify partition key
     """
+    # Convert string to Path if needed
+    if isinstance(output_path, str):
+        output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Use DuckDB's native JSON export
