@@ -1,0 +1,88 @@
+site_name: Honey Duck
+site_description: DuckDB-backed DataFrame pipeline with Dagster orchestration
+site_url: https://cogapplabs.github.io/honey-duck
+repo_url: https://github.com/CogappLabs/honey-duck
+repo_name: CogappLabs/honey-duck
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: amber
+      accent: orange
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: amber
+      accent: orange
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            show_root_full_path: false
+            heading_level: 2
+            members_order: source
+            show_signature_annotations: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Quick Start: getting-started/quick-start.md
+    - Tutorial: getting-started/tutorial.md
+    - Installation: getting-started/installation.md
+  - User Guide:
+    - Best Practices: user-guide/best-practices.md
+    - Polars Patterns: user-guide/polars-patterns.md
+    - Performance Tuning: user-guide/performance.md
+    - Troubleshooting: user-guide/troubleshooting.md
+  - Integrations:
+    - Elasticsearch: integrations/elasticsearch.md
+    - Common Outputs: integrations/common-outputs.md
+    - API Harvesting: integrations/api-harvesting.md
+    - Sitemaps: integrations/sitemaps.md
+  - API Reference:
+    - Overview: api/index.md
+    - Dagster Helpers: api/dagster-helpers.md
+    - Processors: api/processors.md
+    - IO Managers: api/io-managers.md
+  - Development:
+    - CLI Reference: development/cli.md
+    - Deployment: development/deployment.md
+    - Contributing: development/contributing.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/CogappLabs/honey-duck

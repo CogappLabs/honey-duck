@@ -39,3 +39,6 @@ dagster_home/
 
 # Environment
 .env
+
+# MkDocs
+site/
