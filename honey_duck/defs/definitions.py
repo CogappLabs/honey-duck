@@ -101,7 +101,7 @@ from .checks import (
 from .dlt_assets import dlt_harvest_assets
 from .jobs import (
     duckdb_pipeline_job,
-    full_pipeline_job,
+    processors_pipeline_job,
     polars_fs_pipeline_job,
     polars_multi_pipeline_job,
     polars_ops_pipeline_job,
@@ -159,7 +159,7 @@ defs = dg.Definitions(
         artworks_output_polars_multi,
     ],
     jobs=[
-        full_pipeline_job,
+        processors_pipeline_job,
         polars_pipeline_job,
         duckdb_pipeline_job,
         polars_fs_pipeline_job,

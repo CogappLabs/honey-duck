@@ -6,18 +6,20 @@ Jobs provide named entry points for running asset groups together.
 import dagster as dg
 
 
-# Full pipeline: dlt harvest -> transform -> both outputs (original implementation)
-full_pipeline_job = dg.define_asset_job(
-    name="full_pipeline",
+# Processors pipeline: original implementation with processor classes
+processors_pipeline_job = dg.define_asset_job(
+    name="processors_pipeline",
     selection=dg.AssetSelection.groups("harvest", "transform", "output"),
     description="""
-    Complete honey-duck pipeline: dlt Harvest CSV -> Transform -> Both Outputs.
+    Original implementation using reusable processor classes.
 
-    Uses the original implementation with processor classes.
+    Demonstrates the processor pattern from cogapp_deps:
+    - PolarsFilterProcessor, PolarsStringProcessor for transformations
+    - DuckDBJoinProcessor, DuckDBWindowProcessor for SQL operations
 
-    1. Harvest (dlt): Load sales, artworks, artists from CSV to DuckDB
-    2. Transform: Join and enrich with computed metrics
-    3. Output: Generate both sales and artworks views
+    1. Harvest (dlt): Load sales, artworks, artists from CSV
+    2. Transform: Join and enrich using processor classes
+    3. Output: Generate both sales and artworks JSON files
     """,
 )
 

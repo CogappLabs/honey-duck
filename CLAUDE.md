@@ -15,7 +15,7 @@ cp .env.example .env
 uv run dagster dev
 
 # Run pipeline via CLI
-uv run dagster job execute -j full_pipeline
+uv run dagster job execute -j processors_pipeline
 
 # Run tests
 uv run pytest
@@ -85,7 +85,7 @@ dlt_harvest_* (shared)├──→ sales_transform_duckdb ──→ sales_output
 6. **polars_multi** - Multi-asset pattern for tightly coupled steps (assets_polars_multi.py)
 
 **Jobs** (6 total):
-- `full_pipeline` - Original implementation with processor classes
+- `processors_pipeline` - Original implementation with processor classes
 - `polars_pipeline` - Pure Polars with intermediate step assets
 - `duckdb_pipeline` - Pure DuckDB SQL
 - `polars_fs_pipeline` - Polars variant
