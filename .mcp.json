@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "ask_polars": {
+      "command": "npx",
+      "args": ["mcp-remote", "https://mcp.polars.workers.dev/sse"]
+    }
+  }
+}

@@ -109,25 +109,22 @@ def sales_transform_polars(
     """
     start_time = time.perf_counter()
 
-    # Add price metrics, normalize artist names, filter, and sort
+    # Add price metrics and normalize artist names in single batch (parallel execution)
     # Input is already LazyFrame from IO manager's scan_parquet
-    result = (
-        sales_joined_polars.with_columns(
-            (pl.col("sale_price_usd") - pl.col("list_price_usd")).alias("price_diff"),
-            pl.when(pl.col("list_price_usd").is_null() | (pl.col("list_price_usd") == 0))
-            .then(None)
-            .otherwise(
-                (
-                    (pl.col("sale_price_usd") - pl.col("list_price_usd"))
-                    * 100.0
-                    / pl.col("list_price_usd")
-                ).round(1)
-            )
-            .alias("pct_change"),
+    result = sales_joined_polars.with_columns(
+        (pl.col("sale_price_usd") - pl.col("list_price_usd")).alias("price_diff"),
+        pl.when(pl.col("list_price_usd").is_null() | (pl.col("list_price_usd") == 0))
+        .then(None)
+        .otherwise(
+            (
+                (pl.col("sale_price_usd") - pl.col("list_price_usd"))
+                * 100.0
+                / pl.col("list_price_usd")
+            ).round(1)
         )
-        .with_columns(pl.col("artist_name").str.strip_chars().str.to_uppercase())
-        .sort(["sale_date", "sale_id"], descending=[True, False])
-    )
+        .alias("pct_change"),
+        pl.col("artist_name").str.strip_chars().str.to_uppercase(),
+    ).sort(["sale_date", "sale_id"], descending=[True, False])
 
     # Add schema metadata (available without collecting)
     elapsed_ms = (time.perf_counter() - start_time) * 1000
@@ -299,32 +296,25 @@ def artworks_media_polars(
     # Native Polars scan_parquet - no DuckDB overhead
     media = read_harvest_table_lazy(harvest_dir, "media")
 
-    # Primary media (sort_order = 1) and all media aggregated (chained for readability)
-    primary_media = media.filter(pl.col("sort_order") == 1).select(
-        "artwork_id",
-        pl.col("filename").alias("primary_image"),
-        pl.col("alt_text").alias("primary_image_alt"),
-    )
-
-    all_media = (
-        media.sort("sort_order")
-        .group_by("artwork_id")
-        .agg(
-            pl.struct(
-                "sort_order",
-                "filename",
-                "media_type",
-                "file_format",
-                "width_px",
-                "height_px",
-                "file_size_kb",
-                "alt_text",
-            ).alias("media")
+    # Single-pass aggregation: primary image (sort_order=1) + all media as sorted struct list
+    result = media.group_by("artwork_id").agg(
+        # Primary image: first() after filtering for sort_order == 1
+        pl.col("filename").filter(pl.col("sort_order") == 1).first().alias("primary_image"),
+        pl.col("alt_text").filter(pl.col("sort_order") == 1).first().alias("primary_image_alt"),
+        # All media as struct list, sorted by sort_order within each group
+        pl.struct(
+            "sort_order",
+            "filename",
+            "media_type",
+            "file_format",
+            "width_px",
+            "height_px",
+            "file_size_kb",
+            "alt_text",
         )
+        .sort_by("sort_order")
+        .alias("media"),
     )
-
-    # Join primary with aggregated - stays lazy
-    result = primary_media.join(all_media, on="artwork_id", how="outer")
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
     context.add_output_metadata(
@@ -354,8 +344,9 @@ def artworks_transform_polars(
     """
     start_time = time.perf_counter()
 
-    # Join all intermediate results and add computed fields (chained for readability)
+    # Join all intermediate results and add computed fields
     # All inputs are LazyFrames - stays lazy throughout
+    # Two with_columns batches: (1) fill nulls, (2) all computed fields in parallel
     result = (
         artworks_catalog_polars.join(artworks_sales_agg_polars, on="artwork_id", how="left")
         .join(artworks_media_polars, on="artwork_id", how="left")
@@ -364,6 +355,7 @@ def artworks_transform_polars(
             pl.col("total_sales_value").fill_null(0),
         )
         .with_columns(
+            # All computed fields in single batch - runs in parallel
             (pl.col("sale_count") > 0).alias("has_sold"),
             pl.when(pl.col("list_price_usd") < PRICE_TIER_BUDGET_MAX_USD)
             .then(pl.lit("budget"))
@@ -372,8 +364,6 @@ def artworks_transform_polars(
             .otherwise(pl.lit("premium"))
             .alias("price_tier"),
             pl.col("media").list.len().fill_null(0).alias("media_count"),
-        )
-        .with_columns(
             pl.col("total_sales_value").rank(method="ordinal", descending=True).alias("sales_rank"),
             pl.col("artist_name").str.to_uppercase(),
         )
