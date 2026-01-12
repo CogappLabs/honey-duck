@@ -4,10 +4,10 @@ Guidelines and recommendations for writing maintainable, performant Dagster pipe
 
 ## Code Organization
 
-### ✅ DO: Keep Assets Focused and Single-Purpose
+### DO: Keep Assets Focused and Single-Purpose
 
 ```python
-# ✅ GOOD - Clear, focused asset
+# GOOD - Clear, focused asset
 @dg.asset(kinds={"polars"}, group_name="transform")
 def sales_with_discounts(context: dg.AssetExecutionContext) -> pl.DataFrame:
     """Add discount calculations to sales data."""
@@ -19,7 +19,7 @@ def sales_with_discounts(context: dg.AssetExecutionContext) -> pl.DataFrame:
 ```
 
 ```python
-# ❌ BAD - Doing too many things
+# BAD - Doing too many things
 @dg.asset
 def process_everything(context):
     """Process sales, artworks, artists, media, and generate reports."""
@@ -31,10 +31,10 @@ def process_everything(context):
 
 ---
 
-### ✅ DO: Use Descriptive Asset Names
+### DO: Use Descriptive Asset Names
 
 ```python
-# ✅ GOOD - Clear what it does
+# GOOD - Clear what it does
 @dg.asset
 def high_value_sales_over_1m(context) -> pl.DataFrame:
     pass
@@ -45,7 +45,7 @@ def artworks_with_primary_images(context) -> pl.DataFrame:
 ```
 
 ```python
-# ❌ BAD - Vague names
+# BAD - Vague names
 @dg.asset
 def process_data(context) -> pl.DataFrame:
     pass
@@ -59,7 +59,7 @@ def step2(context) -> pl.DataFrame:
 
 ---
 
-### ✅ DO: Group Related Assets
+### DO: Group Related Assets
 
 ```python
 @dg.asset(
@@ -83,10 +83,10 @@ def sales_output_polars(context) -> pl.DataFrame:
 
 ## Data Processing
 
-### ✅ DO: Use Lazy Evaluation (Polars)
+### DO: Use Lazy Evaluation (Polars)
 
 ```python
-# ✅ GOOD - Lazy operations, collect once
+# GOOD - Lazy operations, collect once
 @dg.asset
 def my_transform(context) -> pl.DataFrame:
     result = (
@@ -100,7 +100,7 @@ def my_transform(context) -> pl.DataFrame:
 ```
 
 ```python
-# ❌ BAD - Eager operations, multiple materializations
+# BAD - Eager operations, multiple materializations
 @dg.asset
 def my_transform(context) -> pl.DataFrame:
     df = pl.read_parquet(path)         # ← Loads all data
@@ -114,10 +114,10 @@ def my_transform(context) -> pl.DataFrame:
 
 ---
 
-### ✅ DO: Consolidate `with_columns` Chains
+### DO: Consolidate `with_columns` Chains
 
 ```python
-# ✅ GOOD - All expressions in single batch run in parallel
+# GOOD - All expressions in single batch run in parallel
 result = df.with_columns(
     (pl.col("price") * 0.1).alias("tax"),
     pl.col("name").str.to_uppercase(),
@@ -126,7 +126,7 @@ result = df.with_columns(
 ```
 
 ```python
-# ❌ BAD - Sequential execution (each waits for previous)
+# BAD - Sequential execution (each waits for previous)
 result = df.with_columns((pl.col("price") * 0.1).alias("tax"))
 result = result.with_columns(pl.col("name").str.to_uppercase())
 result = result.with_columns(pl.col("date").dt.year().alias("year"))
@@ -136,10 +136,10 @@ result = result.with_columns(pl.col("date").dt.year().alias("year"))
 
 ---
 
-### ✅ DO: Use `sort_by` Inside Aggregations
+### DO: Use `sort_by` Inside Aggregations
 
 ```python
-# ✅ GOOD - Sort inside aggregation preserves order within groups
+# GOOD - Sort inside aggregation preserves order within groups
 result = df.group_by("category").agg(
     pl.struct("id", "value", "date")
       .sort_by("date")
@@ -148,7 +148,7 @@ result = df.group_by("category").agg(
 ```
 
 ```python
-# ❌ BAD - Sort before group_by doesn't guarantee order within groups
+# BAD - Sort before group_by doesn't guarantee order within groups
 result = df.sort("date").group_by("category").agg(
     pl.struct("id", "value", "date").alias("items_by_date")
 )
@@ -158,10 +158,10 @@ result = df.sort("date").group_by("category").agg(
 
 ---
 
-### ✅ DO: Prefer Semi-Joins Over `is_in()`
+### DO: Prefer Semi-Joins Over `is_in()`
 
 ```python
-# ✅ GOOD - Semi-join stays lazy, no early materialization
+# GOOD - Semi-join stays lazy, no early materialization
 valid_sales = sales.join(
     valid_products.select("product_id"),
     on="product_id",
@@ -170,7 +170,7 @@ valid_sales = sales.join(
 ```
 
 ```python
-# ❌ BAD - is_in() forces collection of the filter list
+# BAD - is_in() forces collection of the filter list
 valid_ids = valid_products.collect()["product_id"]  # Materializes!
 valid_sales = sales.filter(pl.col("product_id").is_in(valid_ids))
 ```
@@ -179,10 +179,10 @@ valid_sales = sales.filter(pl.col("product_id").is_in(valid_ids))
 
 ---
 
-### ✅ DO: Validate Data Early
+### DO: Validate Data Early
 
 ```python
-# ✅ GOOD - Validate inputs
+# GOOD - Validate inputs
 @dg.asset
 def sales_enriched(context) -> pl.DataFrame:
     tables = read_harvest_tables_lazy(
@@ -206,10 +206,10 @@ def sales_enriched(context) -> pl.DataFrame:
 
 ---
 
-### ✅ DO: Add Rich Metadata
+### DO: Add Rich Metadata
 
 ```python
-# ✅ GOOD - Rich metadata
+# GOOD - Rich metadata
 @dg.asset
 def sales_transform(context) -> pl.DataFrame:
     with track_timing(context, "transformation"):
@@ -236,10 +236,10 @@ def sales_transform(context) -> pl.DataFrame:
 
 ## Error Handling
 
-### ✅ DO: Use Descriptive Error Messages
+### DO: Use Descriptive Error Messages
 
 ```python
-# ✅ GOOD - Clear, actionable error
+# GOOD - Clear, actionable error
 @dg.asset
 def validate_sales(context) -> pl.DataFrame:
     result = load_sales()
@@ -257,7 +257,7 @@ def validate_sales(context) -> pl.DataFrame:
 ```
 
 ```python
-# ❌ BAD - Vague error
+# BAD - Vague error
 @dg.asset
 def validate_sales(context) -> pl.DataFrame:
     result = load_sales()
@@ -271,10 +271,10 @@ def validate_sales(context) -> pl.DataFrame:
 
 ---
 
-### ✅ DO: Log Progress for Long Operations
+### DO: Log Progress for Long Operations
 
 ```python
-# ✅ GOOD - Progress logging
+# GOOD - Progress logging
 @dg.asset
 def process_large_dataset(context) -> pl.DataFrame:
     context.log.info("Loading data from source...")
@@ -296,10 +296,10 @@ def process_large_dataset(context) -> pl.DataFrame:
 
 ## Performance
 
-### ✅ DO: Profile Before Optimizing
+### DO: Profile Before Optimizing
 
 ```python
-# ✅ GOOD - Measure, then optimize
+# GOOD - Measure, then optimize
 @dg.asset
 def my_transform(context) -> pl.DataFrame:
     with track_timing(context, "loading"):
@@ -319,10 +319,10 @@ def my_transform(context) -> pl.DataFrame:
 
 ---
 
-### ✅ DO: Use Appropriate Data Types
+### DO: Use Appropriate Data Types
 
 ```python
-# ✅ GOOD - Efficient types
+# GOOD - Efficient types
 df = pl.DataFrame({
     "id": pl.Series([1, 2, 3], dtype=pl.UInt32),      # Not Int64
     "price": pl.Series([1.5, 2.5], dtype=pl.Float32), # Not Float64
@@ -334,10 +334,10 @@ df = pl.DataFrame({
 
 ---
 
-### ✅ DO: Filter Early, Select Late
+### DO: Filter Early, Select Late
 
 ```python
-# ✅ GOOD - Filter first (reduces data), select last
+# GOOD - Filter first (reduces data), select last
 result = (
     pl.scan_parquet(path)
     .filter(pl.col("price") > 1000)     # ← Reduce rows first
@@ -348,7 +348,7 @@ result = (
 ```
 
 ```python
-# ❌ BAD - Select first, filter last
+# BAD - Select first, filter last
 result = (
     pl.scan_parquet(path)
     .select(["id", "price", "date", "country", "many", "other", "cols"])  # ← Too many columns
@@ -364,7 +364,7 @@ result = (
 
 ## Testing
 
-### ✅ DO: Write Tests for Business Logic
+### DO: Write Tests for Business Logic
 
 ```python
 # tests/test_sales_logic.py
@@ -387,7 +387,7 @@ def test_discount_calculation():
 
 ---
 
-### ✅ DO: Test Edge Cases
+### DO: Test Edge Cases
 
 ```python
 def test_handles_empty_dataframe():
@@ -407,10 +407,10 @@ def test_handles_empty_dataframe():
 
 ## Documentation
 
-### ✅ DO: Write Helpful Docstrings
+### DO: Write Helpful Docstrings
 
 ```python
-# ✅ GOOD - Clear docstring
+# GOOD - Clear docstring
 @dg.asset(kinds={"polars"}, group_name="transform")
 def sales_with_price_tiers(
     context: dg.AssetExecutionContext,
@@ -430,7 +430,7 @@ def sales_with_price_tiers(
 ```
 
 ```python
-# ❌ BAD - No docstring
+# BAD - No docstring
 @dg.asset
 def process(context, data):
     pass  # What does this do? What are the tiers?
@@ -440,7 +440,7 @@ def process(context, data):
 
 ---
 
-### ✅ DO: Document Business Rules
+### DO: Document Business Rules
 
 ```python
 @dg.asset
@@ -464,10 +464,10 @@ def filter_valid_sales(context) -> pl.DataFrame:
 
 ## Dependencies
 
-### ✅ DO: Use `deps` for External Dependencies
+### DO: Use `deps` for External Dependencies
 
 ```python
-# ✅ GOOD - Clear external dependency
+# GOOD - Clear external dependency
 from honey_duck.defs.helpers import STANDARD_HARVEST_DEPS
 
 @dg.asset(
@@ -483,13 +483,13 @@ def my_harvest(context):
 
 ---
 
-### ✅ DO: Keep Dependency Graphs Shallow
+### DO: Keep Dependency Graphs Shallow
 
 ```python
-# ✅ GOOD - Shallow graph (3 levels)
+# GOOD - Shallow graph (3 levels)
 csv_sales → harvest_sales → sales_transform → sales_output
 
-# ❌ BAD - Deep graph (10+ levels)
+# BAD - Deep graph (10+ levels)
 raw → clean → validate → enrich → normalize → categorize →
     aggregate → summarize → filter → output
 ```
@@ -500,10 +500,10 @@ raw → clean → validate → enrich → normalize → categorize →
 
 ## Configuration
 
-### ✅ DO: Use Environment Variables for Config
+### DO: Use Environment Variables for Config
 
 ```python
-# ✅ GOOD - Environment-based config
+# GOOD - Environment-based config
 import os
 
 OUTPUT_PATH = Path(os.getenv("SALES_OUTPUT_PATH", "data/output/json/sales.json"))
@@ -511,7 +511,7 @@ THRESHOLD = int(os.getenv("SALES_THRESHOLD", "1000"))
 ```
 
 ```python
-# ❌ BAD - Hardcoded values
+# BAD - Hardcoded values
 OUTPUT_PATH = Path("/home/user/data/sales.json")  # ← Breaks on other machines
 THRESHOLD = 1000  # ← Can't override without code change
 ```
@@ -520,7 +520,7 @@ THRESHOLD = 1000  # ← Can't override without code change
 
 ---
 
-### ✅ DO: Use Constants for Business Rules
+### DO: Use Constants for Business Rules
 
 ```python
 # honey_duck/defs/constants.py
@@ -540,10 +540,10 @@ result = df.filter(pl.col("price") >= MIN_SALE_VALUE_USD)
 
 ## Anti-Patterns to Avoid
 
-### ❌ DON'T: Modify Input Data In-Place
+### DON'T: Modify Input Data In-Place
 
 ```python
-# ❌ BAD
+# BAD
 @dg.asset
 def my_asset(context, input_df: pl.DataFrame) -> pl.DataFrame:
     input_df = input_df.with_columns(...)  # ← Modifies parameter
@@ -551,7 +551,7 @@ def my_asset(context, input_df: pl.DataFrame) -> pl.DataFrame:
 ```
 
 ```python
-# ✅ GOOD
+# GOOD
 @dg.asset
 def my_asset(context, input_df: pl.DataFrame) -> pl.DataFrame:
     result = input_df.with_columns(...)  # ← New variable
@@ -560,16 +560,16 @@ def my_asset(context, input_df: pl.DataFrame) -> pl.DataFrame:
 
 ---
 
-### ❌ DON'T: Use Magic Numbers
+### DON'T: Use Magic Numbers
 
 ```python
-# ❌ BAD
+# BAD
 df = df.filter(pl.col("price") > 1000000)  # What does 1M mean?
 df = df.filter(pl.col("age_days") < 365)   # Why 365?
 ```
 
 ```python
-# ✅ GOOD
+# GOOD
 PREMIUM_PRICE_THRESHOLD = 1_000_000  # Prices above 1M are "premium"
 MAX_AGE_DAYS = 365  # Only include sales from last year
 
@@ -579,10 +579,10 @@ df = df.filter(pl.col("age_days") < MAX_AGE_DAYS)
 
 ---
 
-### ❌ DON'T: Ignore Errors Silently
+### DON'T: Ignore Errors Silently
 
 ```python
-# ❌ BAD
+# BAD
 try:
     result = risky_operation()
 except Exception:
@@ -590,7 +590,7 @@ except Exception:
 ```
 
 ```python
-# ✅ GOOD
+# GOOD
 try:
     result = risky_operation()
 except ValueError as e:
@@ -600,10 +600,10 @@ except ValueError as e:
 
 ---
 
-### ❌ DON'T: Create God Assets
+### DON'T: Create God Assets
 
 ```python
-# ❌ BAD - One asset doing everything
+# BAD - One asset doing everything
 @dg.asset
 def complete_pipeline(context):
     # Load
@@ -616,7 +616,7 @@ def complete_pipeline(context):
 ```
 
 ```python
-# ✅ GOOD - Split into focused assets
+# GOOD - Split into focused assets
 @dg.asset
 def load_data(context): ...
 
@@ -647,4 +647,4 @@ Before committing code, check:
 
 ---
 
-**Remember**: Good code is code that's easy to understand, test, and change. When in doubt, prefer clarity over cleverness! 🎯
+**Remember**: Good code is code that's easy to understand, test, and change. When in doubt, prefer clarity over cleverness.

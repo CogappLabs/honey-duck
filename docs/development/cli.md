@@ -82,7 +82,7 @@ uv run dagster asset wipe -a sales_transform -a artworks_transform
 uv run dagster asset wipe --all --group transform_polars
 ```
 
-**⚠️ Warning**: This deletes materialization history and cached data!
+** Warning**: This deletes materialization history and cached data!
 
 ## Job Execution
 
@@ -474,7 +474,7 @@ uv run dagster definitions validate
 ## Quick Reference Card
 
 ```bash
-# 🚀 MOST COMMON COMMANDS
+#  MOST COMMON COMMANDS
 
 # Start UI
 uv run dagster dev

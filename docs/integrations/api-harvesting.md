@@ -621,4 +621,4 @@ print(f"Progress: {batch.request_counts.processing}/{batch.request_counts.total}
 
 ---
 
-**Ready to harvest APIs at scale!** 🚀
+**Ready to harvest APIs at scale!** 

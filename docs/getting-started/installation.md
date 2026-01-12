@@ -6,10 +6,10 @@ A hands-on guide to understanding and working with Dagster in the honey-duck pro
 
 Dagster is a **data orchestration platform** that helps you build, test, and monitor data pipelines. Think of it as a smart way to organize your data processing code with:
 
-- 📊 **Visual lineage**: See how data flows through your pipeline
+-  **Visual lineage**: See how data flows through your pipeline
 - ⚡ **Incremental execution**: Only recompute what changed
-- 🔍 **Observability**: Track what's happening in real-time
-- ✅ **Testing**: Test your pipeline logic before deploying
+-  **Observability**: Track what's happening in real-time
+- **Testing**: Test your pipeline logic before deploying
 - 🔄 **Scheduling**: Run pipelines on a schedule or trigger manually
 
 ## Core Concepts (5-Minute Version)
@@ -361,7 +361,7 @@ df = pl.read_parquet("data/output/storage/expensive_artworks/expensive_artworks"
 
 ## Common Mistakes & Fixes
 
-### ❌ Mistake 1: Forgetting to Return Data
+### Mistake 1: Forgetting to Return Data
 
 ```python
 @dg.asset
@@ -370,7 +370,7 @@ def my_asset(context):
     # Forgot to return!  ← BUG
 ```
 
-**✅ Fix:**
+**Fix:**
 ```python
 @dg.asset
 def my_asset(context):
@@ -378,7 +378,7 @@ def my_asset(context):
     return result  # ← Always return!
 ```
 
-### ❌ Mistake 2: Wrong Parameter Name
+### Mistake 2: Wrong Parameter Name
 
 ```python
 @dg.asset
@@ -386,14 +386,14 @@ def sales_output(context, sales_data: pl.DataFrame):  # ← Wrong name
     # Dagster looks for asset named "sales_data", not "sales_transform"
 ```
 
-**✅ Fix:**
+**Fix:**
 ```python
 @dg.asset
 def sales_output(context, sales_transform: pl.DataFrame):  # ← Match asset name
     pass
 ```
 
-### ❌ Mistake 3: Modifying Input Data
+### Mistake 3: Modifying Input Data
 
 ```python
 @dg.asset
@@ -402,7 +402,7 @@ def my_asset(context, input_data: pl.DataFrame):
     return input_data
 ```
 
-**✅ Fix:**
+**Fix:**
 ```python
 @dg.asset
 def my_asset(context, input_data: pl.DataFrame):
@@ -410,7 +410,7 @@ def my_asset(context, input_data: pl.DataFrame):
     return result
 ```
 
-### ❌ Mistake 4: Not Using Helper Functions
+### Mistake 4: Not Using Helper Functions
 
 ```python
 @dg.asset
@@ -419,7 +419,7 @@ def my_asset(context):
     df = pl.read_parquet("data/output/dlt/harvest_parquet/sales_raw.parquet")
 ```
 
-**✅ Fix:**
+**Fix:**
 ```python
 @dg.asset
 def my_asset(context):
@@ -518,4 +518,4 @@ uv run pytest
 # → Open http://localhost:3000 → Assets → View lineage
 ```
 
-**Welcome to Dagster!** Start small, experiment in the UI, and build up from there. 🚀
+**Welcome to Dagster!** Start small, experiment in the UI, and build up from there. 

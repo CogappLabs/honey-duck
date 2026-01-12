@@ -536,4 +536,4 @@ def sales_output(context, sales_transform: pl.DataFrame) -> pl.DataFrame:
 
 ---
 
-**Happy indexing!** 🔍
+**Happy indexing!** 

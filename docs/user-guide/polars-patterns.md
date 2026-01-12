@@ -7,7 +7,7 @@ Best practices for writing efficient Polars code in Dagster pipelines.
 Always prefer lazy operations and collect once at the end:
 
 ```python
-# ✅ GOOD - Lazy operations, collect once
+# GOOD - Lazy operations, collect once
 result = (
     pl.scan_parquet(path)
     .filter(pl.col("price") > 1000)
@@ -16,7 +16,7 @@ result = (
     .collect()  # Execute once
 )
 
-# ❌ BAD - Eager operations
+# BAD - Eager operations
 df = pl.read_parquet(path)  # Loads all data
 df = df.filter(pl.col("price") > 1000)
 df = df.select(["id", "price", "date"])
@@ -27,14 +27,14 @@ df = df.select(["id", "price", "date"])
 Multiple expressions in a single `with_columns` run in parallel:
 
 ```python
-# ✅ GOOD - Parallel execution
+# GOOD - Parallel execution
 result = df.with_columns(
     (pl.col("price") * 0.1).alias("tax"),
     pl.col("name").str.to_uppercase(),
     pl.col("date").dt.year().alias("year"),
 )
 
-# ❌ BAD - Sequential execution
+# BAD - Sequential execution
 result = df.with_columns((pl.col("price") * 0.1).alias("tax"))
 result = result.with_columns(pl.col("name").str.to_uppercase())
 result = result.with_columns(pl.col("date").dt.year().alias("year"))
@@ -54,14 +54,14 @@ result = result.with_columns(pl.col("date").dt.year().alias("year"))
 `sort()` before `group_by()` doesn't guarantee order within groups:
 
 ```python
-# ✅ GOOD - Sort inside aggregation
+# GOOD - Sort inside aggregation
 result = df.group_by("category").agg(
     pl.struct("id", "value", "date")
       .sort_by("date")
       .alias("items_by_date")
 )
 
-# ❌ BAD - Sort before group_by
+# BAD - Sort before group_by
 result = df.sort("date").group_by("category").agg(
     pl.struct("id", "value", "date").alias("items_by_date")
 )
@@ -72,14 +72,14 @@ result = df.sort("date").group_by("category").agg(
 Semi-joins stay lazy and avoid early materialization:
 
 ```python
-# ✅ GOOD - Semi-join stays lazy
+# GOOD - Semi-join stays lazy
 valid_sales = sales.join(
     valid_products.select("product_id"),
     on="product_id",
     how="semi",
 )
 
-# ❌ BAD - is_in() forces collection
+# BAD - is_in() forces collection
 valid_ids = valid_products.collect()["product_id"]  # Materializes!
 valid_sales = sales.filter(pl.col("product_id").is_in(valid_ids))
 ```

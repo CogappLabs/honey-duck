@@ -16,10 +16,10 @@ Solutions to common problems when working with Dagster in honey-duck.
 
 ## Asset Errors
 
-### ❌ Error: "DagsterInvalidDefinitionError: Cannot annotate context parameter"
+### Error: "DagsterInvalidDefinitionError: Cannot annotate context parameter"
 
 ```python
-# ❌ WRONG
+# WRONG
 @dg.asset
 def my_asset(context: dg.AssetExecutionContext) -> dict:
     pass
@@ -27,7 +27,7 @@ def my_asset(context: dg.AssetExecutionContext) -> dict:
 
 **Problem**: Some Dagster decorators don't allow typed context parameters.
 
-**✅ Solution**:
+**Solution**:
 ```python
 # For regular assets - use type annotation
 @dg.asset
@@ -42,11 +42,11 @@ def notification_asset(context) -> dict:  # ← No type annotation
 
 ---
 
-### ❌ Error: "Asset 'sales_transform' has no materializations"
+### Error: "Asset 'sales_transform' has no materializations"
 
 **Problem**: You're trying to use an asset that hasn't been materialized yet.
 
-**✅ Solution**:
+**Solution**:
 ```bash
 # Materialize the missing asset first
 uv run dagster asset materialize -a sales_transform
@@ -59,10 +59,10 @@ uv run dagster asset materialize -a sales_output --select +sales_output
 
 ---
 
-### ❌ Error: "No such asset: 'sales_data'"
+### Error: "No such asset: 'sales_data'"
 
 ```python
-# ❌ WRONG - Parameter name doesn't match asset name
+# WRONG - Parameter name doesn't match asset name
 @dg.asset
 def my_output(context, sales_data: pl.DataFrame):  # Looking for 'sales_data'
     pass
@@ -70,9 +70,9 @@ def my_output(context, sales_data: pl.DataFrame):  # Looking for 'sales_data'
 
 **Problem**: Parameter name must exactly match the asset name.
 
-**✅ Solution**:
+**Solution**:
 ```python
-# ✅ CORRECT - Parameter matches asset name
+# CORRECT - Parameter matches asset name
 @dg.asset
 def my_output(context, sales_transform: pl.DataFrame):  # Matches 'sales_transform'
     pass
@@ -87,14 +87,14 @@ uv run dagster asset list
 
 ## Dependency Issues
 
-### ❌ Error: "Circular dependency detected"
+### Error: "Circular dependency detected"
 
 **Problem**: Assets depend on each other in a loop:
 ```
 A → B → C → A  # ← Circular!
 ```
 
-**✅ Solution**:
+**Solution**:
 
 1. **Find the cycle**:
 ```bash
@@ -115,11 +115,11 @@ uv run dagster asset list --show-deps
 
 ---
 
-### ❌ Error: "ImportError: cannot import name 'my_asset'"
+### Error: "ImportError: cannot import name 'my_asset'"
 
 **Problem**: Missing import or circular import.
 
-**✅ Solution**:
+**Solution**:
 
 1. **Check the import**:
 ```python
@@ -129,10 +129,10 @@ from honey_duck.defs.my_assets import my_asset  # ← Verify file name
 
 2. **Avoid circular imports**:
 ```python
-# ❌ WRONG - Don't import definitions in asset files
+# WRONG - Don't import definitions in asset files
 from honey_duck.defs.definitions import defs
 
-# ✅ CORRECT - Only import utilities
+# CORRECT - Only import utilities
 from honey_duck.defs.resources import HARVEST_PARQUET_DIR
 ```
 
@@ -145,11 +145,11 @@ ls honey_duck/defs/my_assets.py
 
 ## Data Validation Errors
 
-### ❌ Error: "MissingTableError: Table 'sales_raw' not found in schema 'raw'"
+### Error: "MissingTableError: Table 'sales_raw' not found in schema 'raw'"
 
 **Problem**: Harvest data hasn't been loaded or table name is wrong.
 
-**✅ Solution**:
+**Solution**:
 
 1. **Check if harvest data exists**:
 ```bash
@@ -181,11 +181,11 @@ Available tables: ['artworks_raw', 'artists_raw', 'media']
 
 ---
 
-### ❌ Error: "MissingColumnError: Column 'sale_price' not found in table 'sales_raw'"
+### Error: "MissingColumnError: Column 'sale_price' not found in table 'sales_raw'"
 
 **Problem**: Column name is wrong or doesn't exist in data.
 
-**✅ Solution**:
+**Solution**:
 
 1. **Check actual columns**:
 ```bash
@@ -220,16 +220,16 @@ tables = read_harvest_tables_lazy(
 
 ---
 
-### ❌ Error: "ColumnNotFoundError" (Polars)
+### Error: "ColumnNotFoundError" (Polars)
 
 ```python
-# ❌ Polars error during transformation
+# Polars error during transformation
 polars.exceptions.ColumnNotFoundError: sale_price
 ```
 
 **Problem**: Typo in column name or column was dropped in earlier operation.
 
-**✅ Solution**:
+**Solution**:
 
 1. **Add debug logging**:
 ```python
@@ -248,19 +248,19 @@ def my_asset(context: dg.AssetExecutionContext):
 2. **Check for typos**:
 ```python
 # Common typos:
-pl.col("sale_price")      # ❌ Missing _usd
-pl.col("sale_price_usd")  # ✅ Correct
+pl.col("sale_price")      # Missing _usd
+pl.col("sale_price_usd")  # Correct
 ```
 
 ---
 
 ## IO Manager Issues
 
-### ❌ Error: "Failed to pickle DataFrame"
+### Error: "Failed to pickle DataFrame"
 
 **Problem**: Trying to use wrong IO manager for data type.
 
-**✅ Solution**:
+**Solution**:
 
 Ensure asset returns Polars DataFrame for PolarsParquetIOManager:
 ```python
@@ -273,11 +273,11 @@ def my_asset(context) -> pl.DataFrame:  # ← Polars, not Pandas
 
 ---
 
-### ❌ Error: "FileNotFoundError: No such file or directory: 'data/output/storage/...'"
+### Error: "FileNotFoundError: No such file or directory: 'data/output/storage/...'"
 
 **Problem**: IO manager trying to load asset that doesn't exist.
 
-**✅ Solution**:
+**Solution**:
 
 1. **Materialize upstream asset**:
 ```bash
@@ -299,7 +299,7 @@ ls -R data/output/storage/
 
 ## Performance Issues
 
-### ⏱️ Issue: "Asset taking too long to materialize"
+###  Issue: "Asset taking too long to materialize"
 
 **Symptoms**: Asset runs for minutes/hours.
 
@@ -307,11 +307,11 @@ ls -R data/output/storage/
 
 1. **Use lazy evaluation** (Polars):
 ```python
-# ❌ SLOW - Collects too early
+# SLOW - Collects too early
 df = pl.read_parquet(path).collect()  # ← Loads all
 df = df.filter(pl.col("price") > 1000)  # Works on full dataset
 
-# ✅ FAST - Push down filters
+# FAST - Push down filters
 df = pl.scan_parquet(path)  # ← Lazy
 df = df.filter(pl.col("price") > 1000)  # Filter planned
 df = df.collect()  # ← Only loads filtered data
@@ -347,7 +347,7 @@ def my_asset(context):
 
 ---
 
-### ⏱️ Issue: "Out of memory errors"
+###  Issue: "Out of memory errors"
 
 **Solutions**:
 
@@ -383,11 +383,11 @@ conn.sql("""
 
 ## UI/Server Issues
 
-### ❌ Error: "Failed to connect to Dagster"
+### Error: "Failed to connect to Dagster"
 
 **Problem**: Dagster server not running or wrong port.
 
-**✅ Solution**:
+**Solution**:
 
 1. **Start the server**:
 ```bash
@@ -415,11 +415,11 @@ pkill -f dagster
 
 ---
 
-### ❌ Error: "Code location failed to load"
+### Error: "Code location failed to load"
 
 **Problem**: Python syntax error or import error in definitions.
 
-**✅ Solution**:
+**Solution**:
 
 1. **Check error in UI**: Look at code location error message.
 
@@ -433,16 +433,16 @@ uv run python -c "from honey_duck.defs.definitions import defs"
 # Missing comma
 assets=[
     asset1
-    asset2  # ❌ Missing comma
+    asset2  # Missing comma
 ]
 
 # Indentation error
 @dg.asset
 def my_asset(context):
-result = ...  # ❌ Wrong indentation
+result = ...  # Wrong indentation
 
 # Circular import
-from honey_duck.defs.definitions import defs  # ❌ In asset file
+from honey_duck.defs.definitions import defs  # In asset file
 ```
 
 ---
@@ -469,11 +469,11 @@ uv run dagster run delete --all -j my_job
 
 ## Environment Issues
 
-### ❌ Error: "ModuleNotFoundError: No module named 'polars'"
+### Error: "ModuleNotFoundError: No module named 'polars'"
 
 **Problem**: Dependencies not installed.
 
-**✅ Solution**:
+**Solution**:
 
 ```bash
 # Install dependencies
@@ -485,11 +485,11 @@ uv run python -c "import polars; print(polars.__version__)"
 
 ---
 
-### ❌ Error: "Permission denied" when writing files
+### Error: "Permission denied" when writing files
 
 **Problem**: No write permissions to output directory.
 
-**✅ Solution**:
+**Solution**:
 
 1. **Check permissions**:
 ```bash
@@ -508,11 +508,11 @@ mkdir -p data/output/json data/output/storage data/output/dlt
 
 ---
 
-### ❌ Error: "Database is locked" (DuckDB)
+### Error: "Database is locked" (DuckDB)
 
 **Problem**: Multiple processes trying to write to DuckDB at once.
 
-**✅ Solution**:
+**Solution**:
 
 In honey-duck, output assets have `deps=["other_output"]` to enforce ordering:
 
@@ -601,4 +601,4 @@ uv run pytest -xvs
 
 ---
 
-**Pro Tip**: Most errors have helpful messages. Read them carefully - they often tell you exactly what's wrong! 🔍
+**Pro Tip**: Most errors have helpful messages. Read them carefully - they often tell you exactly what's wrong! 

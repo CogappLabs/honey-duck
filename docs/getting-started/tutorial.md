@@ -288,7 +288,7 @@ def artist_artworks_output_tutorial(
 
 ## Next Steps
 
-### Congratulations! 🎉
+### Congratulations! 
 
 You've created your first Dagster asset with:
 - Data loading from Parquet
@@ -299,20 +299,23 @@ You've created your first Dagster asset with:
 
 ### What to Learn Next
 
-**📚 Dive Deeper**:
-- **[Polars Patterns](../user-guide/polars-patterns.md)** - DataFrame best practices
-- **[Performance Tuning](../user-guide/performance.md)** - Optimize your pipelines
-- **[Best Practices](../user-guide/best-practices.md)** - Production guidelines
+**Dive Deeper:**
 
-**🔧 Explore Features**:
-- **[Asset Checks](https://docs.dagster.io/concepts/assets/asset-checks)** - Data quality validation
-- **[Schedules](https://docs.dagster.io/concepts/automation/schedules)** - Automated runs
-- **[Sensors](https://docs.dagster.io/concepts/partitions-schedules-sensors/sensors)** - Event-driven pipelines
+- [Polars Patterns](../user-guide/polars-patterns.md) - DataFrame best practices
+- [Performance Tuning](../user-guide/performance.md) - Optimize your pipelines
+- [Best Practices](../user-guide/best-practices.md) - Production guidelines
 
-**🚀 Advanced Topics**:
-- **[Elasticsearch Integration](../integrations/elasticsearch.md)** - Full-text search
-- **[API Bulk Harvesting](../integrations/api-harvesting.md)** - Claude & Voyage AI
-- **[Sitemap Generation](../integrations/sitemaps.md)** - SEO optimization
+**Explore Features:**
+
+- [Asset Checks](https://docs.dagster.io/concepts/assets/asset-checks) - Data quality validation
+- [Schedules](https://docs.dagster.io/concepts/automation/schedules) - Automated runs
+- [Sensors](https://docs.dagster.io/concepts/partitions-schedules-sensors/sensors) - Event-driven pipelines
+
+**Advanced Topics:**
+
+- [Elasticsearch Integration](../integrations/elasticsearch.md) - Full-text search
+- [API Bulk Harvesting](../integrations/api-harvesting.md) - Claude & Voyage AI
+- [Sitemap Generation](../integrations/sitemaps.md) - SEO optimization
 
 ---
 
@@ -475,7 +478,7 @@ df.sort(["date", "id"], descending=[True, False])
 
 ---
 
-**You're ready to build data pipelines!** 🚀
+**You're ready to build data pipelines!** 
 
 For help:
 - Dagster Slack: https://dagster.io/slack

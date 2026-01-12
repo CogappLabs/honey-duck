@@ -2,7 +2,7 @@
 
 ## Is LocalStack Worth Implementing?
 
-### ✅ **YES** - When you should use LocalStack:
+### **YES** - When you should use LocalStack:
 
 1. **Cloud-first architecture**: You're deploying to AWS and want to test S3 integration locally
 2. **CI/CD testing**: You want to run integration tests that verify S3 operations without AWS credentials
@@ -10,7 +10,7 @@
 4. **Team development**: Multiple developers need consistent cloud-like environments
 5. **Cost optimization**: You want to avoid AWS costs during development
 
-### ❌ **NO** - When you DON'T need LocalStack:
+### **NO** - When you DON'T need LocalStack:
 
 1. **Simple local development**: File-based storage is sufficient
 2. **No AWS deployment**: You're not using AWS in production
@@ -152,7 +152,7 @@ echo "Creating S3 buckets..."
 aws --endpoint-url=http://localhost:4566 s3 mb s3://test-bucket
 aws --endpoint-url=http://localhost:4566 s3 mb s3://test-bucket-parquet
 
-echo "✅ LocalStack S3 buckets created"
+echo "LocalStack S3 buckets created"
 ```
 
 ### Start LocalStack
@@ -281,7 +281,7 @@ df = conn.sql("""
 
 ## Recommendations for honey-duck
 
-### ✅ Implement Now:
+### Implement Now:
 1. **UPath support in IO managers** - Minimal overhead, future-proof
 2. **Environment-based configuration** - Easy to switch between local/S3
 3. **DuckDB S3 configuration** - Already using DuckDB
@@ -345,9 +345,9 @@ resources = {
 
 **For honey-duck, I recommend:**
 
-1. ✅ Add UPath support to existing IO managers (low effort, high value)
-2. ✅ Add environment variable configuration (already using this pattern)
+1. Add UPath support to existing IO managers (low effort, high value)
+2. Add environment variable configuration (already using this pattern)
 3. ⏳ Skip LocalStack for now unless you're deploying to AWS
-4. ✅ Use `moto` for S3 unit tests if needed (lighter than LocalStack)
+4. Use `moto` for S3 unit tests if needed (lighter than LocalStack)
 
 This gives you **S3-readiness without the complexity** of running LocalStack unless you actually need it.

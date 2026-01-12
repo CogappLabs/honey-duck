@@ -4,11 +4,11 @@ Guide to common output destinations for data pipelines and how to implement them
 
 ## Currently Implemented
 
-✅ **JSON** - `JSONIOManager` - File-based JSON output
-✅ **Parquet** - `PolarsParquetIOManager` - Columnar storage
-✅ **DuckDB** - `DuckDBPandasPolarsIOManager` - Analytical database
-✅ **Elasticsearch 8/9** - `ElasticsearchIOManager` - Full-text search
-✅ **OpenSearch** - `OpenSearchIOManager` - AWS fork of Elasticsearch
+**JSON** - `JSONIOManager` - File-based JSON output
+**Parquet** - `PolarsParquetIOManager` - Columnar storage
+**DuckDB** - `DuckDBPandasPolarsIOManager` - Analytical database
+**Elasticsearch 8/9** - `ElasticsearchIOManager` - Full-text search
+**OpenSearch** - `OpenSearchIOManager` - AWS fork of Elasticsearch
 
 ---
 
@@ -44,10 +44,10 @@ def sales_table(sales_transform: pl.DataFrame) -> pl.DataFrame:
 - Traditional ETL destinations
 
 **Trade-offs:**
-- ✅ Mature, well-understood
-- ✅ ACID guarantees
-- ❌ Slower for analytics (vs columnar stores)
-- ❌ Schema migrations can be complex
+- Mature, well-understood
+- ACID guarantees
+- Slower for analytics (vs columnar stores)
+- Schema migrations can be complex
 
 ---
 
@@ -96,11 +96,11 @@ defs = dg.Definitions(
 ```
 
 **Trade-offs:**
-- ✅ Excellent for analytics queries
-- ✅ Scalable to petabytes
-- ✅ Separation of storage and compute
-- ❌ Can be expensive
-- ❌ Vendor lock-in
+- Excellent for analytics queries
+- Scalable to petabytes
+- Separation of storage and compute
+- Can be expensive
+- Vendor lock-in
 
 ---
 
@@ -480,4 +480,4 @@ Source → Kafka (streaming) → TimescaleDB (time-series) → Grafana
 
 ---
 
-**Need a specific IO Manager implemented? Let me know!** 🚀
+**Need a specific IO Manager implemented? Let me know!** 

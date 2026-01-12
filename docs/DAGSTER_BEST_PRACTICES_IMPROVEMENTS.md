@@ -12,7 +12,7 @@ Analysis of honey-duck project against official Dagster best practices with acti
 
 ---
 
-## ✅ Current Strengths
+## Current Strengths
 
 **What we're already doing well**:
 
@@ -27,7 +27,7 @@ Analysis of honey-duck project against official Dagster best practices with acti
 
 ---
 
-## 🔧 Recommended Improvements
+##  Recommended Improvements
 
 ### 1. Add Asset Checks for Data Quality
 
@@ -124,10 +124,10 @@ defs = dg.Definitions(
 ```
 
 **Benefits**:
-- ✅ UI shows check status on asset page
-- ✅ Fails materializations if checks fail
-- ✅ Historical tracking of data quality
-- ✅ Can set severity (WARN vs ERROR)
+- UI shows check status on asset page
+- Fails materializations if checks fail
+- Historical tracking of data quality
+- Can set severity (WARN vs ERROR)
 
 **References**:
 - [Testing with Asset Checks](https://docs.dagster.io/guides/test/asset-checks)
@@ -243,11 +243,11 @@ defs = dg.Definitions(
 ```
 
 **Benefits**:
-- ✅ Type safety with Pydantic validation
-- ✅ Environment variable support with `EnvVar`
-- ✅ Config schema visible in UI
-- ✅ Testable (mock resources in tests)
-- ✅ Reusable across assets, sensors, schedules
+- Type safety with Pydantic validation
+- Environment variable support with `EnvVar`
+- Config schema visible in UI
+- Testable (mock resources in tests)
+- Reusable across assets, sensors, schedules
 
 **References**:
 - [Defining Resources](https://docs.dagster.io/guides/build/external-resources/defining-resources)
@@ -314,10 +314,10 @@ automation_condition = (
 ```
 
 **Benefits**:
-- ✅ More expressive than FreshnessPolicy
-- ✅ Composable with `&`, `|`, `~` operators
-- ✅ Future-proof (FreshnessPolicy deprecated)
-- ✅ Works with sensors and schedules
+- More expressive than FreshnessPolicy
+- Composable with `&`, `|`, `~` operators
+- Future-proof (FreshnessPolicy deprecated)
+- Works with sensors and schedules
 
 **References**:
 - [Declarative Automation](https://docs.dagster.io/guides/automate/declarative-automation)
@@ -380,10 +380,10 @@ def artwork_api_sensor():
 ```
 
 **Benefits**:
-- ✅ Track external data without materializing
-- ✅ Data version changes trigger downstream
-- ✅ Historical tracking of external state
-- ✅ Decouples observation from materialization
+- Track external data without materializing
+- Data version changes trigger downstream
+- Historical tracking of external state
+- Decouples observation from materialization
 
 **References**:
 - [Asset Observations](https://docs.dagster.io/guides/build/assets/metadata-and-tags/asset-observations)
@@ -513,11 +513,11 @@ def test_sales_no_nulls_check():
 ```
 
 **Benefits**:
-- ✅ Full context with logging and metadata
-- ✅ Test with IO managers
-- ✅ Mock upstream dependencies
-- ✅ Validate metadata output
-- ✅ Test asset checks independently
+- Full context with logging and metadata
+- Test with IO managers
+- Mock upstream dependencies
+- Validate metadata output
+- Test asset checks independently
 
 **References**:
 - [Unit Testing Assets](https://docs.dagster.io/guides/test/unit-testing-assets-and-ops)
@@ -589,10 +589,10 @@ def sales_by_date_and_country(context: AssetExecutionContext):
 ```
 
 **Benefits**:
-- ✅ Incremental processing (only new dates)
-- ✅ Parallel backfills
-- ✅ UI shows partition status
-- ✅ Reprocess specific dates easily
+- Incremental processing (only new dates)
+- Parallel backfills
+- UI shows partition status
+- Reprocess specific dates easily
 
 **References**:
 - [Partitioning Assets](https://docs.dagster.io/concepts/partitions-schedules-sensors/partitioning-assets)
@@ -639,7 +639,7 @@ def sales_by_date_and_country(context: AssetExecutionContext):
 
 ---
 
-## 🎯 Quick Wins
+##  Quick Wins
 
 ### 1. Add One Asset Check (5 minutes)
 
@@ -693,7 +693,7 @@ def sales_output_polars(...):
 
 ---
 
-## 📚 Additional Resources
+##  Additional Resources
 
 **Official Dagster Documentation**:
 - [Best Practice Guides](https://docs.dagster.io/guides/best-practices)

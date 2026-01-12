@@ -6,10 +6,10 @@ Automated code quality checks that run before every commit to ensure code consis
 
 Every commit automatically runs:
 
-1. **✅ Ruff Linting** - Fast Python linter (auto-fixes issues)
-2. **✅ Ruff Formatting** - Code formatting check
-3. **✅ MyPy Type Checking** - Static type analysis
-4. **✅ Pytest Tests** - Full test suite
+1. **Ruff Linting** - Fast Python linter (auto-fixes issues)
+2. **Ruff Formatting** - Code formatting check
+3. **MyPy Type Checking** - Static type analysis
+4. **Pytest Tests** - Full test suite
 
 **If any check fails, the commit is prevented** ❌
 
@@ -64,7 +64,7 @@ git commit -m "Add new feature"
 # ✓ Ruff formatting... passed
 # ✓ MyPy type check... passed
 # ✓ Pytest... passed
-# ✅ Commit successful!
+# Commit successful!
 ```
 
 ### Skip Hooks (Emergency Only)
@@ -79,7 +79,7 @@ LEFTHOOK=0 git commit -m "WIP: debugging"
 git commit --no-verify -m "WIP: debugging"
 ```
 
-**⚠️ Warning**: Only skip hooks when absolutely necessary (e.g., WIP commits on feature branch). Never skip on main/master!
+** Warning**: Only skip hooks when absolutely necessary (e.g., WIP commits on feature branch). Never skip on main/master!
 
 ---
 
@@ -166,11 +166,11 @@ git commit -m "Fix formatting"
 ```python
 # Type error (fails check)
 def add(a: int, b: int) -> int:
-    return str(a + b)  # ❌ Returns str, not int
+    return str(a + b)  # Returns str, not int
 
 # Fixed
 def add(a: int, b: int) -> int:
-    return a + b  # ✅ Returns int
+    return a + b  # Returns int
 ```
 
 **Common fixes**:
@@ -374,7 +374,7 @@ mypy-check:
 
 ## Best Practices
 
-### ✅ Do
+### Do
 
 - **Install hooks immediately** after cloning the repo
 - **Fix issues as you work**, don't wait for pre-commit to catch them
@@ -387,7 +387,7 @@ mypy-check:
 - **Commit often** with passing checks
 - **Use descriptive commit messages**
 
-### ❌ Don't
+### Don't
 
 - **Don't skip hooks** unless absolutely necessary
 - **Don't commit with failing tests** to main/master
@@ -483,4 +483,4 @@ lefthook install
 
 ---
 
-**Write better code with every commit!** ✨
+**Write better code with every commit!** 

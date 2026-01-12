@@ -654,4 +654,4 @@ docker-compose exec dagster-webserver rm -rf /app/dagster_home/storage/compute_l
 
 ---
 
-**Deploy with confidence!** 🚀
+**Deploy with confidence!** 

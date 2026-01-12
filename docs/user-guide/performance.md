@@ -18,7 +18,7 @@ Comprehensive guide to optimizing Dagster pipelines with Polars, DuckDB, and Par
 
 ### 1. Use Lazy Evaluation
 
-**❌ Eager (Slow)**:
+**Eager (Slow)**:
 ```python
 df = pl.read_parquet("data.parquet")
 df = df.filter(pl.col("value") > 100)
@@ -27,7 +27,7 @@ df = df.group_by("id").agg(pl.sum("value"))
 result = df.collect()  # Everything executes here
 ```
 
-**✅ Lazy (Fast)**:
+**Lazy (Fast)**:
 ```python
 result = (
     pl.scan_parquet("data.parquet")  # Lazy scan
@@ -50,13 +50,13 @@ result = (
 
 ### 2. Use Column Selection Early
 
-**❌ Bad - Reads all columns**:
+**Bad - Reads all columns**:
 ```python
 df = pl.scan_parquet("large_data.parquet")
 result = df.select(["id", "name"]).collect()
 ```
 
-**✅ Good - Reads only needed columns**:
+**Good - Reads only needed columns**:
 ```python
 result = pl.scan_parquet(
     "large_data.parquet",
@@ -82,14 +82,14 @@ df = read_harvest_table_lazy(
 
 ### 3. Batch Read Multiple Tables
 
-**❌ Bad - Multiple function calls**:
+**Bad - Multiple function calls**:
 ```python
 sales = read_harvest_table_lazy(dir, "sales_raw", asset_name="asset")
 artworks = read_harvest_table_lazy(dir, "artworks_raw", asset_name="asset")
 artists = read_harvest_table_lazy(dir, "artists_raw", asset_name="asset")
 ```
 
-**✅ Good - Single batch read**:
+**Good - Single batch read**:
 ```python
 tables = read_harvest_tables_lazy(
     HARVEST_PARQUET_DIR,
@@ -110,13 +110,13 @@ artists = tables["artists_raw"]
 
 ### 4. Use Streaming for Large Files
 
-**❌ Bad - Loads entire file into memory**:
+**Bad - Loads entire file into memory**:
 ```python
 df = pl.read_parquet("100gb_file.parquet")
 result = df.filter(pl.col("value") > 100).collect()
 ```
 
-**✅ Good - Streams with lazy evaluation**:
+**Good - Streams with lazy evaluation**:
 ```python
 result = (
     pl.scan_parquet("100gb_file.parquet")
@@ -143,13 +143,13 @@ result = (
 
 ### When to Use Lazy
 
-✅ **Use lazy for**:
+**Use lazy for**:
 - Production pipelines
 - Large datasets (>1GB)
 - Multiple transformations
 - Filter-heavy operations
 
-❌ **Use eager for**:
+**Use eager for**:
 - Exploration in notebooks
 - Very small data (<100MB)
 - When you need immediate results
@@ -267,7 +267,7 @@ df.write_parquet(
 
 ### Query Optimization
 
-**❌ Bad - Cartesian product**:
+**Bad - Cartesian product**:
 ```python
 result = conn.execute("""
     SELECT * FROM sales, artworks
@@ -275,7 +275,7 @@ result = conn.execute("""
 """).pl()
 ```
 
-**✅ Good - Explicit JOIN**:
+**Good - Explicit JOIN**:
 ```python
 result = conn.execute("""
     SELECT *
@@ -336,10 +336,10 @@ result = (
 
 **2. Avoid unnecessary copies**:
 ```python
-# ❌ Creates copy
+# Creates copy
 df2 = df.clone()
 
-# ✅ No copy (shares data)
+# No copy (shares data)
 df2 = df
 ```
 
@@ -363,10 +363,10 @@ def my_asset(context):
 
 **1. Use views instead of materialized tables**:
 ```python
-# ❌ Materializes entire result
+# Materializes entire result
 conn.execute("CREATE TABLE temp AS SELECT * FROM large_table WHERE ...")
 
-# ✅ Virtual view (no materialization)
+# Virtual view (no materialization)
 conn.execute("CREATE VIEW temp AS SELECT * FROM large_table WHERE ...")
 ```
 
@@ -464,14 +464,14 @@ Completed aggregation in 123.4ms
 
 **Problem**: Reading all columns when only a few are needed
 ```python
-# ❌ Slow - reads all columns
+# Slow - reads all columns
 df = pl.read_parquet("wide_table.parquet")  # 100 columns
 result = df.select(["id", "name"])  # Uses only 2
 ```
 
 **Solution**: Column pruning
 ```python
-# ✅ Fast - reads only needed columns
+# Fast - reads only needed columns
 result = pl.scan_parquet(
     "wide_table.parquet",
     columns=["id", "name"],
@@ -486,7 +486,7 @@ result = pl.scan_parquet(
 
 **Problem**: Breaking lazy evaluation chain
 ```python
-# ❌ Slow - multiple collects
+# Slow - multiple collects
 df1 = pl.scan_parquet("data.parquet").filter(...).collect()  # Collect 1
 df2 = df1.lazy().select(...).collect()  # Collect 2
 df3 = df2.lazy().group_by(...).agg(...).collect()  # Collect 3
@@ -494,7 +494,7 @@ df3 = df2.lazy().group_by(...).agg(...).collect()  # Collect 3
 
 **Solution**: Chain operations, collect once
 ```python
-# ✅ Fast - single collect
+# Fast - single collect
 result = (
     pl.scan_parquet("data.parquet")
     .filter(...)
@@ -512,7 +512,7 @@ result = (
 
 **Problem**: Reading many small files individually
 ```python
-# ❌ Slow - N file opens
+# Slow - N file opens
 for file in files:
     df = pl.read_parquet(file)
     process(df)
@@ -520,7 +520,7 @@ for file in files:
 
 **Solution**: Read all files at once
 ```python
-# ✅ Fast - single parallel read
+# Fast - single parallel read
 df = pl.scan_parquet("data/*.parquet").collect()
 ```
 
@@ -532,7 +532,7 @@ df = pl.scan_parquet("data/*.parquet").collect()
 
 **Problem**: String operations on entire dataset
 ```python
-# ❌ Slow - operates on millions of rows
+# Slow - operates on millions of rows
 df = df.with_columns(
     pl.col("name").str.to_uppercase()  # Even rows we'll filter out
 )
@@ -541,7 +541,7 @@ result = df.filter(pl.col("value") > 1000)
 
 **Solution**: Filter first, then transform
 ```python
-# ✅ Fast - operates only on filtered rows
+# Fast - operates only on filtered rows
 result = (
     df
     .filter(pl.col("value") > 1000)  # Reduce rows first
@@ -559,19 +559,19 @@ result = (
 
 **Problem**: Joining on non-unique keys without aggregation
 ```python
-# ❌ Slow - Cartesian product if keys not unique
+# Slow - Cartesian product if keys not unique
 result = sales.join(artworks, on="category")  # category not unique!
 ```
 
 **Solution**: Ensure unique keys or use proper join strategy
 ```python
-# ✅ Option 1: Aggregate first
+# Option 1: Aggregate first
 artworks_agg = artworks.group_by("category").agg(
     pl.col("price").mean().alias("avg_price")
 )
 result = sales.join(artworks_agg, on="category")
 
-# ✅ Option 2: Use specific join
+# Option 2: Use specific join
 result = sales.join(artworks, on="artwork_id")  # Primary key
 ```
 
@@ -654,4 +654,4 @@ print(f"Column pruning: {time.time() - start:.2f}s")  # 0.3s (28x faster)
 
 ---
 
-**Profile. Measure. Optimize.** 🚀
+**Profile. Measure. Optimize.** 

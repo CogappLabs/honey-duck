@@ -622,4 +622,4 @@ image_base_url="https://cdn.example.com"  # Not relative paths
 
 ---
 
-**Boost your SEO with automated sitemap generation!** 🚀🔍
+**Boost your SEO with automated sitemap generation!** 
