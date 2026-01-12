@@ -300,9 +300,9 @@ You've created your first Dagster asset with:
 ### What to Learn Next
 
 **📚 Dive Deeper**:
-- **[PATTERNS.md](../honey_duck/defs/PATTERNS.md)** - More asset patterns and examples
-- **[PERFORMANCE_TUNING.md](PERFORMANCE_TUNING.md)** - Optimize your pipelines
-- **[BEST_PRACTICES.md](BEST_PRACTICES.md)** - Production guidelines
+- **[Polars Patterns](user-guide/polars-patterns.md)** - DataFrame best practices
+- **[Performance Tuning](user-guide/performance.md)** - Optimize your pipelines
+- **[Best Practices](user-guide/best-practices.md)** - Production guidelines
 
 **🔧 Explore Features**:
 - **[Asset Checks](https://docs.dagster.io/concepts/assets/asset-checks)** - Data quality validation
@@ -310,10 +310,9 @@ You've created your first Dagster asset with:
 - **[Sensors](https://docs.dagster.io/concepts/partitions-schedules-sensors/sensors)** - Event-driven pipelines
 
 **🚀 Advanced Topics**:
-- **[Elasticsearch Integration](ELASTICSEARCH_INTEGRATION.md)** - Full-text search
-- **[API Bulk Harvesting](API_BULK_HARVESTING.md)** - Claude & Voyage AI
-- **[Sitemap Generation](SITEMAP_GENERATION.md)** - SEO optimization
-- **[IIIF Tile Generation](IIIF_TILE_GENERATION.md)** - Image processing
+- **[Elasticsearch Integration](integrations/elasticsearch.md)** - Full-text search
+- **[API Bulk Harvesting](integrations/api-harvesting.md)** - Claude & Voyage AI
+- **[Sitemap Generation](integrations/sitemaps.md)** - SEO optimization
 
 ---
 

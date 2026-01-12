@@ -397,7 +397,7 @@ docker system info | grep Memory
 **Symptoms**: Runs take too long
 
 **Solutions**:
-1. **Check Performance Guide**: See [PERFORMANCE_TUNING.md](PERFORMANCE_TUNING.md)
+1. **Check Performance Guide**: See [Performance Tuning](../user-guide/performance.md)
 2. **Use lazy evaluation**: Optimize Polars queries
 3. **Enable streaming**: For large datasets
 4. **Increase resources**: Add more CPU/memory
@@ -645,10 +645,10 @@ docker-compose exec dagster-webserver rm -rf /app/dagster_home/storage/compute_l
 **Need help?**
 - Dagster Slack: https://dagster.io/slack
 - GitHub Issues: https://github.com/cogapp/honey-duck/issues
-- Documentation: See [README.md](../README.md) for full guide list
+- Documentation: See [Getting Started](../getting-started/quick-start.md) for full guide list
 
 **Production issues?**
-- Check [Troubleshooting Guide](TROUBLESHOOTING.md)
+- Check [Troubleshooting Guide](../user-guide/troubleshooting.md)
 - Review logs: `docker-compose logs -f`
 - Dagster status page: https://status.dagster.io/
 
