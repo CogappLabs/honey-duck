@@ -21,6 +21,20 @@ uv run dagster job execute -j processors_pipeline
 
 Open http://localhost:3000 and click **"Materialize all"** to run the pipeline!
 
+### Frontend Dashboard
+
+A Next.js dashboard for client-friendly pipeline monitoring:
+
+```bash
+# Start Dagster on port 3003
+uv run dagster dev -p 3003
+
+# In another terminal
+cd frontend && npm install && npm run dev
+```
+
+Open http://localhost:3001 for the dashboard. See **[Frontend Dashboard Guide](docs/user-guide/frontend-dashboard.md)** for details.
+
 ## Documentation
 
 ### 🚀 New Users Start Here
