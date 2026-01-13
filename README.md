@@ -45,6 +45,8 @@ Quick links:
 - [API Reference](https://cogapplabs.github.io/honey-duck/api/) - Processor and helper docs
 - [Integrations](https://cogapplabs.github.io/honey-duck/integrations/elasticsearch/) - Elasticsearch, S3, and more
 
+**For contributors**: See [CLAUDE.md](CLAUDE.md) for project structure, commands, and coding conventions.
+
 ## Architecture
 
 ```
@@ -87,37 +89,28 @@ dlt_harvest_* (shared) ──→ sales_transform_<impl> ──→ sales_output_<
 
 ```
 honey_duck/
-  __init__.py           # Package metadata
   defs/
-    definitions.py      # Combined Dagster Definitions
-    dlt_sources.py      # dlt source configuration
-    dlt_assets.py       # dagster-dlt asset wrapper
-    assets.py           # Original transform/output (processor classes)
-    assets_polars.py    # Pure Polars implementation
-    assets_pandas.py    # Pure Pandas implementation
-    assets_duckdb.py    # Pure DuckDB SQL implementation
-    assets_polars_fs.py # Polars with FilesystemIOManager
-    resources.py        # Path constants and configuration
-    constants.py        # Business constants (thresholds, tiers)
-    schemas.py          # Pandera validation schemas
-    jobs.py             # Job definitions
-    checks.py           # Asset checks
+    definitions.py        # Combined Dagster Definitions (6 jobs)
+    dlt_sources.py        # dlt source configuration
+    dlt_assets.py         # dagster-dlt asset wrapper
+    assets.py             # Original implementation (processor classes)
+    assets_polars.py      # Pure Polars with split intermediate steps
+    assets_duckdb.py      # Pure DuckDB SQL implementation
+    assets_polars_fs.py   # Polars variant (different group)
+    assets_polars_ops.py  # Graph-backed assets with ops
+    assets_polars_multi.py # Multi-asset pattern
+    resources.py          # ConfigurableResource classes
+    jobs.py               # Job definitions (6 jobs)
 
-cogapp_deps/            # Utilities (simulates external package)
-  README.md             # Complete API reference
-  dagster/              # Dagster helpers
-    helpers.py          # track_timing, altair_to_metadata, table_preview_to_metadata
-    io.py               # DuckDBPandasPolarsIOManager
-  processors/           # DataFrame processors
-    pandas/             # PandasReplaceOnConditionProcessor
-    polars/             # PolarsFilterProcessor, PolarsStringProcessor
-    duckdb/             # DuckDBJoinProcessor, DuckDBWindowProcessor
+cogapp_deps/              # Utilities (simulates external package)
+  dagster/helpers.py      # write_json_output, track_timing, altair_to_metadata
+  processors/             # DuckDB and Polars processors
 
 data/
-  input/                # Source CSV files
-  output/               # Generated output (*.duckdb, *.json)
-
-dagster_home/           # Dagster persistence (run history, schedules, etc.)
+  input/                  # Source CSV files
+  output/                 # Final JSON outputs
+  storage/                # IO manager intermediate storage (Parquet)
+  harvest/                # dlt raw Parquet data
 ```
 
 ## Environment Variables

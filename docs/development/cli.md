@@ -105,8 +105,8 @@ uv run dagster job print -j polars_pipeline
 ### Available Jobs in honey-duck
 
 ```bash
-# Original implementation
-uv run dagster job execute -j full_pipeline
+# Original implementation (processor classes)
+uv run dagster job execute -j processors_pipeline
 
 # Polars implementation (split assets)
 uv run dagster job execute -j polars_pipeline
