@@ -33,17 +33,30 @@ uv run dagster dev -p 3003
 cd frontend && npm install && npm run dev
 ```
 
-Open http://localhost:3001 for the dashboard. See the **[Frontend Dashboard Guide](https://cogapplabs.github.io/honey-duck/user-guide/frontend-dashboard/)** for details.
+Open http://localhost:3001 for the dashboard. See the **[Frontend Dashboard Guide](docs/user-guide/frontend-dashboard.md)** for details.
 
 ## Documentation
 
-**[View Full Documentation](https://cogapplabs.github.io/honey-duck)**
+Run `mkdocs serve` to view docs locally at http://localhost:8000.
 
-Quick links:
-- [Tutorial](https://cogapplabs.github.io/honey-duck/getting-started/tutorial/) - Build your first asset
-- [Best Practices](https://cogapplabs.github.io/honey-duck/user-guide/best-practices/) - Production guidelines
-- [API Reference](https://cogapplabs.github.io/honey-duck/api/) - Processor and helper docs
-- [Integrations](https://cogapplabs.github.io/honey-duck/integrations/elasticsearch/) - Elasticsearch, S3, and more
+**Getting Started**:
+- [Tutorial](docs/getting-started/tutorial.md) - Build your first asset
+- [Installation](docs/getting-started/installation.md) - Setup and configuration
+
+**Guides**:
+- [Best Practices](docs/user-guide/best-practices.md) - Production guidelines
+- [Polars Patterns](docs/user-guide/polars-patterns.md) - Copy-paste asset patterns
+- [Performance](docs/user-guide/performance.md) - Optimize your pipelines
+- [Troubleshooting](docs/user-guide/troubleshooting.md) - Common issues
+
+**Integrations**:
+- [Elasticsearch](docs/integrations/elasticsearch.md) - Full-text search
+- [Common Outputs](docs/integrations/common-outputs.md) - PostgreSQL, BigQuery, S3
+- [API Harvesting](docs/integrations/api-harvesting.md) - Claude & Voyage AI
+
+**API Reference**:
+- [Dagster Helpers](docs/api/dagster-helpers.md) - Utility functions
+- [Processors](docs/api/processors.md) - DataFrame processors
 
 ## Architecture
 
