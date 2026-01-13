@@ -23,7 +23,7 @@ Open http://localhost:3001 in your browser.
 
 Start Dagster on port 3003:
 ```bash
-DAGSTER_WEBSERVER_PORT=3003 uv run dg dev
+uv run dg dev -p 3003
 ```
 
 ## Stack

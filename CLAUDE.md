@@ -15,7 +15,7 @@ cp .env.example .env
 uv run dg dev
 
 # With custom port for frontend compatibility
-DAGSTER_WEBSERVER_PORT=3003 uv run dg dev
+uv run dg dev -p 3003
 
 # Run pipeline via CLI
 uv run dg launch --job processors_pipeline

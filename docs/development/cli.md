@@ -20,7 +20,7 @@ honey-duck uses two CLIs:
 uv run dg dev
 
 # Start on specific port
-DAGSTER_WEBSERVER_PORT=3001 uv run dg dev
+uv run dg dev -p 3001
 
 # Validate definitions before starting
 uv run dg check defs

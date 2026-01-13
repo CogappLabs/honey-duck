@@ -30,7 +30,7 @@ A Next.js dashboard for client-friendly pipeline monitoring:
 
 ```bash
 # Start Dagster (frontend expects port 3003)
-DAGSTER_WEBSERVER_PORT=3003 uv run dg dev
+uv run dg dev -p 3003
 
 # In another terminal
 cd frontend && npm install && npm run dev
