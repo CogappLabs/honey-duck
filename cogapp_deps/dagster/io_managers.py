@@ -1,11 +1,21 @@
 """Custom IO Managers for Dagster pipelines.
 
-Provides JSON IO Manager for writing final outputs using Dagster's IO system.
+Provides IO Managers for writing final outputs using Dagster's IO system:
+- JSONIOManager: Write DataFrames to JSON files using DuckDB's native export
+- ElasticsearchIOManager: Bulk index DataFrames to Elasticsearch 8/9
+- OpenSearchIOManager: Bulk index DataFrames to OpenSearch (AWS)
+
+Performance notes:
+- ElasticsearchIOManager uses generator-based bulk indexing via itertuples()
+  for memory efficiency. This avoids materializing the full DataFrame as a
+  list of dicts, enabling streaming of large datasets.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+import math
+from collections.abc import Iterator
+from typing import TYPE_CHECKING, Any
 
 import dagster as dg
 import duckdb
@@ -16,6 +26,91 @@ if TYPE_CHECKING:
     import pandas as pd
     import polars as pl
     from upath import UPath
+
+
+def _clean_for_json(value: Any) -> Any:
+    """Clean a value for JSON serialization.
+
+    Handles NaN, pd.NA, None, and other non-JSON-serializable values.
+
+    Args:
+        value: Any value to clean
+
+    Returns:
+        JSON-serializable value (None for NaN/NA values)
+    """
+    if value is None:
+        return None
+    # Handle float NaN and inf
+    if isinstance(value, float):
+        if math.isnan(value) or math.isinf(value):
+            return None
+    # Handle pandas NA (if pandas is available)
+    try:
+        import pandas as pd
+
+        if pd.isna(value):
+            return None
+    except (ImportError, TypeError, ValueError):
+        pass
+    return value
+
+
+def _generate_actions_from_polars(
+    df: pl.DataFrame, index: str, id_field: str | None = None
+) -> Iterator[dict]:
+    """Generate Elasticsearch bulk actions from a Polars DataFrame.
+
+    Uses iter_rows(named=True) for memory-efficient streaming without
+    materializing the full DataFrame as a list of dicts.
+
+    Args:
+        df: Polars DataFrame to stream
+        index: Elasticsearch index name
+        id_field: Optional field name to use as document _id
+
+    Yields:
+        Bulk action dicts for elasticsearch.helpers.bulk
+    """
+    for row in df.iter_rows(named=True):
+        doc = {k: _clean_for_json(v) for k, v in row.items()}
+        action = {"_index": index, "_source": doc}
+        if id_field and id_field in doc:
+            action["_id"] = doc[id_field]
+        elif "id" in doc:
+            action["_id"] = doc["id"]
+        elif "_id" in doc:
+            action["_id"] = doc["_id"]
+        yield action
+
+
+def _generate_actions_from_pandas(
+    df: pd.DataFrame, index: str, id_field: str | None = None
+) -> Iterator[dict]:
+    """Generate Elasticsearch bulk actions from a Pandas DataFrame.
+
+    Uses itertuples() for memory-efficient streaming without materializing
+    the full DataFrame as a list of dicts.
+
+    Args:
+        df: Pandas DataFrame to stream
+        index: Elasticsearch index name
+        id_field: Optional field name to use as document _id
+
+    Yields:
+        Bulk action dicts for elasticsearch.helpers.bulk
+    """
+    columns = df.columns.tolist()
+    for row in df.itertuples(index=False):
+        doc = {k: _clean_for_json(v) for k, v in zip(columns, row)}
+        action = {"_index": index, "_source": doc}
+        if id_field and id_field in doc:
+            action["_id"] = doc[id_field]
+        elif "id" in doc:
+            action["_id"] = doc["id"]
+        elif "_id" in doc:
+            action["_id"] = doc["_id"]
+        yield action
 
 
 class JSONIOManager(UPathIOManager):
@@ -278,11 +373,15 @@ class ElasticsearchIOManager(dg.IOManager):
     def handle_output(self, context: OutputContext, obj: pd.DataFrame | pl.DataFrame):
         """Write DataFrame to Elasticsearch using bulk API.
 
+        Uses generator-based streaming for memory efficiency - never materializes
+        the full DataFrame as a list of dicts.
+
         Args:
             context: Dagster output context
             obj: DataFrame to index (pandas or polars)
         """
         import time
+
         import polars as pl
 
         client = self._get_client()
@@ -292,38 +391,25 @@ class ElasticsearchIOManager(dg.IOManager):
         # Create index if needed
         self._create_index_if_not_exists(client, index_name, asset_name, context)
 
-        # Convert to records (list of dicts)
-        if isinstance(obj, pl.DataFrame):
-            records = obj.to_dicts()
-        else:  # pandas
-            records = cast(list[dict[str, Any]], obj.to_dict("records"))
+        # Get record count without materializing
+        record_count = len(obj)
+        context.log.info(f"Indexing {record_count:,} documents to '{index_name}'")
 
-        context.log.info(f"Indexing {len(records):,} documents to '{index_name}'")
-
-        # Bulk index in batches
+        # Bulk index using generator-based streaming
         from elasticsearch.helpers import bulk
 
         start_time = time.perf_counter()
 
-        # Generate bulk actions
-        def generate_actions():
-            for record in records:
-                # Use _id if present, otherwise let ES generate
-                action = {
-                    "_index": index_name,
-                    "_source": record,
-                }
-                if "id" in record:
-                    action["_id"] = record["id"]
-                elif "_id" in record:
-                    action["_id"] = record["_id"]
-
-                yield action
+        # Generate bulk actions using memory-efficient generators
+        if isinstance(obj, pl.DataFrame):
+            actions = _generate_actions_from_polars(obj, index_name)
+        else:  # pandas
+            actions = _generate_actions_from_pandas(obj, index_name)
 
         # Perform bulk indexing
         success_count, failed_items = bulk(
             client,
-            generate_actions(),
+            actions,
             chunk_size=self.bulk_size,
             raise_on_error=False,
             raise_on_exception=False,
@@ -571,8 +657,13 @@ class OpenSearchIOManager(dg.IOManager):
             client.indices.create(index=index_name, body=index_body)
 
     def handle_output(self, context: OutputContext, obj: pd.DataFrame | pl.DataFrame):
-        """Write DataFrame to OpenSearch using bulk API."""
+        """Write DataFrame to OpenSearch using bulk API.
+
+        Uses generator-based streaming for memory efficiency - never materializes
+        the full DataFrame as a list of dicts.
+        """
         import time
+
         import polars as pl
 
         client = self._get_client()
@@ -581,34 +672,24 @@ class OpenSearchIOManager(dg.IOManager):
 
         self._create_index_if_not_exists(client, index_name, asset_name, context)
 
-        # Convert to records
-        if isinstance(obj, pl.DataFrame):
-            records = obj.to_dicts()
-        else:  # pandas
-            records = cast(list[dict[str, Any]], obj.to_dict("records"))
+        # Get record count without materializing
+        record_count = len(obj)
+        context.log.info(f"Indexing {record_count:,} documents to '{index_name}'")
 
-        context.log.info(f"Indexing {len(records):,} documents to '{index_name}'")
-
-        # Bulk index
+        # Bulk index using generator-based streaming
         from opensearchpy.helpers import bulk
 
         start_time = time.perf_counter()
 
-        def generate_actions():
-            for record in records:
-                action = {
-                    "_index": index_name,
-                    "_source": record,
-                }
-                if "id" in record:
-                    action["_id"] = record["id"]
-                elif "_id" in record:
-                    action["_id"] = record["_id"]
-                yield action
+        # Generate bulk actions using memory-efficient generators
+        if isinstance(obj, pl.DataFrame):
+            actions = _generate_actions_from_polars(obj, index_name)
+        else:  # pandas
+            actions = _generate_actions_from_pandas(obj, index_name)
 
         success_count, failed_items = bulk(
             client,
-            generate_actions(),
+            actions,
             chunk_size=self.bulk_size,
             raise_on_error=False,
             raise_on_exception=False,

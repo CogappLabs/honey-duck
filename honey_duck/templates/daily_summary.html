@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Pipeline Summary - {{ date }}</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 24px;
+        }
+        h1 {
+            margin: 0;
+            font-size: 24px;
+            color: #111;
+        }
+        .date {
+            color: #666;
+            font-size: 14px;
+            margin-top: 4px;
+        }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin: 24px 0;
+        }
+        .summary-card {
+            text-align: center;
+            padding: 16px 8px;
+            border-radius: 8px;
+        }
+        .summary-card.total {
+            background-color: #f0f9ff;
+            border: 1px solid #bae6fd;
+        }
+        .summary-card.success {
+            background-color: #f0fdf4;
+            border: 1px solid #bbf7d0;
+        }
+        .summary-card.failed {
+            background-color: #fef2f2;
+            border: 1px solid #fecaca;
+        }
+        .summary-card.skipped {
+            background-color: #fefce8;
+            border: 1px solid #fef08a;
+        }
+        .summary-value {
+            font-size: 32px;
+            font-weight: 700;
+        }
+        .summary-card.total .summary-value { color: #0284c7; }
+        .summary-card.success .summary-value { color: #16a34a; }
+        .summary-card.failed .summary-value { color: #dc2626; }
+        .summary-card.skipped .summary-value { color: #ca8a04; }
+        .summary-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+        .runs-section {
+            margin: 24px 0;
+        }
+        .runs-section h2 {
+            font-size: 16px;
+            margin-bottom: 16px;
+            color: #333;
+        }
+        .run-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .run-table th {
+            text-align: left;
+            padding: 10px 8px;
+            background-color: #f9fafb;
+            border-bottom: 2px solid #e5e7eb;
+            font-weight: 600;
+            color: #374151;
+        }
+        .run-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .status-pill {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        .status-success {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+        .status-failed {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+        .pipeline-name {
+            font-family: monospace;
+        }
+        .metrics-section {
+            background-color: #f9fafb;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 24px 0;
+        }
+        .metrics-section h2 {
+            font-size: 16px;
+            margin: 0 0 16px 0;
+            color: #333;
+        }
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+        .metric {
+            text-align: center;
+        }
+        .metric-value {
+            font-size: 20px;
+            font-weight: 600;
+            color: #111;
+        }
+        .metric-label {
+            font-size: 12px;
+            color: #666;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid #eee;
+            font-size: 12px;
+            color: #888;
+        }
+        .btn {
+            display: inline-block;
+            background-color: #3b82f6;
+            color: white;
+            padding: 10px 24px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Daily Pipeline Summary</h1>
+            <div class="date">{{ date }}</div>
+        </div>
+
+        <div class="summary-grid">
+            <div class="summary-card total">
+                <div class="summary-value">{{ total_runs }}</div>
+                <div class="summary-label">Total Runs</div>
+            </div>
+            <div class="summary-card success">
+                <div class="summary-value">{{ successful_runs }}</div>
+                <div class="summary-label">Successful</div>
+            </div>
+            <div class="summary-card failed">
+                <div class="summary-value">{{ failed_runs }}</div>
+                <div class="summary-label">Failed</div>
+            </div>
+            <div class="summary-card skipped">
+                <div class="summary-value">{{ skipped_runs | default(0) }}</div>
+                <div class="summary-label">Skipped</div>
+            </div>
+        </div>
+
+        {% if runs %}
+        <div class="runs-section">
+            <h2>Pipeline Runs</h2>
+            <table class="run-table">
+                <thead>
+                    <tr>
+                        <th>Pipeline</th>
+                        <th>Status</th>
+                        <th>Duration</th>
+                        <th>Records</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for run in runs %}
+                    <tr>
+                        <td class="pipeline-name">{{ run.name }}</td>
+                        <td>
+                            <span class="status-pill {% if run.success %}status-success{% else %}status-failed{% endif %}">
+                                {{ 'SUCCESS' if run.success else 'FAILED' }}
+                            </span>
+                        </td>
+                        <td>{{ run.duration | default('--') }}</td>
+                        <td>{{ run.records | default('--') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        {% if metrics %}
+        <div class="metrics-section">
+            <h2>Key Metrics</h2>
+            <div class="metrics-grid">
+                <div class="metric">
+                    <div class="metric-value">{{ metrics.total_records | default('--') }}</div>
+                    <div class="metric-label">Records Processed</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">{{ metrics.avg_duration | default('--') }}</div>
+                    <div class="metric-label">Avg Duration</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">{{ metrics.success_rate | default('--') }}%</div>
+                    <div class="metric-label">Success Rate</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if dagster_url %}
+        <div style="text-align: center; margin-top: 24px;">
+            <a href="{{ dagster_url }}" class="btn">View All Runs in Dagster</a>
+        </div>
+        {% endif %}
+
+        <div class="footer">
+            <p>Environment: {{ environment | default('production') }}</p>
+            <p>Generated at {{ generated_at }}</p>
+        </div>
+    </div>
+</body>
+</html>
