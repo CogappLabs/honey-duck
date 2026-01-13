@@ -22,15 +22,17 @@ class PolarsFilterProcessor:
     Supports lazy evaluation when used in a Chain for query optimization.
 
     Example:
-        >>> processor = PolarsFilterProcessor("price", 1000, ">=")
-        >>> filtered_df = processor.process(df)
+        ```python
+        processor = PolarsFilterProcessor("price", 1000, ">=")
+        filtered_df = processor.process(df)
 
         # Chained with optimization:
-        >>> chain = Chain([
-        ...     PolarsStringProcessor("name", "upper"),
-        ...     PolarsFilterProcessor("price", 1000, ">="),
-        ... ])
-        >>> result = chain.process(df)  # single optimized query
+        chain = Chain([
+            PolarsStringProcessor("name", "upper"),
+            PolarsFilterProcessor("price", 1000, ">="),
+        ])
+        result = chain.process(df)  # single optimized query
+        ```
     """
 
     def __init__(self, column: str, threshold: float, operator: str = ">="):

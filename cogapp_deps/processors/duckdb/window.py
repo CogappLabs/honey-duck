@@ -20,13 +20,15 @@ class DuckDBWindowProcessor:
     and returns the result with new columns added.
 
     Example:
-        >>> processor = DuckDBWindowProcessor(
-        ...     exprs={
-        ...         "rank_in_artist": "ROW_NUMBER() OVER (PARTITION BY artist ORDER BY price DESC)",
-        ...         "artist_total": "SUM(price) OVER (PARTITION BY artist)",
-        ...     }
-        ... )
-        >>> df_with_windows = processor.process(input_df)
+        ```python
+        processor = DuckDBWindowProcessor(
+            exprs={
+                "rank_in_artist": "ROW_NUMBER() OVER (PARTITION BY artist ORDER BY price DESC)",
+                "artist_total": "SUM(price) OVER (PARTITION BY artist)",
+            }
+        )
+        df_with_windows = processor.process(input_df)
+        ```
     """
 
     def __init__(self, exprs: dict[str, str]):

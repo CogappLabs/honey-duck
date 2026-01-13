@@ -24,25 +24,31 @@ class DuckDBSQLProcessor:
     Use for transforming DataFrames with complex SQL logic.
 
     Example:
-        >>> processor = DuckDBSQLProcessor(sql=\"\"\"
-        ...     SELECT *,
-        ...         price * 1.1 AS price_with_tax
-        ...     FROM _input
-        ...     WHERE status = 'active'
-        ... \"\"\")
-        >>> result = processor.process(input_df)
+        ```python
+        processor = DuckDBSQLProcessor(sql=\"\"\"
+            SELECT *,
+                price * 1.1 AS price_with_tax
+            FROM _input
+            WHERE status = 'active'
+        \"\"\")
+        result = processor.process(input_df)
+        ```
 
     For multi-table operations, pass additional DataFrames via `tables`:
-        >>> processor = DuckDBSQLProcessor(sql=\"\"\"
-        ...     SELECT a.*, b.category_name
-        ...     FROM _input a
-        ...     LEFT JOIN categories b ON a.category_id = b.id
-        ... \"\"\")
-        >>> result = processor.process(products_df, tables={"categories": categories_df})
+        ```python
+        processor = DuckDBSQLProcessor(sql=\"\"\"
+            SELECT a.*, b.category_name
+            FROM _input a
+            LEFT JOIN categories b ON a.category_id = b.id
+        \"\"\")
+        result = processor.process(products_df, tables={"categories": categories_df})
+        ```
 
     For lazy output (enables downstream streaming):
-        >>> processor = DuckDBSQLProcessor(sql="SELECT * FROM _input", lazy=True)
-        >>> lazy_result = processor.process(input_df)  # Returns LazyFrame
+        ```python
+        processor = DuckDBSQLProcessor(sql="SELECT * FROM _input", lazy=True)
+        lazy_result = processor.process(input_df)  # Returns LazyFrame
+        ```
     """
 
     def __init__(self, sql: str, lazy: bool = False):

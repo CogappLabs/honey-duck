@@ -36,15 +36,17 @@ class PolarsStringProcessor:
     Supports lazy evaluation when used in a Chain.
 
     Example:
-        >>> processor = PolarsStringProcessor("artist_name", "upper")
-        >>> result_df = processor.process(df)  # accepts pandas or polars
+        ```python
+        processor = PolarsStringProcessor("artist_name", "upper")
+        result_df = processor.process(df)  # accepts pandas or polars
 
         # Chained with optimization:
-        >>> chain = Chain([
-        ...     PolarsStringProcessor("name", "upper"),
-        ...     PolarsFilterProcessor("price", 1000, ">="),
-        ... ])
-        >>> result = chain.process(df)  # single optimized query
+        chain = Chain([
+            PolarsStringProcessor("name", "upper"),
+            PolarsFilterProcessor("price", 1000, ">="),
+        ])
+        result = chain.process(df)  # single optimized query
+        ```
     """
 
     def __init__(self, column: str, transform: TransformType = "upper"):
@@ -109,8 +111,10 @@ def uppercase_column(df: pd.DataFrame, column: str) -> pd.DataFrame:
         DataFrame with transformed column
 
     Example:
-        >>> df = uppercase_column(df, "artist_name")
-        >>> df["artist_name"].iloc[0]  # 'VINCENT VAN GOGH'
+        ```python
+        df = uppercase_column(df, "artist_name")
+        df["artist_name"].iloc[0]  # 'VINCENT VAN GOGH'
+        ```
     """
     if not POLARS_AVAILABLE:
         # Fallback to pandas if polars not available

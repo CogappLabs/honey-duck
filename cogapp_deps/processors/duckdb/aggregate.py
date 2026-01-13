@@ -20,15 +20,17 @@ class DuckDBAggregateProcessor:
     and returns the grouped result.
 
     Example:
-        >>> processor = DuckDBAggregateProcessor(
-        ...     group_cols=["artwork_id"],
-        ...     agg_exprs={
-        ...         "total_count": "COUNT(*)",
-        ...         "total_value": "SUM(sale_price_usd)",
-        ...         "avg_price": "ROUND(AVG(sale_price_usd), 0)",
-        ...     },
-        ... )
-        >>> aggregated_df = processor.process(sales_df)
+        ```python
+        processor = DuckDBAggregateProcessor(
+            group_cols=["artwork_id"],
+            agg_exprs={
+                "total_count": "COUNT(*)",
+                "total_value": "SUM(sale_price_usd)",
+                "avg_price": "ROUND(AVG(sale_price_usd), 0)",
+            },
+        )
+        aggregated_df = processor.process(sales_df)
+        ```
     """
 
     def __init__(
