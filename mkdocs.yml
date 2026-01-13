@@ -1,5 +1,5 @@
 site_name: Honey Duck
-site_description: DuckDB-backed DataFrame pipeline with Dagster orchestration
+site_description: Polars/Parquet data pipeline with Dagster orchestration
 site_url: https://cogapplabs.github.io/honey-duck
 repo_url: https://github.com/CogappLabs/honey-duck
 repo_name: CogappLabs/honey-duck

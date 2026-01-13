@@ -1,6 +1,6 @@
 # honey-duck
 
-A DuckDB-backed DataFrame pipeline with Dagster orchestration, demonstrating the lakehouse pattern with dlt harvest and processor utilities.
+A Polars/Parquet data pipeline with Dagster orchestration, using dlt for data ingestion and DuckDB for SQL queries.
 
 ## Quick Start
 

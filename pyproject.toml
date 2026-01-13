@@ -1,7 +1,7 @@
 [project]
 name = "honey-duck"
 version = "0.1.0"
-description = "DuckDB-backed DataFrame pipeline with Dagster"
+description = "Polars/Parquet data pipeline with Dagster orchestration"
 requires-python = ">=3.12"
 dependencies = [
     "duckdb>=1.1",

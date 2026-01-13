@@ -1,3 +1,3 @@
-"""DuckDB-backed DataFrame pipeline with Dagster orchestration."""
+"""Polars/Parquet data pipeline with Dagster orchestration."""
 
 __version__ = "0.1.0"
