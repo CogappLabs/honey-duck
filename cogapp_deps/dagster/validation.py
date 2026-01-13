@@ -41,13 +41,15 @@ def read_parquet_table_lazy(
         MissingColumnError: If required columns are missing (lists available columns)
 
     Example:
-        >>> sales = read_parquet_table_lazy(
-        ...     "/path/to/harvest_parquet",
-        ...     "sales_raw",
-        ...     required_columns=["sale_id", "sale_price_usd"],
-        ...     asset_name="sales_transform"
-        ... )
-        >>> result = sales.filter(pl.col("sale_price_usd") > 1000).collect()
+        ```python
+        sales = read_parquet_table_lazy(
+            "/path/to/harvest_parquet",
+            "sales_raw",
+            required_columns=["sale_id", "sale_price_usd"],
+            asset_name="sales_transform"
+        )
+        result = sales.filter(pl.col("sale_price_usd") > 1000).collect()
+        ```
     """
     parquet_dir = Path(parquet_dir)
 
@@ -114,14 +116,16 @@ def read_duckdb_table_lazy(
         MissingColumnError: If required columns are missing (lists available columns)
 
     Example:
-        >>> sales = read_duckdb_table_lazy(
-        ...     "pipeline.duckdb",
-        ...     "sales",
-        ...     schema="raw",
-        ...     required_columns=["sale_id", "sale_price_usd"],
-        ...     asset_name="sales_transform"
-        ... )
-        >>> result = sales.filter(pl.col("sale_price_usd") > 1000).collect()
+        ```python
+        sales = read_duckdb_table_lazy(
+            "pipeline.duckdb",
+            "sales",
+            schema="raw",
+            required_columns=["sale_id", "sale_price_usd"],
+            asset_name="sales_transform"
+        )
+        result = sales.filter(pl.col("sale_price_usd") > 1000).collect()
+        ```
     """
     db_path = Path(db_path)
 
@@ -187,13 +191,15 @@ def read_harvest_table_lazy(
         MissingColumnError: If required columns are missing (lists available columns)
 
     Example:
-        >>> from pathlib import Path
-        >>> sales = read_harvest_table_lazy(
-        ...     Path("data/output/dlt/harvest_parquet"),
-        ...     "sales_raw",
-        ...     asset_name="sales_transform"
-        ... )
-        >>> result = sales.filter(pl.col("sale_price_usd") > 1000).collect()
+        ```python
+        from pathlib import Path
+        sales = read_harvest_table_lazy(
+            Path("data/output/dlt/harvest_parquet"),
+            "sales_raw",
+            asset_name="sales_transform"
+        )
+        result = sales.filter(pl.col("sale_price_usd") > 1000).collect()
+        ```
     """
     harvest_dir = Path(harvest_dir)
     return read_parquet_table_lazy(
@@ -231,16 +237,18 @@ def read_harvest_tables_lazy(
         MissingColumnError: If required columns are missing (lists available columns)
 
     Example:
-        >>> tables = read_harvest_tables_lazy(
-        ...     Path("data/output/dlt/harvest_parquet"),
-        ...     ("sales_raw", ["sale_id", "sale_price_usd"]),
-        ...     ("artworks_raw", ["artwork_id", "title"]),
-        ...     ("artists_raw", None),  # No column validation
-        ...     asset_name="sales_transform"
-        ... )
-        >>> sales = tables["sales_raw"]
-        >>> artworks = tables["artworks_raw"]
-        >>> result = sales.join(artworks, on="artwork_id").collect()
+        ```python
+        tables = read_harvest_tables_lazy(
+            Path("data/output/dlt/harvest_parquet"),
+            ("sales_raw", ["sale_id", "sale_price_usd"]),
+            ("artworks_raw", ["artwork_id", "title"]),
+            ("artists_raw", None),  # No column validation
+            asset_name="sales_transform"
+        )
+        sales = tables["sales_raw"]
+        artworks = tables["artworks_raw"]
+        result = sales.join(artworks, on="artwork_id").collect()
+        ```
     """
     result = {}
     for table_name, required_columns in table_specs:
@@ -270,11 +278,13 @@ def validate_dataframe(
         dagster.Failure: If required columns are missing (with metadata)
 
     Example:
-        >>> validate_dataframe(
-        ...     sales_df,
-        ...     ["sale_id", "sale_price_usd"],
-        ...     "sales_transform"
-        ... )
+        ```python
+        validate_dataframe(
+            sales_df,
+            ["sale_id", "sale_price_usd"],
+            "sales_transform"
+        )
+        ```
     """
     missing = set(required_columns) - set(df.columns)
     if missing:

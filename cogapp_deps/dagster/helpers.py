@@ -47,16 +47,18 @@ def read_tables_from_duckdb(
         FileNotFoundError: If database doesn't exist
 
     Example:
-        >>> tables = read_tables_from_duckdb(
-        ...     "pipeline.duckdb",
-        ...     ("sales", ["sale_id", "sale_price_usd"]),
-        ...     ("artworks", ["artwork_id", "title"]),
-        ...     schema="raw",
-        ...     asset_name="sales_transform",
-        ... )
-        >>> sales = tables["sales"]
-        >>> artworks = tables["artworks"]
-        >>> result = sales.join(artworks, on="artwork_id").collect()
+        ```python
+        tables = read_tables_from_duckdb(
+            "pipeline.duckdb",
+            ("sales", ["sale_id", "sale_price_usd"]),
+            ("artworks", ["artwork_id", "title"]),
+            schema="raw",
+            asset_name="sales_transform",
+        )
+        sales = tables["sales"]
+        artworks = tables["artworks"]
+        result = sales.join(artworks, on="artwork_id").collect()
+        ```
     """
     result = {}
     for table_name, required_columns in table_specs:
@@ -96,21 +98,23 @@ def add_dataframe_metadata(
         **extra_metadata: Additional metadata to include
 
     Example:
-        >>> # Simple usage
-        >>> add_dataframe_metadata(
-        ...     context,
-        ...     result,
-        ...     unique_artworks=result["artwork_id"].n_unique(),
-        ...     total_value=float(result["sale_price_usd"].sum()),
-        ... )
+        ```python
+        # Simple usage
+        add_dataframe_metadata(
+            context,
+            result,
+            unique_artworks=result["artwork_id"].n_unique(),
+            total_value=float(result["sale_price_usd"].sum()),
+        )
 
-        >>> # With multi-output asset
-        >>> add_dataframe_metadata(
-        ...     context,
-        ...     result,
-        ...     output_name="sales_joined",
-        ...     unique_artworks=result["artwork_id"].n_unique(),
-        ... )
+        # With multi-output asset
+        add_dataframe_metadata(
+            context,
+            result,
+            output_name="sales_joined",
+            unique_artworks=result["artwork_id"].n_unique(),
+        )
+        ```
     """
     metadata = {
         "record_count": len(df),
@@ -138,17 +142,19 @@ class track_timing:
         mapping_key: (Optional) For dynamic partitions - specify partition key
 
     Example:
-        >>> @dg.asset(kinds={"polars"})
-        >>> def my_asset(context: dg.AssetExecutionContext) -> pl.DataFrame:
-        ...     with track_timing(context, "transformation"):
-        ...         result = expensive_operation()
-        ...         # Automatically logs: "Completed transformation in 123.4ms"
-        ...         # Automatically adds processing_time_ms to metadata
-        ...     return result
+        ```python
+        @dg.asset(kinds={"polars"})
+        def my_asset(context: dg.AssetExecutionContext) -> pl.DataFrame:
+            with track_timing(context, "transformation"):
+                result = expensive_operation()
+                # Automatically logs: "Completed transformation in 123.4ms"
+                # Automatically adds processing_time_ms to metadata
+            return result
 
-        >>> # With multi-output asset
-        >>> with track_timing(context, "loading", output_name="sales_joined"):
-        ...     result = load_data()
+        # With multi-output asset
+        with track_timing(context, "loading", output_name="sales_joined"):
+            result = load_data()
+        ```
     """
 
     def __init__(
@@ -209,8 +215,10 @@ def altair_to_metadata(chart: alt.Chart, title: str = "chart") -> dict[str, dg.M
         Dictionary with single key containing MetadataValue.md() with embedded image
 
     Example:
-        >>> chart = result.plot.bar(x="category", y="count")
-        >>> context.add_output_metadata(altair_to_metadata(chart, "distribution"))
+        ```python
+        chart = result.plot.bar(x="category", y="count")
+        context.add_output_metadata(altair_to_metadata(chart, "distribution"))
+        ```
     """
     # Save chart to PNG bytes
     png_bytes = io.BytesIO()
@@ -244,13 +252,15 @@ def table_preview_to_metadata(
         Dictionary with single key containing MetadataValue.md() with markdown table
 
     Example:
-        >>> context.add_output_metadata(
-        ...     table_preview_to_metadata(
-        ...         result.head(5),
-        ...         title="top_sales",
-        ...         header="Top 5 Sales by Value"
-        ...     )
-        ... )
+        ```python
+        context.add_output_metadata(
+            table_preview_to_metadata(
+                result.head(5),
+                title="top_sales",
+                header="Top 5 Sales by Value"
+            )
+        )
+        ```
     """
     md_table = df.head(max_rows).to_pandas().to_markdown(index=False)
     if header:
