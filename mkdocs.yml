@@ -65,6 +65,7 @@ nav:
   - User Guide:
     - Best Practices: user-guide/best-practices.md
     - Polars Patterns: user-guide/polars-patterns.md
+    - Frontend Dashboard: user-guide/frontend-dashboard.md
     - Performance Tuning: user-guide/performance.md
     - Troubleshooting: user-guide/troubleshooting.md
   - Integrations:
