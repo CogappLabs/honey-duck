@@ -16,7 +16,7 @@ import polars as pl
 import pytest
 from dagster import IOManager, InputContext, OutputContext
 
-from honey_duck.defs.resources import OutputPathsResource, PathsResource
+from honey_duck.defs.shared.resources import OutputPathsResource, PathsResource
 
 
 class NoOpIOManager(IOManager):

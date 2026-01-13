@@ -38,7 +38,7 @@ Analysis of honey-duck project against official Dagster best practices with acti
 **Implementation**:
 
 ```python
-# honey_duck/defs/checks.py
+# src/honey_duck/defs/shared/checks.py
 
 from dagster import asset_check, AssetCheckResult
 
@@ -141,7 +141,7 @@ defs = dg.Definitions(
 
 **Best Practice**: Use `ConfigurableResource` for type safety and config management
 
-**Current** (`honey_duck/defs/resources.py`):
+**Current** (`src/honey_duck/defs/shared/resources.py`):
 ```python
 # Current approach
 HARVEST_PARQUET_DIR = Path(__file__).parent.parent.parent / "data" / "output" / "dlt"
@@ -149,7 +149,7 @@ HARVEST_PARQUET_DIR = Path(__file__).parent.parent.parent / "data" / "output" / 
 
 **Improved**:
 ```python
-# honey_duck/defs/resources.py
+# src/honey_duck/defs/shared/resources.py
 
 from dagster import ConfigurableResource
 from pydantic import Field
@@ -334,7 +334,7 @@ automation_condition = (
 
 **Implementation**:
 ```python
-# honey_duck/defs/observations.py
+# src/honey_duck/defs/shared/observations.py
 
 from dagster import observable_source_asset, ObserveResult
 import requests
@@ -644,7 +644,7 @@ def sales_by_date_and_country(context: AssetExecutionContext):
 ### 1. Add One Asset Check (5 minutes)
 
 ```bash
-# Add to honey_duck/defs/checks.py
+# Add to src/honey_duck/defs/shared/checks.py
 @asset_check(asset="sales_output_polars")
 def check_output_not_empty(sales_output_polars: pl.DataFrame):
     passed = len(sales_output_polars) > 0
@@ -665,7 +665,7 @@ defs = dg.Definitions(
 ### 2. Convert One Resource (10 minutes)
 
 ```python
-# honey_duck/defs/resources.py
+# src/honey_duck/defs/shared/resources.py
 from dagster import ConfigurableResource
 
 class PathsResource(ConfigurableResource):

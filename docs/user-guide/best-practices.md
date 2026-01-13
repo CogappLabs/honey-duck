@@ -408,7 +408,7 @@ def filter_valid_sales(context) -> pl.DataFrame:
 
 ```python
 # GOOD - Clear external dependency
-from honey_duck.defs.helpers import STANDARD_HARVEST_DEPS
+from honey_duck.defs.shared.helpers import STANDARD_HARVEST_DEPS
 
 @dg.asset(
     deps=STANDARD_HARVEST_DEPS,  # ← External CSV/SQLite files
@@ -463,7 +463,7 @@ THRESHOLD = 1000  # ← Can't override without code change
 ### DO: Use Constants for Business Rules
 
 ```python
-# honey_duck/defs/constants.py
+# src/honey_duck/defs/shared/constants.py
 MIN_SALE_VALUE_USD = 10_000
 PRICE_TIER_BUDGET_MAX_USD = 500_000
 PRICE_TIER_MID_MAX_USD = 3_000_000

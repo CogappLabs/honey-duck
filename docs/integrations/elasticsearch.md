@@ -65,7 +65,7 @@ open http://localhost:5601
 ### 3. Configure IO Manager
 
 ```python
-# honey_duck/defs/definitions.py
+# src/honey_duck/defs/definitions.py
 import os
 from cogapp_deps.dagster import ElasticsearchIOManager
 

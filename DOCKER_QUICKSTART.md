@@ -136,7 +136,7 @@ docker-compose exec dagster-code-location /bin/bash
 docker-compose exec dagster-code-location uv run pytest
 
 # Run specific job
-docker-compose exec dagster-webserver dagster job execute -j full_pipeline
+docker-compose exec dagster-code-location uv run dg launch --job polars_pipeline
 ```
 
 ---

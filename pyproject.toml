@@ -19,6 +19,8 @@ dependencies = [
     "dagster-duckdb-pandas>=0.28.8",
     "altair>=6.0.0",
     "vl-convert-python>=1.9.0",
+    "dagster-dg-cli>=1.12.8",
+    "dagster-postgres>=0.28.8",
 ]
 
 [project.optional-dependencies]
@@ -33,7 +35,11 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["honey_duck", "cogapp_deps"]
+packages = ["src/honey_duck", "cogapp_deps"]
+
+[project.entry-points."dagster_dg_cli.registry_modules"]
+honey_duck = "honey_duck.components"
+cogapp_deps = "cogapp_deps.dagster.components"
 
 [tool.uv]
 dev-dependencies = [
@@ -58,7 +64,7 @@ disallow_untyped_defs = false
 warn_return_any = false
 
 [[tool.mypy.overrides]]
-module = "honey_duck.defs.assets"
+module = "honey_duck.defs.original.assets"
 # Original processor-based implementation has complex DataFrame/LazyFrame union types
 ignore_errors = true
 
@@ -67,10 +73,17 @@ line-length = 100
 
 [tool.ruff.lint.per-file-ignores]
 # DuckDB uses DataFrames as table references by variable name
-"honey_duck/defs/assets.py" = ["F841"]
+"src/honey_duck/defs/original/assets.py" = ["F841"]
 
 [tool.dagster]
 module_name = "honey_duck.defs"
+
+[tool.dg]
+directory_type = "project"
+
+[tool.dg.project]
+root_module = "honey_duck"
+code_location_target_module = "honey_duck.defs.definitions"
 
 [dependency-groups]
 docs = [

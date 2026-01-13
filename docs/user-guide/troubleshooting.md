@@ -49,10 +49,10 @@ def notification_asset(context) -> dict:  # ← No type annotation
 **Solution**:
 ```bash
 # Materialize the missing asset first
-uv run dagster asset materialize -a sales_transform
+uv run dg launch --assets sales_transform
 
 # Or materialize with all dependencies
-uv run dagster asset materialize -a sales_output --select +sales_output
+uv run dg launch --assets sales_output --select +sales_output
 ```
 
 **In UI**: Click "Materialize" button on the asset page.
@@ -80,7 +80,7 @@ def my_output(context, sales_transform: pl.DataFrame):  # Matches 'sales_transfo
 
 **Check available assets**:
 ```bash
-uv run dagster asset list
+uv run dg list defs
 ```
 
 ---
@@ -98,7 +98,7 @@ A → B → C → A  # ← Circular!
 
 1. **Find the cycle**:
 ```bash
-uv run dagster asset list --show-deps
+uv run dg list defs --show-deps
 ```
 
 2. **Break the cycle** by refactoring:
@@ -133,12 +133,12 @@ from honey_duck.defs.my_assets import my_asset  # ← Verify file name
 from honey_duck.defs.definitions import defs
 
 # CORRECT - Only import utilities
-from honey_duck.defs.resources import HARVEST_PARQUET_DIR
+from honey_duck.defs.shared.resources import PathsResource
 ```
 
 3. **Verify file exists**:
 ```bash
-ls honey_duck/defs/my_assets.py
+ls src/honey_duck/defs/polars/my_assets.py
 ```
 
 ---
@@ -158,7 +158,7 @@ ls data/output/dlt/harvest_parquet/
 
 2. **Materialize harvest assets first**:
 ```bash
-uv run dagster asset materialize -a dlt_harvest_sales
+uv run dg launch --assets dlt_harvest_sales
 ```
 
 3. **Check table names**:
@@ -281,12 +281,12 @@ def my_asset(context) -> pl.DataFrame:  # ← Polars, not Pandas
 
 1. **Materialize upstream asset**:
 ```bash
-uv run dagster asset materialize -a upstream_asset
+uv run dg launch --assets upstream_asset
 ```
 
 2. **Or materialize with dependencies**:
 ```bash
-uv run dagster asset materialize -a my_asset --select +my_asset
+uv run dg launch --assets my_asset --select +my_asset
 ```
 
 3. **Check file system**:
@@ -391,7 +391,7 @@ conn.sql("""
 
 1. **Start the server**:
 ```bash
-uv run dagster dev
+uv run dg dev
 ```
 
 2. **Check the port**:
@@ -400,7 +400,7 @@ uv run dagster dev
 http://localhost:3000
 
 # Custom port
-uv run dagster dev --port 3001
+uv run dg dev --port 3001
 http://localhost:3001
 ```
 
@@ -456,7 +456,7 @@ from honey_duck.defs.definitions import defs  # In asset file
 2. **Restart Dagster**:
 ```bash
 pkill -f dagster
-uv run dagster dev
+uv run dg dev
 ```
 
 3. **Check for too many runs**:
@@ -536,7 +536,7 @@ def sales_output(context, sales_transform: pl.DataFrame):
 ```bash
 # Set log level
 export DAGSTER_CLI_LOG_LEVEL=DEBUG
-uv run dagster dev
+uv run dg dev
 
 # Or in code
 @dg.asset
@@ -559,7 +559,7 @@ uv run dagster run logs <run_id>
 
 ```bash
 # Check Python syntax
-uv run python -m py_compile honey_duck/defs/my_assets.py
+uv run python -m py_compile src/honey_duck/defs/polars/my_assets.py
 
 # Check imports
 uv run python -c "from honey_duck.defs.definitions import defs"
@@ -572,7 +572,7 @@ uv run pytest -xvs
 
 1. **Check Dagster Docs**: https://docs.dagster.io
 2. **Check honey-duck docs**: `docs/GETTING_STARTED.md`
-3. **View example implementations**: `honey_duck/defs/assets_polars.py`
+3. **View example implementations**: `src/honey_duck/defs/polars/assets.py`
 4. **Read error messages carefully**: They often include helpful suggestions!
 
 ---

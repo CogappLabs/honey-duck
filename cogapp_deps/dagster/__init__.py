@@ -42,6 +42,15 @@ from cogapp_deps.dagster.io_managers import (
     JSONIOManager,
     OpenSearchIOManager,
 )
+
+# Components (for YAML-based configuration)
+try:
+    from cogapp_deps.dagster.components import ElasticsearchIOManagerComponent
+
+    _HAS_COMPONENTS = True
+except ImportError:
+    _HAS_COMPONENTS = False
+    ElasticsearchIOManagerComponent = None  # type: ignore[assignment, misc]
 from cogapp_deps.dagster.notifications import (
     create_email_notification_asset,
     create_pipeline_status_notification,
@@ -101,6 +110,8 @@ __all__ = [
     "JSONIOManager",
     "ElasticsearchIOManager",
     "OpenSearchIOManager",
+    # Components
+    "ElasticsearchIOManagerComponent",
     "read_table",
     "write_json_and_return",
     "write_json_from_duckdb",

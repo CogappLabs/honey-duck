@@ -11,7 +11,7 @@ import dagster as dg
 import pandera.polars as pa
 import polars as pl
 
-from .assets import (
+from ..original.assets import (
     artworks_output,
     artworks_transform,
     sales_output,

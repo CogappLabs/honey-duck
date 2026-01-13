@@ -83,13 +83,13 @@ Let's create a simple asset that filters artworks by price:
 
 ### Step 1: Create the Asset
 
-Add to `honey_duck/defs/my_first_asset.py`:
+Add to `src/honey_duck/defs/polars/my_first_asset.py`:
 
 ```python
 import dagster as dg
 import polars as pl
 from cogapp_deps.dagster import read_harvest_tables_lazy, add_dataframe_metadata
-from honey_duck.defs.resources import HARVEST_PARQUET_DIR
+from honey_duck.defs.shared.resources import PathsResource
 
 @dg.asset(
     kinds={"polars"},
@@ -128,10 +128,10 @@ def expensive_artworks(context: dg.AssetExecutionContext) -> pl.DataFrame:
 
 ### Step 2: Register the Asset
 
-Add to `honey_duck/defs/definitions.py`:
+The asset is **automatically registered** via `load_from_defs_folder()`:
 
 ```python
-from honey_duck.defs.my_first_asset import expensive_artworks
+# No manual registration needed - assets in defs/ are auto-discovered
 
 defs = dg.Definitions(
     assets=[
@@ -146,7 +146,7 @@ defs = dg.Definitions(
 
 Start Dagster UI:
 ```bash
-uv run dagster dev
+uv run dg dev
 ```
 
 Open http://localhost:3000 and:
@@ -214,7 +214,7 @@ def my_transform(context: dg.AssetExecutionContext) -> pl.DataFrame:
 
 ```python
 from cogapp_deps.dagster import write_json_and_return
-from honey_duck.defs.resources import JSON_OUTPUT_DIR
+from honey_duck.defs.shared.resources import OutputPathsResource
 
 @dg.asset(kinds={"polars", "json"})
 def my_output(
@@ -237,7 +237,7 @@ def my_output(
 When your asset depends on external files (not other assets):
 
 ```python
-from honey_duck.defs.helpers import STANDARD_HARVEST_DEPS
+from honey_duck.defs.shared.helpers import STANDARD_HARVEST_DEPS
 
 @dg.asset(
     deps=STANDARD_HARVEST_DEPS,  # CSV/SQLite files
@@ -299,13 +299,13 @@ def test_expensive_artworks():
 
 ```bash
 # Materialize specific asset
-uv run dagster asset materialize -a expensive_artworks
+uv run dg launch --assets expensive_artworks
 
 # Materialize with dependencies
-uv run dagster asset materialize -a sales_output --select +sales_output
+uv run dg launch --assets sales_output --select +sales_output
 
 # Run full job
-uv run dagster job execute -j polars_pipeline
+uv run dg launch --job polars_pipeline
 ```
 
 ## Debugging Tips
@@ -323,7 +323,7 @@ def my_asset(context: dg.AssetExecutionContext):
 
 View logs in:
 - **Dagster UI**: Asset page → Logs tab
-- **Terminal**: When running `dagster dev`
+- **Terminal**: When running `dg dev`
 
 ### Inspect Intermediate Data
 
@@ -436,9 +436,9 @@ def my_asset(context):
 ### 1. Explore Existing Assets
 
 Read these files to see patterns:
-- `honey_duck/defs/assets_polars.py` - Clean Polars implementation
-- `honey_duck/defs/assets_duckdb.py` - SQL-based approach
-- `honey_duck/defs/PATTERNS.md` - Detailed pattern documentation
+- `src/honey_duck/defs/polars/assets.py` - Clean Polars implementation
+- `src/honey_duck/defs/duckdb/assets.py` - SQL-based approach
+- See [Polars Patterns](../user-guide/polars-patterns.md) for detailed pattern documentation
 
 ### 2. Learn Multi-Assets
 
@@ -503,13 +503,13 @@ daily_schedule = ScheduleDefinition(
 
 ```bash
 # Start Dagster UI
-uv run dagster dev
+uv run dg dev
 
 # Materialize asset
-uv run dagster asset materialize -a my_asset
+uv run dg launch --assets my_asset
 
 # Run job
-uv run dagster job execute -j polars_pipeline
+uv run dg launch --job polars_pipeline
 
 # Run tests
 uv run pytest

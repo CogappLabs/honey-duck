@@ -32,7 +32,7 @@ cp .env.example .env
 
 ```bash
 # Start the Dagster development server
-uv run dagster dev
+uv run dg dev
 ```
 
 Open http://localhost:3000 in your browser. You should see:
@@ -84,7 +84,7 @@ Let's create an asset that finds artworks by specific artists.
 
 ### Create the Asset File
 
-Open `honey_duck/defs/assets_polars.py` and add this at the end:
+Open `src/honey_duck/defs/polars/assets.py` and add this at the end:
 
 ```python
 @dg.asset(
@@ -379,7 +379,7 @@ Then run: `uv sync`
 ### Q: Where should I put custom code?
 
 **Guidelines**:
-- **Project-specific logic** → `honey_duck/defs/`
+- **Project-specific logic** → `src/honey_duck/defs/` (organized by technology: polars/, duckdb/, etc.)
 - **Reusable utilities** → `cogapp_deps/`
 
 ---
@@ -414,7 +414,7 @@ print(df.collect_schema())  # Shows all columns
 **Solution**:
 1. Check console for Python errors
 2. Make sure asset is in a file imported by `definitions.py`
-3. Restart Dagster: `Ctrl+C` then `uv run dagster dev`
+3. Restart Dagster: `Ctrl+C` then `uv run dg dev`
 
 ---
 
@@ -431,8 +431,8 @@ from cogapp_deps.dagster import (
     add_dataframe_metadata,
     write_json_output,
 )
-from honey_duck.defs.helpers import STANDARD_HARVEST_DEPS
-from honey_duck.defs.resources import HARVEST_PARQUET_DIR
+from honey_duck.defs.shared.helpers import STANDARD_HARVEST_DEPS
+from honey_duck.defs.shared.resources import PathsResource
 ```
 
 ### Basic Asset Template

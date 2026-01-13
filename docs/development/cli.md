@@ -1,6 +1,15 @@
-# Dagster CLI Reference - Quick Guide
+# CLI Reference - Quick Guide
 
-Essential Dagster CLI commands for honey-duck development.
+Essential CLI commands for honey-duck development.
+
+## CLI Overview
+
+honey-duck uses two CLIs:
+
+| CLI | Purpose | Commands |
+|-----|---------|----------|
+| `dg` | Modern CLI for project management | `dev`, `launch`, `list defs`, `check` |
+| `dagster` | Full operational CLI | runs, schedules, sensors, asset management |
 
 ## Starting Dagster
 
@@ -8,13 +17,13 @@ Essential Dagster CLI commands for honey-duck development.
 
 ```bash
 # Start Dagster UI (recommended for development)
-uv run dagster dev
+uv run dg dev
 
 # Start on specific port
-uv run dagster dev --port 3001
+DAGSTER_WEBSERVER_PORT=3001 uv run dg dev
 
-# Start with specific code location
-uv run dagster dev -f honey_duck/defs/definitions.py
+# Validate definitions before starting
+uv run dg check defs
 ```
 
 **Opens**: http://localhost:3000
@@ -41,35 +50,18 @@ uv run dagster-webserver -p 3000
 
 ```bash
 # Materialize single asset
-uv run dagster asset materialize -a sales_transform
+uv run dg launch --assets sales_transform
 
 # Materialize multiple assets
-uv run dagster asset materialize -a sales_transform -a artworks_transform
+uv run dg launch --assets sales_transform,artworks_transform
 
-# Materialize asset and all upstream dependencies
-uv run dagster asset materialize -a sales_output --select +sales_output
-
-# Materialize asset and all downstream dependencies
-uv run dagster asset materialize -a sales_transform --select sales_transform+
-
-# Materialize full lineage (upstream + asset + downstream)
-uv run dagster asset materialize -a sales_transform --select +sales_transform+
-```
-
-### Listing Assets
-
-```bash
-# List all assets
-uv run dagster asset list
-
-# List assets in specific group
-uv run dagster asset list --group transform_polars
-
-# Show asset details
-uv run dagster asset materialize -a sales_transform --explain
+# List all definitions (assets, jobs, etc.)
+uv run dg list defs
 ```
 
 ### Asset Wipe (Delete Materializations)
+
+Requires `dagster` CLI:
 
 ```bash
 # Wipe specific asset
@@ -77,12 +69,9 @@ uv run dagster asset wipe -a sales_transform
 
 # Wipe multiple assets
 uv run dagster asset wipe -a sales_transform -a artworks_transform
-
-# Wipe all assets in group
-uv run dagster asset wipe --all --group transform_polars
 ```
 
-** Warning**: This deletes materialization history and cached data!
+**Warning**: This deletes materialization history and cached data!
 
 ## Job Execution
 
@@ -90,38 +79,35 @@ uv run dagster asset wipe --all --group transform_polars
 
 ```bash
 # Execute complete job
-uv run dagster job execute -j polars_pipeline
+uv run dg launch --job polars_pipeline
 
 # Execute with config
-uv run dagster job execute -j polars_pipeline --config config.yaml
+uv run dg launch --job polars_pipeline --config config.yaml
 
-# List all jobs
-uv run dagster job list
-
-# Show job details
-uv run dagster job print -j polars_pipeline
+# List all jobs (and other definitions)
+uv run dg list defs
 ```
 
 ### Available Jobs in honey-duck
 
 ```bash
 # Original implementation (processor classes)
-uv run dagster job execute -j processors_pipeline
+uv run dg launch --job processors_pipeline
 
 # Polars implementation (split assets)
-uv run dagster job execute -j polars_pipeline
+uv run dg launch --job polars_pipeline
 
 # Polars ops implementation (graph-backed)
-uv run dagster job execute -j polars_ops_pipeline
+uv run dg launch --job polars_ops_pipeline
 
 # DuckDB SQL implementation
-uv run dagster job execute -j duckdb_pipeline
+uv run dg launch --job duckdb_pipeline
 
 # Polars FilesystemIOManager implementation
-uv run dagster job execute -j polars_fs_pipeline
+uv run dg launch --job polars_fs_pipeline
 
 # Polars multi-asset implementation
-uv run dagster job execute -j polars_multi_pipeline
+uv run dg launch --job polars_multi_pipeline
 ```
 
 ## Code Locations
@@ -298,7 +284,7 @@ ops:
 
 Use it:
 ```bash
-uv run dagster job execute -j my_job --config config.yaml
+uv run dg launch --job my_job --config config.yaml
 ```
 
 ## Testing
@@ -351,7 +337,7 @@ uv run dagster code-location list
 
 ```bash
 # 1. Start dev server
-uv run dagster dev
+uv run dg dev
 
 # 2. Make code changes
 # ... edit files ...
@@ -376,7 +362,7 @@ uv sync
 uv run pytest
 
 # 3. Execute pipeline
-uv run dagster job execute -j polars_pipeline
+uv run dg launch --job polars_pipeline
 
 # 4. Check exit code
 echo $?  # 0 = success, non-zero = failure
@@ -385,14 +371,14 @@ echo $?  # 0 = success, non-zero = failure
 ### Debugging Workflow
 
 ```bash
-# 1. Check recent runs
+# 1. Check recent runs (requires dagster CLI)
 uv run dagster run list
 
 # 2. View logs for failed run
 uv run dagster run logs <run_id>
 
 # 3. Materialize with verbose logging
-DAGSTER_CLI_LOG_LEVEL=DEBUG uv run dagster asset materialize -a my_asset
+uv run dg launch --assets my_asset --verbose
 
 # 4. Check asset data
 ls -la data/output/storage/my_asset/
@@ -410,44 +396,30 @@ When Dagster UI is open:
 
 ## Tips & Tricks
 
-### 1. Dry Run (Explain Plan)
-
-```bash
-# See what would run without actually running
-uv run dagster asset materialize -a sales_output --explain
-```
-
-### 2. Force Re-materialization
-
-```bash
-# Even if asset is up-to-date
-uv run dagster asset materialize -a sales_transform --force
-```
-
-### 3. Asset Subset Materialization
-
-```bash
-# Only materialize specific group
-uv run dagster asset materialize --select "group:output_polars"
-```
-
-### 4. Quick Asset Test
+### 1. Quick Asset Test
 
 ```bash
 # Materialize single asset to test changes
-uv run dagster asset materialize -a my_new_asset
+uv run dg launch --assets my_new_asset
 
 # Check the output file
 cat data/output/json/my_output.json
 ```
 
-### 5. Pipeline Comparison
+### 2. Pipeline Comparison
 
 ```bash
 # Run different implementations side-by-side
-uv run dagster job execute -j polars_pipeline &
-uv run dagster job execute -j duckdb_pipeline &
+uv run dg launch --job polars_pipeline &
+uv run dg launch --job duckdb_pipeline &
 wait
+```
+
+### 3. Validate Before Launch
+
+```bash
+# Check definitions are valid before running
+uv run dg check defs
 ```
 
 ## Troubleshooting Commands
@@ -474,24 +446,24 @@ uv run dagster definitions validate
 ## Quick Reference Card
 
 ```bash
-#  MOST COMMON COMMANDS
+# MOST COMMON COMMANDS
 
 # Start UI
-uv run dagster dev
+uv run dg dev
 
 # Materialize asset
-uv run dagster asset materialize -a ASSET_NAME
+uv run dg launch --assets ASSET_NAME
 
 # Run complete pipeline
-uv run dagster job execute -j JOB_NAME
+uv run dg launch --job JOB_NAME
+
+# List definitions
+uv run dg list defs
 
 # Run tests
 uv run pytest
 
-# List assets
-uv run dagster asset list
-
-# View logs
+# View logs (requires dagster CLI)
 uv run dagster run logs RUN_ID
 ```
 

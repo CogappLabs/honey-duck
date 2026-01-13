@@ -13,10 +13,13 @@ cp .env.example .env
 # Edit .env with your absolute path
 
 # Start Dagster UI
-uv run dagster dev
+uv run dg dev
 
 # Or run pipeline via CLI
-uv run dagster job execute -j processors_pipeline
+uv run dg launch --job processors_pipeline
+
+# List all definitions
+uv run dg list defs
 ```
 
 Open http://localhost:3000 and click **"Materialize all"** to run the pipeline!
@@ -26,8 +29,8 @@ Open http://localhost:3000 and click **"Materialize all"** to run the pipeline!
 A Next.js dashboard for client-friendly pipeline monitoring:
 
 ```bash
-# Start Dagster on port 3003
-uv run dagster dev -p 3003
+# Start Dagster (frontend expects port 3003)
+DAGSTER_WEBSERVER_PORT=3003 uv run dg dev
 
 # In another terminal
 cd frontend && npm install && npm run dev
@@ -88,19 +91,26 @@ dlt_harvest_* (shared) ──→ sales_transform_<impl> ──→ sales_output_<
 ## Project Structure
 
 ```
-honey_duck/
+src/honey_duck/
   defs/
     definitions.py        # Combined Dagster Definitions (6 jobs)
-    dlt_sources.py        # dlt source configuration
-    dlt_assets.py         # dagster-dlt asset wrapper
-    assets.py             # Original implementation (processor classes)
-    assets_polars.py      # Pure Polars with split intermediate steps
-    assets_duckdb.py      # Pure DuckDB SQL implementation
-    assets_polars_fs.py   # Polars variant (different group)
-    assets_polars_ops.py  # Graph-backed assets with ops
-    assets_polars_multi.py # Multi-asset pattern
-    resources.py          # ConfigurableResource classes
-    jobs.py               # Job definitions (6 jobs)
+    harvest/              # dlt ingestion layer
+      sources.py          # dlt source configuration
+      assets.py           # dagster-dlt asset wrapper
+    original/             # Original implementation (processor classes)
+      assets.py
+    polars/               # Pure Polars implementations
+      assets.py           # Split intermediate steps
+      assets_fs.py        # Polars variant (different group)
+      assets_ops.py       # Graph-backed assets with ops
+      assets_multi.py     # Multi-asset pattern
+    duckdb/               # Pure DuckDB SQL implementation
+      assets.py
+    shared/               # Shared resources
+      resources.py        # ConfigurableResource classes
+      jobs.py             # Job definitions (6 jobs)
+      schemas.py          # Pandera validation schemas
+      constants.py        # Business constants
 
 cogapp_deps/              # Utilities (simulates external package)
   dagster/helpers.py      # write_json_output, track_timing, altair_to_metadata
@@ -152,23 +162,25 @@ Generic processor utilities in `cogapp_deps/processors/`:
 
 ## Adding a New Asset
 
-1. **Define the asset** in `honey_duck/defs/assets.py`:
+1. **Define the asset** in the appropriate technology folder (e.g., `src/honey_duck/defs/polars/assets.py`):
 
 ```python
 @dg.asset(
-    kinds={"duckdb"},           # Shows up in UI as DuckDB asset
+    kinds={"polars"},           # Shows up in UI as Polars asset
     deps=HARVEST_DEPS,          # Depends on raw tables
     group_name="transform",     # Groups in UI
 )
 def my_new_transform(context: dg.AssetExecutionContext):
     """Docstring shown in Dagster UI."""
-    # Query raw tables
-    result = DuckDBQueryProcessor(sql="""
-        SELECT * FROM raw.my_table
-    """).process()
+    # Read harvest tables
+    tables = read_harvest_tables_lazy(
+        paths.harvest_dir,
+        ("sales_raw", ["sale_id", "sale_price_usd"]),
+        asset_name="my_new_transform",
+    )
 
     # Transform with Polars
-    result = PolarsStringProcessor("name", "upper").process(result)
+    result = tables["sales_raw"].filter(pl.col("sale_price_usd") > 1000).collect()
 
     # Add metadata for UI
     context.add_output_metadata({
@@ -178,23 +190,11 @@ def my_new_transform(context: dg.AssetExecutionContext):
     return result
 ```
 
-2. **Register it** in `honey_duck/defs/definitions.py`:
+2. The asset is **automatically registered** via `load_from_defs_folder()` in definitions.py.
 
-```python
-from .assets import my_new_transform
-
-defs = dg.Definitions(
-    assets=[
-        # ... existing assets
-        my_new_transform,
-    ],
-    # ...
-)
-```
-
-3. **Add to job** (optional) in `honey_duck/defs/jobs.py` if you want a separate execution target.
+3. **Add to job** (optional) in `src/honey_duck/defs/shared/jobs.py` if you want a separate execution target.
 
 **Tips:**
 - Return `pl.DataFrame` for Polars output, `pd.DataFrame` for pandas - the IO manager handles both
 - Use `pl.DataFrame` type hints on input parameters so the IO manager knows what to load
-- Add business constants to `honey_duck/defs/constants.py`
+- Add business constants to `src/honey_duck/defs/shared/constants.py`

@@ -19,7 +19,9 @@ import dagster as dg
 # -----------------------------------------------------------------------------
 # Base Path Constants (used as defaults for ConfigurableResource)
 # -----------------------------------------------------------------------------
-PROJECT_ROOT = Path(__file__).parent.parent.parent
+# After src/ layout migration: resources.py is at src/honey_duck/defs/shared/
+# Go up 4 levels: shared/ -> defs/ -> honey_duck/ -> src/ -> project root
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
 INPUT_DIR = DATA_DIR / "input"
 OUTPUT_DIR = DATA_DIR / "output"

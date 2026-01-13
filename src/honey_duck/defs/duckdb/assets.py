@@ -17,16 +17,15 @@ from dagster_duckdb import DuckDBResource
 
 from cogapp_deps.dagster import write_json_output
 
-from .constants import (
+from ..shared.constants import (
     MIN_SALE_VALUE_USD,
     PRICE_TIER_BUDGET_MAX_USD,
     PRICE_TIER_MID_MAX_USD,
 )
-from .resources import OutputPathsResource, PathsResource
-
+from ..shared.resources import OutputPathsResource, PathsResource
 
 # Use centralized harvest dependencies for consistency
-from .helpers import STANDARD_HARVEST_DEPS as HARVEST_DEPS
+from ..shared.helpers import STANDARD_HARVEST_DEPS as HARVEST_DEPS
 
 
 # -----------------------------------------------------------------------------

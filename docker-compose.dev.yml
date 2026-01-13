@@ -12,14 +12,8 @@ services:
     entrypoint:
       - uv
       - run
-      - dagster
+      - dg
       - dev
-      - -h
-      - 0.0.0.0
-      - -p
-      - "3000"
-      - -m
-      - honey_duck.defs
     ports:
       - "3000:3000"
     environment:
@@ -29,7 +23,7 @@ services:
       HONEY_DUCK_ARTWORKS_OUTPUT: /app/data/output/json/artworks_output.json
     volumes:
       # Mount code for hot reload
-      - ./honey_duck:/app/honey_duck
+      - ./src/honey_duck:/app/src/honey_duck
       - ./cogapp_deps:/app/cogapp_deps
       - ./data:/app/data
       # Persist dagster home

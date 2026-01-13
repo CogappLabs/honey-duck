@@ -23,7 +23,7 @@ COPY uv.lock* ./
 RUN uv sync --no-dev
 
 # Copy application code
-COPY honey_duck honey_duck/
+COPY src/honey_duck src/honey_duck/
 COPY cogapp_deps cogapp_deps/
 COPY data/input data/input/
 COPY scripts scripts/
@@ -34,8 +34,8 @@ RUN mkdir -p /app/data/output/json \
     /app/data/output/dlt \
     /app/dagster_home
 
-# Set Python path
-ENV PYTHONPATH=/app
+# Set Python path (includes src for honey_duck package)
+ENV PYTHONPATH=/app:/app/src
 
 # Production stage
 FROM base AS production
@@ -53,9 +53,15 @@ COPY workspace.yaml /app/workspace.yaml
 # Expose Dagster webserver port
 EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:3000/server_info || exit 1
+# Expose code location gRPC port
+EXPOSE 4000
 
-# Default command runs the code location
-CMD ["uv", "run", "dagster", "api", "grpc", "-h", "0.0.0.0", "-p", "4000", "-m", "honey_duck.defs"]
+# Health check for code location gRPC server
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD uv run dagster api grpc-health-check -p 4000 || exit 1
+
+# Set DAGSTER_CURRENT_IMAGE for run launcher (set at build time or runtime)
+ENV DAGSTER_CURRENT_IMAGE=""
+
+# Default command runs the code location server
+CMD ["uv", "run", "dagster", "code-server", "start", "-h", "0.0.0.0", "-p", "4000", "-m", "honey_duck.defs"]

@@ -46,10 +46,10 @@ from dagster_duckdb import DuckDBResource
 from dagster_polars import PolarsParquetIOManager
 
 # Original implementation
-from .assets import artworks_output, artworks_transform, sales_output, sales_transform
+from .original.assets import artworks_output, artworks_transform, sales_output, sales_transform
 
 # Pure Polars implementation (split steps for intermediate persistence)
-from .assets_polars import (
+from .polars.assets import (
     artworks_catalog_polars,
     artworks_media_polars,
     artworks_output_polars,
@@ -61,7 +61,7 @@ from .assets_polars import (
 )
 
 # Pure DuckDB SQL implementation
-from .assets_duckdb import (
+from .duckdb.assets import (
     artworks_output_duckdb,
     artworks_transform_duckdb,
     sales_output_duckdb,
@@ -69,7 +69,7 @@ from .assets_duckdb import (
 )
 
 # Polars with filesystem IO manager
-from .assets_polars_fs import (
+from .polars.assets_fs import (
     artworks_output_polars_fs,
     artworks_transform_polars_fs,
     sales_output_polars_fs,
@@ -77,7 +77,7 @@ from .assets_polars_fs import (
 )
 
 # Polars with ops (graph-backed assets)
-from .assets_polars_ops import (
+from .polars.assets_ops import (
     artworks_output_polars_ops,
     artworks_transform_polars_ops,
     sales_output_polars_ops,
@@ -85,21 +85,21 @@ from .assets_polars_ops import (
 )
 
 # Polars multi-asset implementation
-from .assets_polars_multi import (
+from .polars.assets_multi import (
     artworks_output_polars_multi,
     artworks_pipeline_multi,
     sales_output_polars_multi,
     sales_pipeline_multi,
 )
 
-from .checks import (
+from .shared.checks import (
     check_artworks_transform_schema,
     check_sales_above_threshold,
     check_sales_transform_schema,
     check_valid_price_tiers,
 )
-from .dlt_assets import dlt_harvest_assets
-from .jobs import (
+from .harvest.assets import dlt_harvest_assets
+from .shared.jobs import (
     duckdb_pipeline_job,
     processors_pipeline_job,
     polars_fs_pipeline_job,
@@ -107,7 +107,7 @@ from .jobs import (
     polars_ops_pipeline_job,
     polars_pipeline_job,
 )
-from .resources import (
+from .shared.resources import (
     DatabaseResource,
     OUTPUT_DIR,
     OutputPathsResource,
@@ -119,6 +119,8 @@ from .resources import (
 DUCKDB_PATH = str(OUTPUT_DIR / "dagster.duckdb")
 
 
+# Note: For new projects, consider using dg.load_from_defs_folder() for auto-discovery.
+# This project uses explicit definitions for backwards compatibility with the dg CLI.
 defs = dg.Definitions(
     assets=[
         # Harvest assets (dlt-based: CSV + SQLite in single source) - shared

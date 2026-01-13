@@ -26,7 +26,7 @@ from dlt.sources.sql_database import sql_database
 if TYPE_CHECKING:
     from dlt.extract import DltResource
 
-    from .resources import DatabaseResource, PathsResource
+    from ..shared.resources import DatabaseResource, PathsResource
 
 
 def create_honey_duck_source(

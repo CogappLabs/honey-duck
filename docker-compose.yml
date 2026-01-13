@@ -96,12 +96,15 @@ services:
       dockerfile: Dockerfile
       target: production
     container_name: honey-duck-code-location
+    ports:
+      - "4000:4000"
     environment:
       DAGSTER_POSTGRES_USER: dagster
       DAGSTER_POSTGRES_PASSWORD: dagster
       DAGSTER_POSTGRES_DB: dagster
       DAGSTER_POSTGRES_HOSTNAME: dagster-postgres
       DAGSTER_POSTGRES_PORT: 5432
+      DAGSTER_CURRENT_IMAGE: honey-duck-code-location:latest
     volumes:
       - data-output:/app/data/output
     depends_on:
@@ -110,6 +113,11 @@ services:
     networks:
       - dagster-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "uv", "run", "dagster", "api", "grpc-health-check", "-p", "4000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
   postgres-data:

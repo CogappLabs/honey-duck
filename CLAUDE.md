@@ -11,11 +11,17 @@ uv sync
 # Optional: Enable persistent run history (copy .env.example to .env)
 cp .env.example .env
 
-# Start Dagster UI (on port 3003 for frontend compatibility)
-uv run dagster dev -p 3003
+# Start Dagster UI (dg CLI - modern replacement for dagster CLI)
+uv run dg dev
+
+# With custom port for frontend compatibility
+DAGSTER_WEBSERVER_PORT=3003 uv run dg dev
 
 # Run pipeline via CLI
-uv run dagster job execute -j processors_pipeline
+uv run dg launch --job processors_pipeline
+
+# List all definitions
+uv run dg list defs
 
 # Run tests
 uv run pytest
@@ -26,28 +32,37 @@ uv run pytest
 ```
 honey_duck/
 ├── __init__.py           # Package metadata
-└── defs/
+├── components/           # Dagster component registry
+└── defs/                 # Organized by technology
     ├── definitions.py    # Combined Dagster Definitions (6 jobs)
-    ├── dlt_sources.py    # dlt source configuration
-    ├── dlt_assets.py     # dagster-dlt asset wrapper
-    ├── assets.py         # Original transform/output (processor classes)
-    ├── assets_polars.py  # Pure Polars with split intermediate steps
-    ├── assets_duckdb.py  # Pure DuckDB SQL implementation
-    ├── assets_polars_fs.py   # Polars variant (same logic, different group)
-    ├── assets_polars_ops.py  # Graph-backed assets with ops
-    ├── assets_polars_multi.py # Multi-asset pattern
-    ├── helpers.py        # STANDARD_HARVEST_DEPS constant
-    ├── resources.py      # ConfigurableResource classes for path config
-    ├── constants.py      # Business constants (thresholds, tiers)
-    ├── schemas.py        # Pandera validation schemas
-    ├── jobs.py           # Job definitions (6 jobs)
-    └── checks.py         # Asset checks (Pandera + quality)
+    ├── harvest/          # dlt ingestion layer
+    │   ├── sources.py    # dlt source configuration
+    │   └── assets.py     # dagster-dlt asset wrapper
+    ├── original/         # Original implementation (processor classes)
+    │   └── assets.py     # Transform/output using processor classes
+    ├── polars/           # Pure Polars implementations
+    │   ├── assets.py     # Split intermediate steps for observability
+    │   ├── assets_fs.py  # Variant with different group
+    │   ├── assets_ops.py # Graph-backed assets with ops
+    │   └── assets_multi.py # Multi-asset pattern
+    ├── duckdb/           # Pure DuckDB SQL implementation
+    │   └── assets.py     # SQL queries for transforms
+    └── shared/           # Shared resources and utilities
+        ├── resources.py  # ConfigurableResource classes
+        ├── constants.py  # Business constants (thresholds, tiers)
+        ├── schemas.py    # Pandera validation schemas
+        ├── helpers.py    # STANDARD_HARVEST_DEPS constant
+        ├── jobs.py       # Job definitions (6 jobs)
+        └── checks.py     # Asset checks (Pandera + quality)
 
 cogapp_deps/              # Utilities (simulates external package)
 ├── dagster/              # Dagster helpers
 │   ├── __init__.py       # Exports write_json_output, track_timing, etc.
 │   ├── io.py             # DuckDBPandasPolarsIOManager (unused)
-│   └── helpers.py        # track_timing, add_dataframe_metadata, altair_to_metadata, etc.
+│   ├── helpers.py        # track_timing, add_dataframe_metadata, etc.
+│   ├── io_managers.py    # JSONIOManager, ElasticsearchIOManager
+│   └── components/       # Dagster Components for YAML config
+│       └── elasticsearch.py  # ElasticsearchIOManagerComponent
 └── processors/           # DataFrame processors
     ├── pandas/           # PandasReplaceOnConditionProcessor
     ├── polars/           # PolarsFilterProcessor, PolarsStringProcessor
@@ -115,8 +130,11 @@ non-deterministic parallel execution in Dagster.
 
 ## Adding New Assets
 
-1. Add asset function in appropriate `defs/assets_*.py` file
-2. Import `STANDARD_HARVEST_DEPS` from `helpers.py` for consistent dependencies
+1. Add asset function in appropriate technology folder:
+   - `defs/polars/assets.py` for Polars implementations
+   - `defs/duckdb/assets.py` for DuckDB implementations
+   - `defs/original/assets.py` for processor-based implementations
+2. Import `STANDARD_HARVEST_DEPS` from `defs/shared/helpers.py`
 3. Decorate with `@dg.asset(kinds={"polars"}, group_name="...", deps=STANDARD_HARVEST_DEPS)`
 4. Inject resources: `paths: PathsResource`, `output_paths: OutputPathsResource`
 5. Add rich metadata via `context.add_output_metadata()`
@@ -124,7 +142,7 @@ non-deterministic parallel execution in Dagster.
 
 ## Adding New dlt Sources
 
-1. Add resource to `dlt_sources.py` honey_duck_source function
+1. Add resource to `defs/harvest/sources.py` honey_duck_source function
 2. Asset key will be auto-generated as `dlt_harvest_{name}`
 3. Data written to `data/harvest/raw/{name}/`
 
@@ -183,7 +201,7 @@ context.add_output_metadata(
 
 ## Known Limitations
 
-**Graph-backed ops** (assets_polars_ops.py): Individual ops within a @graph_asset
+**Graph-backed ops** (`defs/polars/assets_ops.py`): Individual ops within a @graph_asset
 cannot receive ConfigurableResource injection. These ops use a module-level
 `_DEFAULT_HARVEST_DIR` constant. This is a Dagster limitation - ops don't participate
 in resource injection the way assets do.

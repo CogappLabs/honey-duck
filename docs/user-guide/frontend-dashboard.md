@@ -6,7 +6,7 @@ A Next.js dashboard for monitoring Dagster pipelines, providing a client-friendl
 
 ```bash
 # Start Dagster on port 3003
-uv run dagster dev -p 3003
+DAGSTER_WEBSERVER_PORT=3003 uv run dg dev
 
 # In another terminal, start the frontend
 cd frontend

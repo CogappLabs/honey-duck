@@ -625,7 +625,7 @@ email_notify = create_email_notification_asset(
 )
 ```
 
-**See**: [Notification Templates](../honey_duck/defs/notifications_example.py)
+**See**: Notification Templates in `src/honey_duck/defs/`
 
 ---
 
@@ -857,7 +857,7 @@ def test_read_missing_table():
 ## Resources
 
 - **Source Code**: `cogapp_deps/dagster/` in repository
-- **Examples**: `honey_duck/defs/` for usage patterns
+- **Examples**: `src/honey_duck/defs/` for usage patterns
 - **Tests**: `tests/` for test examples
 - **Dagster Docs**: https://docs.dagster.io/
 

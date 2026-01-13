@@ -18,7 +18,7 @@ uv run ruff check .
 uv run ruff format .
 
 # Type checking
-uv run mypy honey_duck cogapp_deps
+uv run mypy src/honey_duck cogapp_deps
 ```
 
 ## Pre-commit Hooks
@@ -48,7 +48,7 @@ uv run mkdocs build
 
 ## Adding New Assets
 
-1. Add asset function in appropriate `honey_duck/defs/assets_*.py` file
+1. Add asset function in appropriate `src/honey_duck/defs/<technology>/assets.py` file
 2. Import `STANDARD_HARVEST_DEPS` from `helpers.py` for dependencies
 3. Decorate with `@dg.asset(kinds={"polars"}, group_name="...", deps=...)`
 4. Inject resources: `paths: PathsResource`, `output_paths: OutputPathsResource`

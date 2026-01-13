@@ -9,10 +9,13 @@ A Polars/Parquet data pipeline with Dagster orchestration, using dlt for data in
 uv sync
 
 # Start Dagster UI
-uv run dagster dev
+uv run dg dev
 
 # Or run pipeline via CLI
-uv run dagster job execute -j processors_pipeline
+uv run dg launch --job processors_pipeline
+
+# List all definitions
+uv run dg list defs
 ```
 
 Open [http://localhost:3000](http://localhost:3000) and click **"Materialize all"** to run the pipeline!

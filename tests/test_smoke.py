@@ -13,7 +13,7 @@ These tests use mock resources (NoOpIOManager, empty harvest data) to:
 import polars as pl
 from dagster import materialize
 
-from honey_duck.defs.assets_polars import (
+from honey_duck.defs.polars.assets import (
     artworks_catalog_polars,
     sales_joined_polars,
 )
@@ -23,23 +23,23 @@ class TestAssetImports:
     """Test that all asset modules import correctly."""
 
     def test_assets_polars_imports(self) -> None:
-        """Verify assets_polars module imports without errors."""
-        from honey_duck.defs import assets_polars
+        """Verify polars.assets module imports without errors."""
+        from honey_duck.defs.polars import assets as assets_polars
 
         assert hasattr(assets_polars, "sales_joined_polars")
         assert hasattr(assets_polars, "sales_transform_polars")
         assert hasattr(assets_polars, "artworks_transform_polars")
 
     def test_assets_original_imports(self) -> None:
-        """Verify assets module imports without errors."""
-        from honey_duck.defs import assets
+        """Verify original.assets module imports without errors."""
+        from honey_duck.defs.original import assets
 
         assert hasattr(assets, "sales_transform")
         assert hasattr(assets, "artworks_transform")
 
     def test_assets_duckdb_imports(self) -> None:
-        """Verify assets_duckdb module imports without errors."""
-        from honey_duck.defs import assets_duckdb
+        """Verify duckdb.assets module imports without errors."""
+        from honey_duck.defs.duckdb import assets as assets_duckdb
 
         assert hasattr(assets_duckdb, "sales_transform_duckdb")
         assert hasattr(assets_duckdb, "artworks_transform_duckdb")
@@ -87,7 +87,7 @@ class TestResourceConfiguration:
 
     def test_paths_resource_defaults(self) -> None:
         """PathsResource has sensible defaults."""
-        from honey_duck.defs.resources import PathsResource
+        from honey_duck.defs.shared.resources import PathsResource
 
         paths = PathsResource()
         assert "data" in paths.harvest_dir
@@ -95,7 +95,7 @@ class TestResourceConfiguration:
 
     def test_output_paths_resource_all_variants(self) -> None:
         """OutputPathsResource includes all implementation variants."""
-        from honey_duck.defs.resources import OutputPathsResource
+        from honey_duck.defs.shared.resources import OutputPathsResource
 
         output_paths = OutputPathsResource()
         # Check all 6 implementations have output paths
@@ -114,7 +114,7 @@ class TestSchemaValidation:
         """SalesTransformSchema validates correct data."""
         import polars as pl
 
-        from honey_duck.defs.schemas import SalesTransformSchema
+        from honey_duck.defs.shared.schemas import SalesTransformSchema
 
         # Add required columns that the fixture might be missing
         df = sample_sales_df.with_columns(
@@ -131,7 +131,7 @@ class TestSchemaValidation:
 
     def test_artworks_schema_valid(self, sample_artworks_df: pl.DataFrame) -> None:
         """ArtworksTransformSchema validates correct data."""
-        from honey_duck.defs.schemas import ArtworksTransformSchema
+        from honey_duck.defs.shared.schemas import ArtworksTransformSchema
 
         # Should not raise
         ArtworksTransformSchema.validate(sample_artworks_df)

@@ -26,7 +26,7 @@ cp .env.example .env
 ### Option 1: Dagster UI (Recommended)
 
 ```bash
-uv run dagster dev
+uv run dg dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) and click **"Materialize all"**.
@@ -34,7 +34,7 @@ Open [http://localhost:3000](http://localhost:3000) and click **"Materialize all
 ### Option 2: CLI
 
 ```bash
-uv run dagster job execute -j polars_pipeline
+uv run dg launch --job polars_pipeline
 ```
 
 ## Verify Output

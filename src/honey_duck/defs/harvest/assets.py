@@ -41,8 +41,8 @@ from dagster_dlt import DagsterDltResource, DagsterDltTranslator
 if TYPE_CHECKING:
     from dlt.extract.resource import DltResource
 
-from .dlt_sources import create_harvest_pipeline, create_honey_duck_source
-from .resources import DatabaseResource, PathsResource
+from .sources import create_harvest_pipeline, create_honey_duck_source
+from ..shared.resources import DatabaseResource, PathsResource
 
 
 class HoneyDuckDltTranslator(DagsterDltTranslator):

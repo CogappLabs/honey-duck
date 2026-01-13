@@ -167,7 +167,7 @@ docker-compose build
 docker-compose up -d
 
 # Run smoke tests
-docker-compose exec dagster-webserver dagster job execute -j full_pipeline
+docker-compose exec dagster-code-location uv run dg launch --job polars_pipeline
 
 # Check logs
 docker-compose logs -f
@@ -192,7 +192,7 @@ docker-compose ps
 curl http://localhost:3000/server_info
 
 # 5. Run initial materialization
-docker-compose exec dagster-webserver dagster job execute -j full_pipeline
+docker-compose exec dagster-code-location uv run dg launch --job polars_pipeline
 ```
 
 ---

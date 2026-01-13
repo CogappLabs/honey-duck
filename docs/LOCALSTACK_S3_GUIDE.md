@@ -167,7 +167,7 @@ chmod +x scripts/setup-localstack.sh
 
 # Run Dagster with LocalStack
 export $(cat .env.localstack | xargs)
-uv run dagster dev
+uv run dg dev
 ```
 
 ## Testing Strategy

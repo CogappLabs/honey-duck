@@ -36,12 +36,12 @@ from cogapp_deps.dagster import (
     write_json_output,
 )
 
-from .constants import (
+from ..shared.constants import (
     MIN_SALE_VALUE_USD,
     PRICE_TIER_BUDGET_MAX_USD,
     PRICE_TIER_MID_MAX_USD,
 )
-from .resources import OutputPathsResource, HARVEST_DIR
+from ..shared.resources import OutputPathsResource, HARVEST_DIR
 
 
 # Default harvest directory for ops (ops don't get resource injection)
