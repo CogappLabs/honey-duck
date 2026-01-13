@@ -10,13 +10,15 @@ Structure:
         └── duckdb/   - SQL-based operations
 
 Example:
-    >>> from cogapp_deps.processors import Chain
-    >>> from cogapp_deps.processors.polars import PolarsStringProcessor, PolarsFilterProcessor
-    >>> chain = Chain([
-    ...     PolarsStringProcessor("name", "upper"),
-    ...     PolarsFilterProcessor("price", 1000, ">="),
-    ... ])
-    >>> result = chain.process(df)
+    ```python
+    from cogapp_deps.processors import Chain
+    from cogapp_deps.processors.polars import PolarsStringProcessor, PolarsFilterProcessor
+    chain = Chain([
+        PolarsStringProcessor("name", "upper"),
+        PolarsFilterProcessor("price", 1000, ">="),
+    ])
+    result = chain.process(df)
+    ```
 """
 
 from .processors import duckdb

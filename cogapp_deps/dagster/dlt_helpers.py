@@ -35,12 +35,14 @@ def create_parquet_pipeline(
         Configured dlt.Pipeline
 
     Example:
-        >>> pipeline = create_parquet_pipeline(
-        ...     "my_harvest",
-        ...     "/data/harvest_parquet",
-        ...     dataset_name="raw"
-        ... )
-        >>> pipeline.run(my_source(), loader_file_format="parquet")
+        ```python
+        pipeline = create_parquet_pipeline(
+            "my_harvest",
+            "/data/harvest_parquet",
+            dataset_name="raw"
+        )
+        pipeline.run(my_source(), loader_file_format="parquet")
+        ```
     """
     destination_dir = Path(destination_dir)
     destination_dir.mkdir(parents=True, exist_ok=True)
@@ -71,12 +73,14 @@ def create_duckdb_pipeline(
         Configured dlt.Pipeline
 
     Example:
-        >>> pipeline = create_duckdb_pipeline(
-        ...     "my_harvest",
-        ...     "/data/pipeline.duckdb",
-        ...     dataset_name="raw"
-        ... )
-        >>> pipeline.run(my_source())
+        ```python
+        pipeline = create_duckdb_pipeline(
+            "my_harvest",
+            "/data/pipeline.duckdb",
+            dataset_name="raw"
+        )
+        pipeline.run(my_source())
+        ```
     """
     # Ensure parent directory exists
     db_path = Path(db_path)
@@ -114,16 +118,18 @@ def setup_harvest_parquet_views(
         ImportError: If duckdb is not installed
 
     Example:
-        >>> import duckdb
-        >>> from pathlib import Path
-        >>> conn = duckdb.connect("pipeline.duckdb")
-        >>> setup_harvest_parquet_views(
-        ...     conn,
-        ...     Path("data/output/dlt/harvest_parquet"),
-        ...     schema="raw",
-        ...     tables=["sales_raw", "artworks_raw"]
-        ... )
-        >>> result = conn.sql("SELECT * FROM raw.sales_raw").pl()
+        ```python
+        import duckdb
+        from pathlib import Path
+        conn = duckdb.connect("pipeline.duckdb")
+        setup_harvest_parquet_views(
+            conn,
+            Path("data/output/dlt/harvest_parquet"),
+            schema="raw",
+            tables=["sales_raw", "artworks_raw"]
+        )
+        result = conn.sql("SELECT * FROM raw.sales_raw").pl()
+        ```
     """
     if not _HAS_DUCKDB:
         raise ImportError(

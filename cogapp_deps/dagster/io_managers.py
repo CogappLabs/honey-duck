@@ -34,19 +34,21 @@ class JSONIOManager(UPathIOManager):
         extension: File extension (default: ".json")
 
     Example:
-        >>> # In definitions.py:
-        >>> defs = dg.Definitions(
-        ...     assets=[...],
-        ...     resources={
-        ...         "json_io_manager": JSONIOManager(base_path="data/output/json"),
-        ...     },
-        ... )
-        >>>
-        >>> # In asset:
-        >>> @dg.asset(io_manager_key="json_io_manager")
-        >>> def sales_output(sales_transform: pl.DataFrame) -> pl.DataFrame:
-        ...     # JSON is written automatically by IO manager
-        ...     return sales_transform.filter(pl.col("price") > 1000)
+        ```python
+        # In definitions.py:
+        defs = dg.Definitions(
+            assets=[...],
+            resources={
+                "json_io_manager": JSONIOManager(base_path="data/output/json"),
+            },
+        )
+
+        # In asset:
+        @dg.asset(io_manager_key="json_io_manager")
+        def sales_output(sales_transform: pl.DataFrame) -> pl.DataFrame:
+            # JSON is written automatically by IO manager
+            return sales_transform.filter(pl.col("price") > 1000)
+        ```
     """
 
     extension: str = ".json"
@@ -137,47 +139,51 @@ class ElasticsearchIOManager(dg.IOManager):
         ELASTICSEARCH_PASSWORD: Password for basic auth
 
     Example:
-        >>> # In definitions.py:
-        >>> import os
-        >>>
-        >>> defs = dg.Definitions(
-        ...     assets=[sales_output, artworks_output],
-        ...     resources={
-        ...         "elasticsearch_io_manager": ElasticsearchIOManager(
-        ...             hosts=[os.getenv("ELASTICSEARCH_HOST", "http://localhost:9200")],
-        ...             index_prefix="honey_duck_",
-        ...             api_key=os.getenv("ELASTICSEARCH_API_KEY"),
-        ...             bulk_size=1000,
-        ...         ),
-        ...     },
-        ... )
-        >>>
-        >>> # In asset:
-        >>> @dg.asset(io_manager_key="elasticsearch_io_manager")
-        >>> def sales_output(sales_transform: pl.DataFrame) -> pl.DataFrame:
-        ...     # DataFrame automatically indexed to Elasticsearch
-        ...     return sales_transform
+        ```python
+        # In definitions.py:
+        import os
+
+        defs = dg.Definitions(
+            assets=[sales_output, artworks_output],
+            resources={
+                "elasticsearch_io_manager": ElasticsearchIOManager(
+                    hosts=[os.getenv("ELASTICSEARCH_HOST", "http://localhost:9200")],
+                    index_prefix="honey_duck_",
+                    api_key=os.getenv("ELASTICSEARCH_API_KEY"),
+                    bulk_size=1000,
+                ),
+            },
+        )
+
+        # In asset:
+        @dg.asset(io_manager_key="elasticsearch_io_manager")
+        def sales_output(sales_transform: pl.DataFrame) -> pl.DataFrame:
+            # DataFrame automatically indexed to Elasticsearch
+            return sales_transform
+        ```
 
     Index Naming:
         Indices are named: {index_prefix}{asset_name}_{timestamp}
         Example: "honey_duck_sales_output_20240115"
 
     Custom Mappings Example:
-        >>> custom_mappings = {
-        ...     "sales_output": {
-        ...         "properties": {
-        ...             "sale_id": {"type": "keyword"},
-        ...             "sale_price_usd": {"type": "float"},
-        ...             "sale_date": {"type": "date"},
-        ...             "artwork_title": {"type": "text"},
-        ...         }
-        ...     }
-        ... }
-        >>>
-        >>> ElasticsearchIOManager(
-        ...     hosts=["http://localhost:9200"],
-        ...     custom_mappings=custom_mappings,
-        ... )
+        ```python
+        custom_mappings = {
+            "sales_output": {
+                "properties": {
+                    "sale_id": {"type": "keyword"},
+                    "sale_price_usd": {"type": "float"},
+                    "sale_date": {"type": "date"},
+                    "artwork_title": {"type": "text"},
+                }
+            }
+        }
+
+        ElasticsearchIOManager(
+            hosts=["http://localhost:9200"],
+            custom_mappings=custom_mappings,
+        )
+        ```
     """
 
     def __init__(
@@ -441,31 +447,37 @@ class OpenSearchIOManager(dg.IOManager):
         AWS_REGION: AWS region for SigV4 auth
 
     Example (Basic Auth):
-        >>> defs = dg.Definitions(
-        ...     resources={
-        ...         "opensearch_io_manager": OpenSearchIOManager(
-        ...             hosts=["https://localhost:9200"],
-        ...             http_auth=("admin", "admin"),
-        ...             verify_certs=False,  # For local dev
-        ...         ),
-        ...     },
-        ... )
+        ```python
+        defs = dg.Definitions(
+            resources={
+                "opensearch_io_manager": OpenSearchIOManager(
+                    hosts=["https://localhost:9200"],
+                    http_auth=("admin", "admin"),
+                    verify_certs=False,  # For local dev
+                ),
+            },
+        )
+        ```
 
     Example (AWS SigV4 Auth):
-        >>> defs = dg.Definitions(
-        ...     resources={
-        ...         "opensearch_io_manager": OpenSearchIOManager(
-        ...             hosts=["https://search-domain.us-east-1.es.amazonaws.com"],
-        ...             aws_auth=True,
-        ...             region="us-east-1",
-        ...         ),
-        ...     },
-        ... )
+        ```python
+        defs = dg.Definitions(
+            resources={
+                "opensearch_io_manager": OpenSearchIOManager(
+                    hosts=["https://search-domain.us-east-1.es.amazonaws.com"],
+                    aws_auth=True,
+                    region="us-east-1",
+                ),
+            },
+        )
+        ```
 
     Example (Asset):
-        >>> @dg.asset(io_manager_key="opensearch_io_manager")
-        >>> def sales_output(sales_transform: pl.DataFrame) -> pl.DataFrame:
-        ...     return sales_transform
+        ```python
+        @dg.asset(io_manager_key="opensearch_io_manager")
+        def sales_output(sales_transform: pl.DataFrame) -> pl.DataFrame:
+            return sales_transform
+        ```
     """
 
     def __init__(

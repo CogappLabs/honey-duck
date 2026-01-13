@@ -220,29 +220,31 @@ def write_json_and_return(
         The input DataFrame (unchanged)
 
     Example:
-        >>> # Simple usage
-        >>> return write_json_and_return(result, SALES_OUTPUT_PATH, context)
+        ```python
+        # Simple usage
+        return write_json_and_return(result, SALES_OUTPUT_PATH, context)
         # Logs: "Output 73 records to /path/to/sales.json"
 
-        >>> # With extra metadata and timing
-        >>> return write_json_and_return(
-        ...     result,
-        ...     SALES_OUTPUT_PATH,
-        ...     context,
-        ...     extra_metadata={
-        ...         "total_value": float(result["price"].sum()),
-        ...         "processing_time_ms": 45.2,
-        ...     }
-        ... )
+        # With extra metadata and timing
+        return write_json_and_return(
+            result,
+            SALES_OUTPUT_PATH,
+            context,
+            extra_metadata={
+                "total_value": float(result["price"].sum()),
+                "processing_time_ms": 45.2,
+            }
+        )
         # Logs: "Output 73 records to /path/to/sales.json in 45.2ms"
 
-        >>> # With multi-output asset
-        >>> return write_json_and_return(
-        ...     result,
-        ...     SALES_OUTPUT_PATH,
-        ...     context,
-        ...     output_name="sales_joined",
-        ... )
+        # With multi-output asset
+        return write_json_and_return(
+            result,
+            SALES_OUTPUT_PATH,
+            context,
+            output_name="sales_joined",
+        )
+        ```
     """
     # Ensure output_path is a Path object
     output_path = Path(output_path) if isinstance(output_path, str) else output_path

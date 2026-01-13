@@ -5,16 +5,18 @@ search engine discoverability. Supports standard sitemaps, sitemap indices,
 image sitemaps, and video sitemaps.
 
 Example:
-    >>> from cogapp_deps.dagster import create_sitemap_asset
-    >>>
-    >>> # Create sitemap from asset data
-    >>> sitemap = create_sitemap_asset(
-    ...     name="sitemap_artworks",
-    ...     source_asset="artworks_catalog",
-    ...     url_column="artwork_url",
-    ...     lastmod_column="updated_at",
-    ...     base_url="https://example.com",
-    ... )
+    ```python
+    from cogapp_deps.dagster import create_sitemap_asset
+
+    # Create sitemap from asset data
+    sitemap = create_sitemap_asset(
+        name="sitemap_artworks",
+        source_asset="artworks_catalog",
+        url_column="artwork_url",
+        lastmod_column="updated_at",
+        base_url="https://example.com",
+    )
+    ```
 """
 
 from __future__ import annotations
@@ -61,16 +63,18 @@ def generate_sitemap_xml(
         Number of URLs written
 
     Example:
-        >>> urls = [
-        ...     {
-        ...         "loc": "https://example.com/artwork/1",
-        ...         "lastmod": "2024-01-15",
-        ...         "changefreq": "monthly",
-        ...         "priority": "0.8",
-        ...     },
-        ... ]
-        >>> generate_sitemap_xml(urls, "sitemap.xml")
-        1
+        ```python
+        urls = [
+            {
+                "loc": "https://example.com/artwork/1",
+                "lastmod": "2024-01-15",
+                "changefreq": "monthly",
+                "priority": "0.8",
+            },
+        ]
+        generate_sitemap_xml(urls, "sitemap.xml")
+        # Returns: 1
+        ```
     """
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -137,20 +141,22 @@ def generate_image_sitemap_xml(
         Number of URLs written
 
     Example:
-        >>> urls = [
-        ...     {
-        ...         "loc": "https://example.com/artwork/1",
-        ...         "images": [
-        ...             {
-        ...                 "loc": "https://example.com/images/artwork1.jpg",
-        ...                 "title": "Artwork Title",
-        ...                 "caption": "Beautiful painting",
-        ...             }
-        ...         ],
-        ...     },
-        ... ]
-        >>> generate_image_sitemap_xml(urls, "sitemap_images.xml")
-        1
+        ```python
+        urls = [
+            {
+                "loc": "https://example.com/artwork/1",
+                "images": [
+                    {
+                        "loc": "https://example.com/images/artwork1.jpg",
+                        "title": "Artwork Title",
+                        "caption": "Beautiful painting",
+                    }
+                ],
+            },
+        ]
+        generate_image_sitemap_xml(urls, "sitemap_images.xml")
+        # Returns: 1
+        ```
     """
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -225,18 +231,20 @@ def generate_sitemap_index_xml(
         Number of sitemaps in index
 
     Example:
-        >>> sitemaps = [
-        ...     {
-        ...         "loc": "https://example.com/sitemap_artworks.xml",
-        ...         "lastmod": "2024-01-15",
-        ...     },
-        ...     {
-        ...         "loc": "https://example.com/sitemap_images.xml",
-        ...         "lastmod": "2024-01-15",
-        ...     },
-        ... ]
-        >>> generate_sitemap_index_xml(sitemaps, "sitemap_index.xml")
-        2
+        ```python
+        sitemaps = [
+            {
+                "loc": "https://example.com/sitemap_artworks.xml",
+                "lastmod": "2024-01-15",
+            },
+            {
+                "loc": "https://example.com/sitemap_images.xml",
+                "lastmod": "2024-01-15",
+            },
+        ]
+        generate_sitemap_index_xml(sitemaps, "sitemap_index.xml")
+        # Returns: 2
+        ```
     """
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -298,17 +306,19 @@ def create_sitemap_asset(
         Sitemap asset definition
 
     Example:
-        >>> from cogapp_deps.dagster import create_sitemap_asset
-        >>>
-        >>> sitemap = create_sitemap_asset(
-        ...     name="sitemap_artworks",
-        ...     source_asset="artworks_catalog",
-        ...     url_column="slug",
-        ...     base_url="https://example.com/artworks",
-        ...     lastmod_column="updated_at",
-        ...     changefreq="monthly",
-        ...     priority="0.8",
-        ... )
+        ```python
+        from cogapp_deps.dagster import create_sitemap_asset
+
+        sitemap = create_sitemap_asset(
+            name="sitemap_artworks",
+            source_asset="artworks_catalog",
+            url_column="slug",
+            base_url="https://example.com/artworks",
+            lastmod_column="updated_at",
+            changefreq="monthly",
+            priority="0.8",
+        )
+        ```
     """
 
     if output_path is None:
@@ -416,14 +426,16 @@ def create_image_sitemap_asset(
         Image sitemap asset definition
 
     Example:
-        >>> sitemap = create_image_sitemap_asset(
-        ...     name="sitemap_images",
-        ...     source_asset="artworks_with_images",
-        ...     page_url_column="artwork_url",
-        ...     image_url_column="image_url",
-        ...     base_url="https://example.com",
-        ...     title_column="artwork_title",
-        ... )
+        ```python
+        sitemap = create_image_sitemap_asset(
+            name="sitemap_images",
+            source_asset="artworks_with_images",
+            page_url_column="artwork_url",
+            image_url_column="image_url",
+            base_url="https://example.com",
+            title_column="artwork_title",
+        )
+        ```
     """
 
     if output_path is None:

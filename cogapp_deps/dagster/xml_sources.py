@@ -11,20 +11,22 @@ Features:
 - Support for nested structures
 
 Example:
-    >>> import dlt
-    >>> from cogapp_deps.dagster.xml_sources import xml_file_source
-    >>>
-    >>> @dlt.source
-    >>> def harvest_xml():
-    >>>     return xml_file_source(
-    >>>         file_path="data.xml",
-    >>>         record_path="//record",
-    >>>         fields={
-    >>>             "id": "./id/text()",
-    >>>             "name": "./name/text()",
-    >>>             "value": "./value/text()",
-    >>>         },
-    >>>     )
+    ```python
+    import dlt
+    from cogapp_deps.dagster.xml_sources import xml_file_source
+
+    @dlt.source
+    def harvest_xml():
+        return xml_file_source(
+            file_path="data.xml",
+            record_path="//record",
+            fields={
+                "id": "./id/text()",
+                "name": "./name/text()",
+                "value": "./value/text()",
+            },
+        )
+    ```
 """
 
 from __future__ import annotations
@@ -65,25 +67,27 @@ def xml_file_source(
         Dict with extracted fields from each record
 
     Example:
-        >>> # XML structure:
-        >>> # <root>
-        >>> #   <record>
-        >>> #     <id>1</id>
-        >>> #     <name>Item 1</name>
-        >>> #     <value>100</value>
-        >>> #   </record>
-        >>> # </root>
-        >>>
-        >>> yield from xml_file_source(
-        ...     file_path="data.xml",
-        ...     record_path="//record",
-        ...     fields={
-        ...         "id": "./id/text()",
-        ...         "name": "./name/text()",
-        ...         "value": "./value/text()",
-        ...     },
-        ... )
-        >>> # Yields: {"id": "1", "name": "Item 1", "value": "100"}
+        ```python
+        # XML structure:
+        # <root>
+        #   <record>
+        #     <id>1</id>
+        #     <name>Item 1</name>
+        #     <value>100</value>
+        #   </record>
+        # </root>
+
+        yield from xml_file_source(
+            file_path="data.xml",
+            record_path="//record",
+            fields={
+                "id": "./id/text()",
+                "name": "./name/text()",
+                "value": "./value/text()",
+            },
+        )
+        # Yields: {"id": "1", "name": "Item 1", "value": "100"}
+        ```
 
     Notes:
         - For large files, consider using xml_streaming_source()
@@ -169,12 +173,14 @@ def xml_streaming_source(
         Dict with extracted fields from each record
 
     Example:
-        >>> # For large XML files (>1GB)
-        >>> yield from xml_streaming_source(
-        ...     file_path="large_data.xml",
-        ...     record_tag="record",
-        ...     fields={"id": "./id/text()", "value": "./value/text()"},
-        ... )
+        ```python
+        # For large XML files (>1GB)
+        yield from xml_streaming_source(
+            file_path="large_data.xml",
+            record_tag="record",
+            fields={"id": "./id/text()", "value": "./value/text()"},
+        )
+        ```
 
     Notes:
         - Memory-efficient for large files
@@ -260,24 +266,26 @@ def xml_http_source(
         Dict with extracted fields from each record
 
     Example:
-        >>> # RSS feed
-        >>> yield from xml_http_source(
-        ...     url="https://example.com/rss.xml",
-        ...     record_path="//item",
-        ...     fields={
-        ...         "title": "./title/text()",
-        ...         "link": "./link/text()",
-        ...         "pubDate": "./pubDate/text()",
-        ...     },
-        ... )
-        >>>
-        >>> # API with auth
-        >>> yield from xml_http_source(
-        ...     url="https://api.example.com/data.xml",
-        ...     record_path="//record",
-        ...     fields={"id": "./@id", "value": "./value/text()"},
-        ...     headers={"Authorization": "Bearer token"},
-        ... )
+        ```python
+        # RSS feed
+        yield from xml_http_source(
+            url="https://example.com/rss.xml",
+            record_path="//item",
+            fields={
+                "title": "./title/text()",
+                "link": "./link/text()",
+                "pubDate": "./pubDate/text()",
+            },
+        )
+
+        # API with auth
+        yield from xml_http_source(
+            url="https://api.example.com/data.xml",
+            record_path="//record",
+            fields={"id": "./@id", "value": "./value/text()"},
+            headers={"Authorization": "Bearer token"},
+        )
+        ```
 
     Notes:
         - Supports HTTPS with SSL verification
@@ -356,26 +364,28 @@ def xml_multi_source(
         http_endpoints: List of HTTP endpoint configs (same structure)
 
     Example:
-        >>> @dlt.source
-        >>> def harvest_all_xml():
-        >>>     return xml_multi_source(
-        >>>         local_files=[
-        >>>             {
-        >>>                 "file_path": "sales.xml",
-        >>>                 "record_path": "//sale",
-        >>>                 "fields": {"id": "./id/text()", "amount": "./amount/text()"},
-        >>>                 "resource_name": "sales_xml",
-        >>>             },
-        >>>         ],
-        >>>         http_endpoints=[
-        >>>             {
-        >>>                 "url": "https://api.example.com/feed.xml",
-        >>>                 "record_path": "//item",
-        >>>                 "fields": {"title": "./title/text()"},
-        >>>                 "resource_name": "api_feed",
-        >>>             },
-        >>>         ],
-        >>>     )
+        ```python
+        @dlt.source
+        def harvest_all_xml():
+            return xml_multi_source(
+                local_files=[
+                    {
+                        "file_path": "sales.xml",
+                        "record_path": "//sale",
+                        "fields": {"id": "./id/text()", "amount": "./amount/text()"},
+                        "resource_name": "sales_xml",
+                    },
+                ],
+                http_endpoints=[
+                    {
+                        "url": "https://api.example.com/feed.xml",
+                        "record_path": "//item",
+                        "fields": {"title": "./title/text()"},
+                        "resource_name": "api_feed",
+                    },
+                ],
+            )
+        ```
     """
     resources = []
 

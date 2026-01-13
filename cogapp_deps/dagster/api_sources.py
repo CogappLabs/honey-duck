@@ -11,18 +11,20 @@ Features:
 - Efficient batching for API quotas
 
 Example:
-    >>> import dlt
-    >>> from cogapp_deps.dagster.api_sources import claude_message_batches
-    >>>
-    >>> @dlt.source
-    >>> def my_source():
-    >>>     # Process 1000 prompts with Claude
-    >>>     prompts = [{"text": f"Analyze: {i}"} for i in range(1000)]
-    >>>     return claude_message_batches(
-    >>>         prompts=prompts,
-    >>>         model="claude-3-5-sonnet-20241022",
-    >>>         max_tokens=1024,
-    >>>     )
+    ```python
+    import dlt
+    from cogapp_deps.dagster.api_sources import claude_message_batches
+
+    @dlt.source
+    def my_source():
+        # Process 1000 prompts with Claude
+        prompts = [{"text": f"Analyze: {i}"} for i in range(1000)]
+        return claude_message_batches(
+            prompts=prompts,
+            model="claude-3-5-sonnet-20241022",
+            max_tokens=1024,
+        )
+    ```
 """
 
 from __future__ import annotations
@@ -85,15 +87,17 @@ def claude_message_batches(
         ANTHROPIC_API_KEY: Anthropic API key (required if not passed)
 
     Example:
-        >>> prompts = [
-        ...     {"text": "What is 2+2?", "custom_id": "math_1"},
-        ...     {"text": "What is the capital of France?", "custom_id": "geo_1"},
-        ... ]
-        >>> yield from claude_message_batches(
-        ...     prompts=prompts,
-        ...     model="claude-3-5-haiku-20241022",  # Cost-effective for simple tasks
-        ...     max_tokens=100,
-        ... )
+        ```python
+        prompts = [
+            {"text": "What is 2+2?", "custom_id": "math_1"},
+            {"text": "What is the capital of France?", "custom_id": "geo_1"},
+        ]
+        yield from claude_message_batches(
+            prompts=prompts,
+            model="claude-3-5-haiku-20241022",  # Cost-effective for simple tasks
+            max_tokens=100,
+        )
+        ```
 
     Notes:
         - Message Batches API is more cost-effective (50% discount)
@@ -276,16 +280,18 @@ def voyage_embeddings_batch(
         VOYAGE_API_KEY: Voyage AI API key (required if not passed)
 
     Example:
-        >>> texts = [
-        ...     "The quick brown fox jumps over the lazy dog",
-        ...     "Machine learning is a subset of artificial intelligence",
-        ...     "Python is a popular programming language",
-        ... ]
-        >>> yield from voyage_embeddings_batch(
-        ...     texts=texts,
-        ...     model="voyage-3-lite",  # Faster, cheaper for simple use cases
-        ...     input_type="document",
-        ... )
+        ```python
+        texts = [
+            "The quick brown fox jumps over the lazy dog",
+            "Machine learning is a subset of artificial intelligence",
+            "Python is a popular programming language",
+        ]
+        yield from voyage_embeddings_batch(
+            texts=texts,
+            model="voyage-3-lite",  # Faster, cheaper for simple use cases
+            input_type="document",
+        )
+        ```
 
     Models:
         - voyage-3: Latest general-purpose (1024 dims)

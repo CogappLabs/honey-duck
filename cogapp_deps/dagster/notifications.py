@@ -5,15 +5,17 @@ These are templates showing how to structure notification assets that depend
 on pipeline completion.
 
 Example usage:
-    >>> from cogapp_deps.dagster.notifications import create_slack_notification_asset
-    >>>
-    >>> # Create a notification asset that depends on pipeline completion
-    >>> notify_on_success = create_slack_notification_asset(
-    ...     name="notify_pipeline_success",
-    ...     deps=["sales_output", "artworks_output"],
-    ...     webhook_url_env_var="SLACK_WEBHOOK_URL",
-    ...     message_template="Pipeline completed: {asset_count} assets materialized",
-    ... )
+    ```python
+    from cogapp_deps.dagster.notifications import create_slack_notification_asset
+
+    # Create a notification asset that depends on pipeline completion
+    notify_on_success = create_slack_notification_asset(
+        name="notify_pipeline_success",
+        deps=["sales_output", "artworks_output"],
+        webhook_url_env_var="SLACK_WEBHOOK_URL",
+        message_template="Pipeline completed: {asset_count} assets materialized",
+    )
+    ```
 """
 
 from __future__ import annotations
@@ -53,12 +55,14 @@ def create_slack_notification_asset(
         Asset definition for the notification
 
     Example:
-        >>> notify = create_slack_notification_asset(
-        ...     name="notify_sales_complete",
-        ...     deps=["sales_output", "artworks_output"],
-        ...     message_template="Sales pipeline completed: {asset_count} assets",
-        ...     channel="#data-pipeline-alerts",
-        ... )
+        ```python
+        notify = create_slack_notification_asset(
+            name="notify_sales_complete",
+            deps=["sales_output", "artworks_output"],
+            message_template="Sales pipeline completed: {asset_count} assets",
+            channel="#data-pipeline-alerts",
+        )
+        ```
     """
 
     @dg.asset(
@@ -168,15 +172,17 @@ def create_email_notification_asset(
         {prefix}_PASSWORD: SMTP password
 
     Example:
-        >>> notify = create_email_notification_asset(
-        ...     name="email_pipeline_report",
-        ...     deps=["sales_output", "artworks_output"],
-        ...     recipient_emails=["team@cogapp.com", "manager@cogapp.com"],
-        ...     subject_template="Daily Pipeline Report",
-        ...     pipeline_name="Honey Duck Sales Analysis",
-        ...     dagster_url="http://localhost:3000",
-        ...     support_email="data-team@cogapp.com",
-        ... )
+        ```python
+        notify = create_email_notification_asset(
+            name="email_pipeline_report",
+            deps=["sales_output", "artworks_output"],
+            recipient_emails=["team@cogapp.com", "manager@cogapp.com"],
+            subject_template="Daily Pipeline Report",
+            pipeline_name="Honey Duck Sales Analysis",
+            dagster_url="http://localhost:3000",
+            support_email="data-team@cogapp.com",
+        )
+        ```
     """
 
     @dg.asset(
@@ -366,12 +372,14 @@ def create_pipeline_status_notification(
         Asset definition for the notification
 
     Example:
-        >>> notify = create_pipeline_status_notification(
-        ...     name="daily_pipeline_alert",
-        ...     deps=["sales_output", "artworks_output"],
-        ...     notification_type="slack",
-        ...     webhook_url_env_var="SLACK_WEBHOOK_URL",
-        ... )
+        ```python
+        notify = create_pipeline_status_notification(
+            name="daily_pipeline_alert",
+            deps=["sales_output", "artworks_output"],
+            notification_type="slack",
+            webhook_url_env_var="SLACK_WEBHOOK_URL",
+        )
+        ```
     """
     if notification_type == "slack":
         return create_slack_notification_asset(

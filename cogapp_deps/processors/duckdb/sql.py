@@ -105,20 +105,24 @@ class DuckDBQueryProcessor:
     Use for extracting data from the database without DataFrame input.
 
     Example:
-        >>> from cogapp_deps.processors.duckdb import configure
-        >>> configure(db_path="warehouse.duckdb", read_only=True)
-        >>>
-        >>> processor = DuckDBQueryProcessor(sql=\"\"\"
-        ...     SELECT s.*, a.title
-        ...     FROM raw.sales s
-        ...     JOIN raw.artworks a ON s.artwork_id = a.artwork_id
-        ...     WHERE s.sale_date > '2024-01-01'
-        ... \"\"\")
-        >>> result = processor.process()
+        ```python
+        from cogapp_deps.processors.duckdb import configure
+        configure(db_path="warehouse.duckdb", read_only=True)
+
+        processor = DuckDBQueryProcessor(sql=\"\"\"
+            SELECT s.*, a.title
+            FROM raw.sales s
+            JOIN raw.artworks a ON s.artwork_id = a.artwork_id
+            WHERE s.sale_date > '2024-01-01'
+        \"\"\")
+        result = processor.process()
+        ```
 
     For lazy output (enables downstream streaming):
-        >>> processor = DuckDBQueryProcessor(sql="SELECT * FROM raw.sales", lazy=True)
-        >>> lazy_result = processor.process()  # Returns LazyFrame
+        ```python
+        processor = DuckDBQueryProcessor(sql="SELECT * FROM raw.sales", lazy=True)
+        lazy_result = processor.process()  # Returns LazyFrame
+        ```
     """
 
     def __init__(self, sql: str, lazy: bool = False):
