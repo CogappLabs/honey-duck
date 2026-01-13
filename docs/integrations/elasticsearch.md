@@ -477,7 +477,7 @@ Delete and recreate:
 curl -X DELETE "http://localhost:9200/honey_duck_sales_output"
 
 # Re-materialize asset
-uv run dagster asset materialize -a sales_output
+uv run dg launch --assets sales_output
 ```
 
 ---

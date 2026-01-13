@@ -551,7 +551,7 @@ def my_asset(context):
 # View recent run logs
 uv run dagster run logs <run_id>
 
-# Server logs when running dagster dev
+# Server logs when running dg dev
 # → Check terminal output
 ```
 

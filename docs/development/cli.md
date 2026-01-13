@@ -440,7 +440,7 @@ uv run which python
 uv run python -c "from honey_duck.defs.definitions import defs; print(defs)"
 
 # Check for import errors
-uv run dagster definitions validate
+uv run dg check defs
 ```
 
 ## Quick Reference Card
