@@ -5,18 +5,9 @@ import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { ASSETS_QUERY } from "@/lib/queries"
 import { Suspense } from "react"
+import type { Asset } from "@/lib/types"
 
-type Asset = {
-	id: string
-	key: { path: string[] }
-	definition?: {
-		groupName?: string
-		description?: string
-		computeKind?: string
-	}
-}
-
-function AssetsContent() {
+const AssetsContent = () => {
 	const searchParams = useSearchParams()
 	const groupFilter = searchParams.get("group")
 
@@ -146,10 +137,10 @@ function AssetsContent() {
 	)
 }
 
-export default function AssetsPage() {
-	return (
-		<Suspense fallback={<div className="text-gray-500">Loading...</div>}>
-			<AssetsContent />
-		</Suspense>
-	)
-}
+const AssetsPage = () => (
+	<Suspense fallback={<div className="text-gray-500">Loading...</div>}>
+		<AssetsContent />
+	</Suspense>
+)
+
+export default AssetsPage

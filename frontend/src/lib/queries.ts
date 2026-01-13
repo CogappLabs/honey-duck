@@ -134,6 +134,9 @@ export const JOBS_QUERY = gql`
 			... on RepositoryConnection {
 				nodes {
 					name
+					location {
+						name
+					}
 					jobs {
 						name
 						description

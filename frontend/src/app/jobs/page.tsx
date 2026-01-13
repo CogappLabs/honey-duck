@@ -2,14 +2,23 @@
 
 import { useQuery } from "urql"
 import { JOBS_QUERY } from "@/lib/queries"
+import type { Repository } from "@/lib/types"
 
-export default function JobsPage() {
+const JobsPage = () => {
 	const [result] = useQuery({ query: JOBS_QUERY })
 
-	const repositories =
+	const allRepositories: Repository[] =
 		result.data?.repositoriesOrError?.__typename === "RepositoryConnection"
 			? result.data.repositoriesOrError.nodes
 			: []
+
+	// Filter out internal jobs and repositories with no visible jobs
+	const repositories = allRepositories
+		.map((repo) => ({
+			...repo,
+			jobs: repo.jobs.filter((job) => !job.name.startsWith("__")),
+		}))
+		.filter((repo) => repo.jobs.length > 0)
 
 	return (
 		<div className="space-y-6">
@@ -25,11 +34,17 @@ export default function JobsPage() {
 					<p className="text-red-600">Error loading jobs. Is Dagster running at 127.0.0.1:3000?</p>
 					<p className="text-sm text-red-500 mt-1">{result.error.message}</p>
 				</div>
+			) : repositories.length === 0 ? (
+				<div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+					No jobs found. Make sure you have jobs defined in your Dagster definitions.
+				</div>
 			) : (
 				<div className="space-y-8">
-					{repositories.map((repo: { name: string; jobs: { name: string; description?: string }[] }) => (
+					{repositories.map((repo) => (
 						<div key={repo.name}>
-							<h2 className="text-xl font-semibold text-gray-900 mb-4">{repo.name}</h2>
+							{!repo.name.startsWith("__") && (
+								<h2 className="text-xl font-semibold text-gray-900 mb-4">{repo.name}</h2>
+							)}
 							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 								{repo.jobs.map((job) => (
 									<div key={job.name} className="bg-white rounded-lg shadow p-4">
@@ -41,7 +56,7 @@ export default function JobsPage() {
 												)}
 											</div>
 											<a
-												href={`http://127.0.0.1:3000/jobs/${job.name}`}
+												href={`http://127.0.0.1:3000/locations/${repo.location.name}/jobs/${job.name}`}
 												target="_blank"
 												rel="noopener noreferrer"
 												className="text-sm text-amber-600 hover:text-amber-700"
@@ -59,3 +74,5 @@ export default function JobsPage() {
 		</div>
 	)
 }
+
+export default JobsPage

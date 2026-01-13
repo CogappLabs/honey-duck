@@ -2,11 +2,14 @@
 
 import { useQuery } from "urql"
 import { RUNS_QUERY } from "@/lib/queries"
+import { StatusBadge } from "@/components/StatusBadge"
+import { formatDuration } from "@/lib/utils"
+import type { Run } from "@/lib/types"
 
-export default function RunsPage() {
+const RunsPage = () => {
 	const [result] = useQuery({ query: RUNS_QUERY, variables: { limit: 50 } })
 
-	const runs =
+	const runs: Run[] =
 		result.data?.runsOrError?.__typename === "Runs" ? result.data.runsOrError.results : []
 
 	return (
@@ -53,15 +56,8 @@ export default function RunsPage() {
 							</tr>
 						</thead>
 						<tbody className="bg-white divide-y divide-gray-200">
-							{runs.map(
-								(run: {
-									runId: string
-									jobName: string
-									status: string
-									startTime: number | null
-									endTime: number | null
-								}) => (
-									<tr key={run.runId} className="hover:bg-gray-50">
+							{runs.map((run) => (
+								<tr key={run.runId} className="hover:bg-gray-50">
 										<td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
 											{run.runId.slice(0, 8)}
 										</td>
@@ -92,8 +88,7 @@ export default function RunsPage() {
 											</a>
 										</td>
 									</tr>
-								)
-							)}
+							))}
 						</tbody>
 					</table>
 				</div>
@@ -102,35 +97,4 @@ export default function RunsPage() {
 	)
 }
 
-function StatusBadge({ status }: { status: string }) {
-	const colors: Record<string, string> = {
-		SUCCESS: "bg-green-100 text-green-800",
-		FAILURE: "bg-red-100 text-red-800",
-		STARTED: "bg-blue-100 text-blue-800",
-		QUEUED: "bg-yellow-100 text-yellow-800",
-		CANCELED: "bg-gray-100 text-gray-800",
-		CANCELING: "bg-orange-100 text-orange-800",
-	}
-
-	return (
-		<span
-			className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${colors[status] || "bg-gray-100 text-gray-800"}`}
-		>
-			{status}
-		</span>
-	)
-}
-
-function formatDuration(seconds: number): string {
-	if (seconds < 60) {
-		return `${Math.round(seconds)}s`
-	}
-	const minutes = Math.floor(seconds / 60)
-	const secs = Math.round(seconds % 60)
-	if (minutes < 60) {
-		return `${minutes}m ${secs}s`
-	}
-	const hours = Math.floor(minutes / 60)
-	const mins = minutes % 60
-	return `${hours}h ${mins}m`
-}
+export default RunsPage
