@@ -2,6 +2,11 @@
 
 Custom IO managers for various storage backends.
 
+!!! info "External Documentation"
+    - **Dagster IO Managers**: [docs.dagster.io/concepts/io-management](https://docs.dagster.io/concepts/io-management/io-managers)
+    - **Elasticsearch**: [elastic.co/guide](https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html) | [Python Client](https://elasticsearch-py.readthedocs.io/)
+    - **OpenSearch**: [opensearch.org/docs](https://opensearch.org/docs/latest/) | [Python Client](https://opensearch.org/docs/latest/clients/python-low-level/)
+
 ## Elasticsearch
 
 ### ElasticsearchIOManager

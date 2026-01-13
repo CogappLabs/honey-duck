@@ -2,6 +2,11 @@
 
 Guide to common output destinations for data pipelines and how to implement them with Dagster IO Managers.
 
+!!! tip "Quick Links"
+    **Formats**: [Parquet](https://parquet.apache.org/docs/) | [Arrow](https://arrow.apache.org/docs/)
+    **Databases**: [DuckDB](https://duckdb.org/docs/) | [PostgreSQL](https://www.postgresql.org/docs/)
+    **Search**: [Elasticsearch](https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html) | [OpenSearch](https://opensearch.org/docs/latest/)
+
 ## Currently Implemented
 
 **JSON** - `JSONIOManager` - File-based JSON output
@@ -474,9 +479,37 @@ Source → Kafka (streaming) → TimescaleDB (time-series) → Grafana
 
 ## Resources
 
-- **Dagster IO Manager Docs**: https://docs.dagster.io/concepts/io-management/io-managers
+### Dagster
+- **IO Manager Docs**: https://docs.dagster.io/concepts/io-management/io-managers
 - **Custom IO Manager Guide**: https://docs.dagster.io/concepts/io-management/io-managers#writing-a-custom-io-manager
 - **Community IO Managers**: https://github.com/dagster-io/dagster/tree/master/python_modules/libraries
+
+### Data Formats
+- **Apache Parquet**: https://parquet.apache.org/docs/
+- **Apache Arrow**: https://arrow.apache.org/docs/
+- **Apache Iceberg**: https://iceberg.apache.org/docs/latest/
+- **Delta Lake**: https://docs.delta.io/latest/index.html
+
+### Databases
+- **DuckDB**: https://duckdb.org/docs/
+- **PostgreSQL**: https://www.postgresql.org/docs/
+- **MongoDB**: https://www.mongodb.com/docs/
+- **Redis**: https://redis.io/docs/
+
+### Cloud Data Warehouses
+- **BigQuery**: https://cloud.google.com/bigquery/docs
+- **Snowflake**: https://docs.snowflake.com/
+
+### Search & Analytics
+- **Elasticsearch**: https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html
+- **OpenSearch**: https://opensearch.org/docs/latest/
+
+### Object Storage
+- **AWS S3**: https://docs.aws.amazon.com/s3/
+- **Google Cloud Storage**: https://cloud.google.com/storage/docs
+
+### Streaming
+- **Apache Kafka**: https://kafka.apache.org/documentation/
 
 ---
 

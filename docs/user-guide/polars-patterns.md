@@ -135,3 +135,13 @@ def my_output(context, data: pl.LazyFrame) -> pl.DataFrame:
 | Sorted groups | `sort_by()` in `agg()` | `sort()` before `group_by()` |
 | Filtering by list | `how="semi"` join | `is_in()` with DataFrame |
 | Streaming | Return `LazyFrame` | Return `DataFrame` |
+
+---
+
+## External Resources
+
+- **Polars User Guide**: [pola.rs/docs](https://docs.pola.rs/)
+- **Polars API Reference**: [pola.rs/api/python](https://docs.pola.rs/api/python/stable/reference/)
+- **Polars Lazy API**: [Lazy API Guide](https://docs.pola.rs/user-guide/lazy/using/)
+- **Polars Expressions**: [Expression Guide](https://docs.pola.rs/user-guide/expressions/)
+- **Polars GitHub**: [github.com/pola-rs/polars](https://github.com/pola-rs/polars)

@@ -2,6 +2,11 @@
 
 Utilities for building Dagster assets with less boilerplate.
 
+!!! info "External Documentation"
+    - **Dagster**: [docs.dagster.io](https://docs.dagster.io/) | [Assets Guide](https://docs.dagster.io/concepts/assets/software-defined-assets)
+    - **Polars**: [pola.rs/docs](https://docs.pola.rs/) | [API Reference](https://docs.pola.rs/api/python/stable/reference/)
+    - **DuckDB**: [duckdb.org/docs](https://duckdb.org/docs/)
+
 ## Data Loading
 
 ### read_harvest_table_lazy

@@ -1,6 +1,12 @@
 # Processors
 
-Reusable DataFrame transformation classes.
+Reusable DataFrame transformation classes for data pipelines.
+
+!!! info "External Documentation"
+    - **DuckDB**: [duckdb.org/docs](https://duckdb.org/docs/) | [SQL Reference](https://duckdb.org/docs/sql/introduction)
+    - **Polars**: [pola.rs/docs](https://docs.pola.rs/) | [API Reference](https://docs.pola.rs/api/python/stable/reference/)
+
+---
 
 ## DuckDB Processors
 
