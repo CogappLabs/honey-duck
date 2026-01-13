@@ -33,41 +33,17 @@ uv run dagster dev -p 3003
 cd frontend && npm install && npm run dev
 ```
 
-Open http://localhost:3001 for the dashboard. See **[Frontend Dashboard Guide](docs/user-guide/frontend-dashboard.md)** for details.
+Open http://localhost:3001 for the dashboard. See the **[Frontend Dashboard Guide](https://cogapplabs.github.io/honey-duck/user-guide/frontend-dashboard/)** for details.
 
 ## Documentation
 
-### 🚀 New Users Start Here
+**[View Full Documentation](https://cogapplabs.github.io/honey-duck)**
 
-**Zero to Hero**:
-1. **[Quick Start Tutorial](docs/QUICK_START_TUTORIAL.md)** ⭐ - Build your first asset in 15 minutes
-2. **[Getting Started Guide](docs/GETTING_STARTED.md)** - In-depth Dagster introduction
-3. **[PATTERNS.md](honey_duck/defs/PATTERNS.md)** - Copy-paste asset patterns
-4. **[Cogapp Deps API](cogapp_deps/README.md)** - Complete utility reference
-
-### 📖 Core Documentation
-
-**Essential Reading**:
-- **[CLAUDE.md](CLAUDE.md)** - Project structure and commands
-- **[Best Practices](docs/BEST_PRACTICES.md)** - Production guidelines
-- **[Performance Tuning](docs/PERFORMANCE_TUNING.md)** ⚡ - Optimize your pipelines
-- **[CLI Reference](docs/CLI_REFERENCE.md)** - Dagster commands
-- **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
-
-### 🔌 Integrations
-
-**Output Destinations**:
-- **[Elasticsearch Integration](docs/ELASTICSEARCH_INTEGRATION.md)** - Full-text search with ES 8/9
-- **[Common Outputs](docs/COMMON_OUTPUTS.md)** - PostgreSQL, BigQuery, S3, and more
-
-**AI & Web**:
-- **[API Bulk Harvesting](docs/API_BULK_HARVESTING.md)** - Claude & Voyage AI batch processing
-- **[Sitemap Generation](docs/SITEMAP_GENERATION.md)** - SEO-optimized XML sitemaps
-- **[IIIF Tile Generation](docs/IIIF_TILE_GENERATION.md)** - Image tile processing
-
-**Development & Deployment**:
-- **[LocalStack S3 Guide](docs/LOCALSTACK_S3_GUIDE.md)** - Local S3 testing
-- **[Production Deployment](docs/DEPLOYMENT.md)** 🐳 - Docker deployment guide
+Quick links:
+- [Tutorial](https://cogapplabs.github.io/honey-duck/getting-started/tutorial/) - Build your first asset
+- [Best Practices](https://cogapplabs.github.io/honey-duck/user-guide/best-practices/) - Production guidelines
+- [API Reference](https://cogapplabs.github.io/honey-duck/api/) - Processor and helper docs
+- [Integrations](https://cogapplabs.github.io/honey-duck/integrations/elasticsearch/) - Elasticsearch, S3, and more
 
 ## Architecture
 
