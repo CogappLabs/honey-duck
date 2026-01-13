@@ -282,7 +282,7 @@ csv_sales → dlt_harvest_sales → sales_transform → sales_output
 ```python
 # tests/test_my_asset.py
 from dagster import materialize
-from honey_duck.defs.my_first_asset import expensive_artworks
+from honey_duck.defs.polars.my_first_asset import expensive_artworks
 
 def test_expensive_artworks():
     # Materialize the asset

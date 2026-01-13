@@ -469,7 +469,7 @@ PRICE_TIER_BUDGET_MAX_USD = 500_000
 PRICE_TIER_MID_MAX_USD = 3_000_000
 
 # In asset code
-from honey_duck.defs.constants import MIN_SALE_VALUE_USD
+from honey_duck.defs.shared.constants import MIN_SALE_VALUE_USD
 
 result = df.filter(pl.col("price") >= MIN_SALE_VALUE_USD)
 ```

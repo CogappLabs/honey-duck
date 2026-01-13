@@ -424,7 +424,7 @@ def test_sales_transform_with_context():
     context = build_asset_context()
 
     # Import asset function directly
-    from honey_duck.defs.assets_polars import sales_transform_polars
+    from honey_duck.defs.polars.assets import sales_transform_polars
 
     # Execute with context
     result = sales_transform_polars(context, mock_sales_joined)
@@ -440,8 +440,8 @@ def test_sales_transform_with_context():
 def test_sales_transform_with_materialize():
     """Test asset with full materialization (includes IO manager)."""
 
-    from honey_duck.defs import defs
-    from honey_duck.defs.assets_polars import sales_transform_polars
+    from honey_duck.defs.definitions import defs
+    from honey_duck.defs.polars.assets import sales_transform_polars
 
     # Materialize upstream first
     result = materialize(

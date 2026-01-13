@@ -30,7 +30,7 @@ uv run pytest
 ## Structure
 
 ```
-honey_duck/
+src/honey_duck/
 ├── __init__.py           # Package metadata
 ├── components/           # Dagster component registry
 └── defs/                 # Organized by technology
@@ -92,12 +92,12 @@ dlt_harvest_* (shared)├──→ sales_transform_duckdb ──→ sales_output
 ```
 
 **Implementations** (6 total):
-1. **original** - Processor classes (assets.py)
-2. **polars** - Split intermediate steps for observability (assets_polars.py)
-3. **duckdb** - Pure DuckDB SQL queries (assets_duckdb.py)
-4. **polars_fs** - Polars variant, same logic different group (assets_polars_fs.py)
-5. **polars_ops** - Graph-backed assets with ops for detailed observability (assets_polars_ops.py)
-6. **polars_multi** - Multi-asset pattern for tightly coupled steps (assets_polars_multi.py)
+1. **original** - Processor classes (original/assets.py)
+2. **polars** - Split intermediate steps for observability (polars/assets.py)
+3. **duckdb** - Pure DuckDB SQL queries (duckdb/assets.py)
+4. **polars_fs** - Polars variant, same logic different group (polars/assets_fs.py)
+5. **polars_ops** - Graph-backed assets with ops for detailed observability (polars/assets_ops.py)
+6. **polars_multi** - Multi-asset pattern for tightly coupled steps (polars/assets_multi.py)
 
 **Jobs** (6 total):
 - `processors_pipeline` - Original implementation with processor classes

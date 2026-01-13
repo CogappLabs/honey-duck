@@ -763,8 +763,8 @@ from cogapp_deps.dagster import (
     add_dataframe_metadata,
     write_json_output,
 )
-from honey_duck.defs.helpers import STANDARD_HARVEST_DEPS
-from honey_duck.defs.resources import HARVEST_PARQUET_DIR
+from honey_duck.defs.shared.helpers import STANDARD_HARVEST_DEPS
+from honey_duck.defs.shared.resources import PathsResource
 
 @dg.asset(
     kinds={"polars"},

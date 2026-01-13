@@ -124,7 +124,7 @@ uv run dg list defs --show-deps
 1. **Check the import**:
 ```python
 # In definitions.py
-from honey_duck.defs.my_assets import my_asset  # ← Verify file name
+from honey_duck.defs.polars.my_assets import my_asset  # ← Verify file/folder
 ```
 
 2. **Avoid circular imports**:
