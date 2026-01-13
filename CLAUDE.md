@@ -11,8 +11,8 @@ uv sync
 # Optional: Enable persistent run history (copy .env.example to .env)
 cp .env.example .env
 
-# Start Dagster UI
-uv run dagster dev
+# Start Dagster UI (on port 3003 for frontend compatibility)
+uv run dagster dev -p 3003
 
 # Run pipeline via CLI
 uv run dagster job execute -j processors_pipeline

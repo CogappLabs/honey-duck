@@ -19,7 +19,12 @@ npm run dev
 
 Open http://localhost:3001 in your browser.
 
-**Note:** Dagster must be running at `http://127.0.0.1:3000` for the dashboard to fetch data.
+**Note:** Dagster must be running at `http://127.0.0.1:3003` for the dashboard to fetch data.
+
+Start Dagster on port 3003:
+```bash
+uv run dagster dev -p 3003
+```
 
 ## Stack
 
@@ -42,8 +47,8 @@ npm run check    # Run Biome check with auto-fix
 
 ## Configuration
 
-The GraphQL endpoint can be configured via environment variable:
+The Dagster URL can be configured via environment variable:
 
 ```bash
-NEXT_PUBLIC_DAGSTER_GRAPHQL_URL=http://127.0.0.1:3000/graphql
+NEXT_PUBLIC_DAGSTER_URL=http://127.0.0.1:3003
 ```

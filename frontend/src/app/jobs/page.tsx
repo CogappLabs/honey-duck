@@ -2,6 +2,7 @@
 
 import { useQuery } from "urql"
 import { JOBS_QUERY } from "@/lib/queries"
+import { DAGSTER_URL } from "@/lib/config"
 import type { Repository } from "@/lib/types"
 
 const JobsPage = () => {
@@ -31,7 +32,7 @@ const JobsPage = () => {
 				<div className="text-gray-500">Loading jobs...</div>
 			) : result.error ? (
 				<div className="bg-red-50 border border-red-200 rounded-lg p-4">
-					<p className="text-red-600">Error loading jobs. Is Dagster running at 127.0.0.1:3000?</p>
+					<p className="text-red-600">Error loading jobs. Is Dagster running?</p>
 					<p className="text-sm text-red-500 mt-1">{result.error.message}</p>
 				</div>
 			) : repositories.length === 0 ? (
@@ -56,7 +57,7 @@ const JobsPage = () => {
 												)}
 											</div>
 											<a
-												href={`http://127.0.0.1:3000/locations/${repo.location.name}/jobs/${job.name}`}
+												href={`${DAGSTER_URL}/locations/${repo.location.name}/jobs/${job.name}`}
 												target="_blank"
 												rel="noopener noreferrer"
 												className="text-sm text-amber-600 hover:text-amber-700"

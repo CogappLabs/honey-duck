@@ -38,17 +38,12 @@ export const ASSET_DETAILS_QUERY = gql`
 					description
 					groupName
 					computeKind
-					metadata {
-						key
-						value
-					}
 				}
 				assetMaterializations(limit: 10) {
 					runId
 					timestamp
 					metadataEntries {
 						label
-						description
 						... on IntMetadataEntry {
 							intValue
 						}
@@ -57,9 +52,6 @@ export const ASSET_DETAILS_QUERY = gql`
 						}
 						... on TextMetadataEntry {
 							text
-						}
-						... on MarkdownMetadataEntry {
-							mdStr
 						}
 					}
 				}
@@ -122,6 +114,75 @@ export const RUN_DETAILS_QUERY = gql`
 			}
 			... on RunNotFoundError {
 				message
+			}
+		}
+	}
+`
+
+// Get error events for a failed run
+export const RUN_ERROR_QUERY = gql`
+	query RunErrorQuery($runId: ID!) {
+		runOrError(runId: $runId) {
+			... on Run {
+				runId
+				eventConnection(afterCursor: null, limit: 50) {
+					events {
+						... on EngineEvent {
+							message
+							error {
+								message
+							}
+						}
+						... on RunFailureEvent {
+							message
+						}
+					}
+				}
+			}
+		}
+	}
+`
+
+// Get run with materializations
+export const RUN_WITH_ASSETS_QUERY = gql`
+	query RunWithAssetsQuery($runId: ID!) {
+		runOrError(runId: $runId) {
+			... on Run {
+				runId
+				status
+				jobName
+				startTime
+				endTime
+				assetMaterializations {
+					assetKey {
+						path
+					}
+					timestamp
+				}
+			}
+			... on RunNotFoundError {
+				message
+			}
+		}
+	}
+`
+
+// Get asset dependencies
+export const ASSET_DEPENDENCIES_QUERY = gql`
+	query AssetDependenciesQuery($assetKey: AssetKeyInput!) {
+		assetOrError(assetKey: $assetKey) {
+			... on Asset {
+				key {
+					path
+				}
+				definition {
+					dependencyKeys {
+						path
+					}
+					dependedByKeys {
+						path
+					}
+				}
 			}
 		}
 	}

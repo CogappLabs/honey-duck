@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
+import { DAGSTER_URL } from "@/lib/config"
 
-const DAGSTER_GRAPHQL_URL = process.env.DAGSTER_GRAPHQL_URL || "http://127.0.0.1:3000/graphql"
+const DAGSTER_GRAPHQL_URL = process.env.DAGSTER_GRAPHQL_URL || `${DAGSTER_URL}/graphql`
 
 export async function POST(request: NextRequest) {
 	try {

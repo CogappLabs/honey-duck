@@ -14,6 +14,9 @@ export type Run = {
 	status: string
 	startTime: number | null
 	endTime?: number | null
+	error?: {
+		message: string
+	} | null
 }
 
 export type Job = {

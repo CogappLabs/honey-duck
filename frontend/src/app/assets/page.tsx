@@ -79,7 +79,7 @@ const AssetsContent = () => {
 			) : result.error ? (
 				<div className="bg-red-50 border border-red-200 rounded-lg p-4">
 					<p className="text-red-600">
-						Error loading assets. Is Dagster running at 127.0.0.1:3000?
+						Error loading assets. Is Dagster running?
 					</p>
 					<p className="text-sm text-red-500 mt-1">{result.error.message}</p>
 				</div>

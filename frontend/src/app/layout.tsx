@@ -4,6 +4,8 @@ import Link from "next/link"
 import "./globals.css"
 import { Providers } from "./providers"
 
+const DAGSTER_URL = process.env.NEXT_PUBLIC_DAGSTER_URL || "http://127.0.0.1:3003"
+
 const geistSans = Geist({
 	variable: "--font-geist-sans",
 	subsets: ["latin"],
@@ -49,7 +51,7 @@ export default function RootLayout({
 										</div>
 									</div>
 									<a
-										href="http://127.0.0.1:3000"
+										href={DAGSTER_URL}
 										target="_blank"
 										rel="noopener noreferrer"
 										className="text-sm hover:text-amber-200 transition-colors"

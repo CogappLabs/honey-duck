@@ -3,7 +3,9 @@
 import { useQuery } from "urql"
 import Link from "next/link"
 import { ASSETS_QUERY, RUNS_QUERY } from "@/lib/queries"
+import { DAGSTER_URL } from "@/lib/config"
 import { StatusBadge } from "@/components/StatusBadge"
+import { FailedRunError } from "@/components/FailedRunError"
 import { formatDuration } from "@/lib/utils"
 import type { Asset, Run } from "@/lib/types"
 
@@ -74,26 +76,27 @@ const Home = () => {
 			{/* Failures Alert */}
 			{recentFailures.length > 0 && (
 				<div className="bg-red-50 border border-red-200 rounded-lg p-4">
-					<div className="flex items-center gap-2 mb-2">
+					<div className="flex items-center gap-2 mb-3">
 						<span className="text-red-600 font-semibold">Recent Failures</span>
 					</div>
-					<div className="space-y-2">
+					<div className="space-y-3">
 						{recentFailures.map((run) => (
-							<div key={run.runId} className="flex justify-between items-center text-sm">
-								<span className="font-medium text-gray-900">{run.jobName}</span>
-								<div className="flex items-center gap-4">
-									<span className="text-gray-500">
-										{run.startTime ? new Date(run.startTime * 1000).toLocaleString() : "-"}
-									</span>
-									<a
-										href={`http://127.0.0.1:3000/runs/${run.runId}`}
-										target="_blank"
-										rel="noopener noreferrer"
-										className="text-amber-600 hover:text-amber-700"
-									>
-										View
-									</a>
+							<div key={run.runId} className="text-sm">
+								<div className="flex justify-between items-center">
+									<span className="font-medium text-gray-900">{run.jobName}</span>
+									<div className="flex items-center gap-4">
+										<span className="text-gray-500">
+											{run.startTime ? new Date(run.startTime * 1000).toLocaleString() : "-"}
+										</span>
+										<Link
+											href={`/runs/${run.runId}`}
+											className="text-amber-600 hover:text-amber-700"
+										>
+											View
+										</Link>
+									</div>
 								</div>
+								<FailedRunError runId={run.runId} />
 							</div>
 						))}
 					</div>
@@ -185,32 +188,30 @@ const Home = () => {
 							<tbody className="bg-white divide-y divide-gray-200">
 								{runs.map((run) => (
 									<tr key={run.runId} className="hover:bg-gray-50">
-										<td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
-											<a
-												href={`http://127.0.0.1:3000/runs/${run.runId}`}
-												target="_blank"
-												rel="noopener noreferrer"
-												className="text-amber-600 hover:text-amber-700"
-											>
-												{run.runId.slice(0, 8)}
-											</a>
-										</td>
-										<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-											{run.jobName}
-										</td>
-										<td className="px-6 py-4 whitespace-nowrap">
-											<StatusBadge status={run.status} />
-										</td>
-										<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-											{run.startTime ? new Date(run.startTime * 1000).toLocaleString() : "-"}
-										</td>
-										<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-											{run.startTime && run.endTime
-												? formatDuration(run.endTime - run.startTime)
-												: run.startTime
-													? "Running..."
-													: "-"}
-										</td>
+											<td className="px-6 py-4 whitespace-nowrap text-sm font-mono">
+												<Link
+													href={`/runs/${run.runId}`}
+													className="text-amber-600 hover:text-amber-700"
+												>
+													{run.runId.slice(0, 8)}
+												</Link>
+											</td>
+											<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+												{run.jobName}
+											</td>
+											<td className="px-6 py-4 whitespace-nowrap">
+												<StatusBadge status={run.status} />
+											</td>
+											<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+												{run.startTime ? new Date(run.startTime * 1000).toLocaleString() : "-"}
+											</td>
+											<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+												{run.startTime && run.endTime
+													? formatDuration(run.endTime - run.startTime)
+													: run.startTime
+														? "Running..."
+														: "-"}
+											</td>
 									</tr>
 								))}
 							</tbody>

@@ -1,7 +1,9 @@
 "use client"
 
 import { useQuery } from "urql"
+import Link from "next/link"
 import { RUNS_QUERY } from "@/lib/queries"
+import { DAGSTER_URL } from "@/lib/config"
 import { StatusBadge } from "@/components/StatusBadge"
 import { formatDuration } from "@/lib/utils"
 import type { Run } from "@/lib/types"
@@ -23,7 +25,7 @@ const RunsPage = () => {
 				<div className="text-gray-500">Loading runs...</div>
 			) : result.error ? (
 				<div className="bg-red-50 border border-red-200 rounded-lg p-4">
-					<p className="text-red-600">Error loading runs. Is Dagster running at 127.0.0.1:3000?</p>
+					<p className="text-red-600">Error loading runs. Is Dagster running?</p>
 					<p className="text-sm text-red-500 mt-1">{result.error.message}</p>
 				</div>
 			) : runs.length === 0 ? (
@@ -58,8 +60,13 @@ const RunsPage = () => {
 						<tbody className="bg-white divide-y divide-gray-200">
 							{runs.map((run) => (
 								<tr key={run.runId} className="hover:bg-gray-50">
-										<td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
-											{run.runId.slice(0, 8)}
+										<td className="px-6 py-4 whitespace-nowrap text-sm font-mono">
+											<Link
+												href={`/runs/${run.runId}`}
+												className="text-amber-600 hover:text-amber-700"
+											>
+												{run.runId.slice(0, 8)}
+											</Link>
 										</td>
 										<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
 											{run.jobName}
@@ -79,7 +86,7 @@ const RunsPage = () => {
 										</td>
 										<td className="px-6 py-4 whitespace-nowrap text-sm">
 											<a
-												href={`http://127.0.0.1:3000/runs/${run.runId}`}
+												href={`${DAGSTER_URL}/runs/${run.runId}`}
 												target="_blank"
 												rel="noopener noreferrer"
 												className="text-amber-600 hover:text-amber-700"
@@ -87,7 +94,7 @@ const RunsPage = () => {
 												View in Dagster
 											</a>
 										</td>
-									</tr>
+								</tr>
 							))}
 						</tbody>
 					</table>
