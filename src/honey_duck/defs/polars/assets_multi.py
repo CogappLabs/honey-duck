@@ -340,14 +340,14 @@ def sales_output_polars_multi(
     sales_transform_polars_multi: pl.DataFrame,
     output_paths: OutputPathsResource,
 ) -> pl.DataFrame:
-    """Output: High-value sales filtered by premium artworks.
+    """Output: High-value sales above minimum threshold.
 
     Depends on: sales_transform_polars_multi (from multi-asset)
     """
     start_time = time.perf_counter()
     sales_path = output_paths.sales_polars_multi
 
-    result = sales_transform_polars_multi.filter(pl.col("list_price_usd") > PRICE_TIER_MID_MAX_USD)
+    result = sales_transform_polars_multi.filter(pl.col("sale_price_usd") > MIN_SALE_VALUE_USD)
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
     write_json_output(
@@ -355,11 +355,11 @@ def sales_output_polars_multi(
         sales_path,
         context,
         extra_metadata={
-            "premium_threshold": f"${PRICE_TIER_MID_MAX_USD:,}",
+            "min_sale_value": f"${MIN_SALE_VALUE_USD:,}",
             "processing_time_ms": round(elapsed_ms, 2),
         },
     )
-    context.log.info(f"Output {len(result)} premium sales to {sales_path} in {elapsed_ms:.1f}ms")
+    context.log.info(f"Output {len(result)} high-value sales to {sales_path} in {elapsed_ms:.1f}ms")
     return result
 
 
@@ -373,16 +373,15 @@ def artworks_output_polars_multi(
     artworks_transform_polars_multi: pl.DataFrame,
     output_paths: OutputPathsResource,
 ) -> pl.DataFrame:
-    """Output: Artworks catalog with sales rank <= 10 per tier.
+    """Output: Complete artworks catalog to JSON.
 
     Depends on: artworks_transform_polars_multi (from multi-asset)
     """
     start_time = time.perf_counter()
     artworks_path = output_paths.artworks_polars_multi
 
-    result = artworks_transform_polars_multi.filter(pl.col("sales_rank") <= 10).sort(
-        ["price_tier", "sales_rank"]
-    )
+    # Output all artworks sorted by total sales value
+    result = artworks_transform_polars_multi.sort("total_sales_value", descending=True)
 
     tier_counts = result.group_by("price_tier").agg(pl.len().alias("count"))
     tier_dist = dict(
@@ -399,5 +398,5 @@ def artworks_output_polars_multi(
             "processing_time_ms": round(elapsed_ms, 2),
         },
     )
-    context.log.info(f"Output {len(result)} top artworks to {artworks_path} in {elapsed_ms:.1f}ms")
+    context.log.info(f"Output {len(result)} artworks to {artworks_path} in {elapsed_ms:.1f}ms")
     return result
