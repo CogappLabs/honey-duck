@@ -205,3 +205,7 @@ context.add_output_metadata(
 cannot receive ConfigurableResource injection. These ops use a module-level
 `_DEFAULT_HARVEST_DIR` constant. This is a Dagster limitation - ops don't participate
 in resource injection the way assets do.
+
+**Op dependency wiring**: Ops that read from harvest files must declare `ins={"_dep": dg.In(Nothing)}`
+and receive a Nothing-typed input in the graph to ensure they wait for harvest to complete.
+Without this, ops can execute in parallel before their data dependencies exist.

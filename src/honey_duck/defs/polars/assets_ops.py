@@ -229,7 +229,7 @@ def aggregate_sales_metrics(context: dg.OpExecutionContext, catalog: pl.DataFram
     return result
 
 
-@dg.op
+@dg.op(ins={"_dep": dg.In(Nothing)})
 def prepare_media_data(context: dg.OpExecutionContext) -> pl.DataFrame:
     """Op: Prepare media data - primary image and all media aggregated."""
     start_time = time.perf_counter()
@@ -348,7 +348,7 @@ def artworks_transform_polars_ops(
     # Wire Nothing inputs to first op to establish dependency chain
     catalog = build_artwork_catalog(_dep1=_sales, _dep2=_artworks, _dep3=_artists, _dep4=_media)
     sales_agg = aggregate_sales_metrics(catalog)
-    media = prepare_media_data()
+    media = prepare_media_data(_dep=_media)
     transformed = join_and_enrich_artworks(catalog, sales_agg, media)
     return cast(pl.DataFrame, transformed)
 
