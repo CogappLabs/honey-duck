@@ -7,6 +7,8 @@ missing metadata, and naming convention violations.
 Reference: https://blog.rmhogervorst.nl/blog/2024/02/27/how-i-write-tests-for-dagster/
 """
 
+from typing import Any
+
 import dagster as dg
 import pytest
 
@@ -42,11 +44,11 @@ class TestAssetBestPractices:
     """Verify all assets follow best practices."""
 
     @pytest.fixture
-    def asset_graph(self) -> dg.AssetGraph:
+    def asset_graph(self) -> Any:
         """Get the resolved asset graph."""
         return defs.resolve_asset_graph()
 
-    def test_all_assets_have_group_names(self, asset_graph: dg.AssetGraph) -> None:
+    def test_all_assets_have_group_names(self, asset_graph: Any) -> None:
         """Every asset should be assigned to a group for organization."""
         for key in asset_graph.get_all_asset_keys():
             node = asset_graph.get(key)
@@ -55,7 +57,7 @@ class TestAssetBestPractices:
                 continue
             assert node.group_name is not None, f"Asset '{key}' should have a group_name"
 
-    def test_output_assets_have_kinds(self, asset_graph: dg.AssetGraph) -> None:
+    def test_output_assets_have_kinds(self, asset_graph: Any) -> None:
         """Output assets should specify their compute kind (polars, duckdb, etc)."""
         for key in asset_graph.get_all_asset_keys():
             node = asset_graph.get(key)
@@ -67,7 +69,7 @@ class TestAssetBestPractices:
                     f"Output asset '{key}' should specify kinds"
                 )
 
-    def test_harvest_assets_are_roots(self, asset_graph: dg.AssetGraph) -> None:
+    def test_harvest_assets_are_roots(self, asset_graph: Any) -> None:
         """Harvest assets should have no upstream dependencies (except source assets)."""
         for key in asset_graph.get_all_asset_keys():
             if "harvest" not in str(key):
@@ -90,11 +92,11 @@ class TestNamingConventions:
     """Verify naming conventions are followed throughout the codebase."""
 
     @pytest.fixture
-    def asset_graph(self) -> dg.AssetGraph:
+    def asset_graph(self) -> Any:
         return defs.resolve_asset_graph()
 
     def test_transform_assets_contain_transform_or_intermediate_name(
-        self, asset_graph: dg.AssetGraph
+        self, asset_graph: Any
     ) -> None:
         """Transform-layer assets should be identifiable by name."""
         transform_groups = ["transform", "transform_polars", "transform_duckdb"]
@@ -119,10 +121,10 @@ class TestDependencyStructure:
     """Verify the asset dependency graph has correct structure."""
 
     @pytest.fixture
-    def asset_graph(self) -> dg.AssetGraph:
+    def asset_graph(self) -> Any:
         return defs.resolve_asset_graph()
 
-    def test_no_circular_dependencies(self, asset_graph: dg.AssetGraph) -> None:
+    def test_no_circular_dependencies(self, asset_graph: Any) -> None:
         """Asset graph should be a DAG with no cycles."""
         # If we can topologically sort, there are no cycles
         try:
@@ -131,7 +133,7 @@ class TestDependencyStructure:
         except Exception as e:
             pytest.fail(f"Asset graph has circular dependencies: {e}")
 
-    def test_output_assets_are_leaves(self, asset_graph: dg.AssetGraph) -> None:
+    def test_output_assets_are_leaves(self, asset_graph: Any) -> None:
         """Output assets should generally not have downstream dependencies."""
         for key in asset_graph.get_all_asset_keys():
             if "output" not in str(key):
