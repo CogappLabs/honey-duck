@@ -75,6 +75,16 @@ line-length = 100
 # DuckDB uses DataFrames as table references by variable name
 "src/honey_duck/defs/original/assets.py" = ["F841"]
 
+[tool.pytest.ini_options]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning:dagster",
+    "ignore::UserWarning:dagster",
+]
+
 [tool.dagster]
 module_name = "honey_duck.defs"
 
