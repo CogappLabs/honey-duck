@@ -28,10 +28,10 @@ Open http://localhost:3000 and click **"Materialize all"** to run the pipeline.
 ## Architecture
 
 ```
-CSV files → dlt harvest → Transform assets → Output assets → JSON
-                ↓               ↓                  ↓
-           Parquet raw     Parquet files      JSON files
-           (data/harvest)  (data/storage)     (data/output)
+CSV files ─┬─→ dlt harvest → Transform assets → Output assets → JSON
+media.db ──┘        ↓               ↓                  ↓
+               Parquet raw     Parquet files      JSON files
+               (data/harvest)  (data/storage)     (data/output)
 ```
 
 6 parallel implementations share the harvest layer, each demonstrating different Dagster patterns:
