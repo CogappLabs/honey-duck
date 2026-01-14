@@ -91,13 +91,13 @@ dlt_harvest_* (shared)├──→ sales_transform_duckdb ──→ sales_output
                       (same pattern for artworks with more intermediate steps in polars)
 ```
 
-**Implementations** (6 total):
-1. **original** - Processor classes (original/assets.py)
-2. **polars** - Split intermediate steps for observability (polars/assets.py)
-3. **duckdb** - Pure DuckDB SQL queries (duckdb/assets.py)
+**Implementations** (6 total, ordered by performance):
+1. **polars** - Pure Polars with eager DataFrames (polars/assets.py) - fastest
+2. **duckdb** - Pure DuckDB SQL queries (duckdb/assets.py) - fastest
+3. **polars_multi** - Multi-asset pattern for tightly coupled steps (polars/assets_multi.py)
 4. **polars_fs** - Polars variant, same logic different group (polars/assets_fs.py)
 5. **polars_ops** - Graph-backed assets with ops for detailed observability (polars/assets_ops.py)
-6. **polars_multi** - Multi-asset pattern for tightly coupled steps (polars/assets_multi.py)
+6. **original** - Processor classes with pandas (original/assets.py) - slowest
 
 **Jobs** (6 total):
 - `processors_pipeline` - Original implementation with processor classes
