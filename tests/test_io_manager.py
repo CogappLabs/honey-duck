@@ -2,7 +2,6 @@
 
 import pandas as pd
 import polars as pl
-import pytest
 
 from cogapp_deps.dagster import DuckDBPandasPolarsIOManager
 
@@ -51,11 +50,13 @@ class TestWriteJsonOutputPolars:
         from cogapp_deps.dagster import write_json_output
 
         output_path = tmp_path / "output.json"
-        df = pl.DataFrame({
-            "id": [1, 2, 3],
-            "name": ["A", "B", "C"],
-            "value": [10.5, 20.5, 30.5],
-        })
+        df = pl.DataFrame(
+            {
+                "id": [1, 2, 3],
+                "name": ["A", "B", "C"],
+                "value": [10.5, 20.5, 30.5],
+            }
+        )
 
         mock_context = MagicMock()
         write_json_output(df, output_path, mock_context)
@@ -76,14 +77,18 @@ class TestWriteJsonOutputPolars:
         from cogapp_deps.dagster import write_json_output
 
         # Same data in both formats
-        pandas_df = pd.DataFrame({
-            "id": [1, 2],
-            "name": ["X", "Y"],
-        })
-        polars_df = pl.DataFrame({
-            "id": [1, 2],
-            "name": ["X", "Y"],
-        })
+        pandas_df = pd.DataFrame(
+            {
+                "id": [1, 2],
+                "name": ["X", "Y"],
+            }
+        )
+        polars_df = pl.DataFrame(
+            {
+                "id": [1, 2],
+                "name": ["X", "Y"],
+            }
+        )
 
         pandas_path = tmp_path / "pandas.json"
         polars_path = tmp_path / "polars.json"

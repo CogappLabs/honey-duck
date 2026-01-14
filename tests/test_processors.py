@@ -23,34 +23,40 @@ from cogapp_deps.processors.polars import PolarsFilterProcessor, PolarsStringPro
 @pytest.fixture
 def sales_df() -> pd.DataFrame:
     """Sample sales data for testing."""
-    return pd.DataFrame({
-        "sale_id": [1, 2, 3, 4],
-        "artwork_id": [101, 102, 101, 103],
-        "sale_price_usd": [100000, 250000, 150000, 50000],
-        "sale_date": ["2024-01-01", "2024-02-01", "2024-03-01", "2024-04-01"],
-        "buyer_country": ["USA", "UK", "USA", "France"],
-    })
+    return pd.DataFrame(
+        {
+            "sale_id": [1, 2, 3, 4],
+            "artwork_id": [101, 102, 101, 103],
+            "sale_price_usd": [100000, 250000, 150000, 50000],
+            "sale_date": ["2024-01-01", "2024-02-01", "2024-03-01", "2024-04-01"],
+            "buyer_country": ["USA", "UK", "USA", "France"],
+        }
+    )
 
 
 @pytest.fixture
 def artworks_df() -> pd.DataFrame:
     """Sample artworks data for testing."""
-    return pd.DataFrame({
-        "artwork_id": [101, 102, 103],
-        "title": ["Painting A", "Sculpture B", "Drawing C"],
-        "artist_id": [1, 1, 2],
-        "price_usd": [80000, 200000, 40000],
-    })
+    return pd.DataFrame(
+        {
+            "artwork_id": [101, 102, 103],
+            "title": ["Painting A", "Sculpture B", "Drawing C"],
+            "artist_id": [1, 1, 2],
+            "price_usd": [80000, 200000, 40000],
+        }
+    )
 
 
 @pytest.fixture
 def artists_df() -> pd.DataFrame:
     """Sample artists data for testing."""
-    return pd.DataFrame({
-        "artist_id": [1, 2],
-        "name": ["  Alice Smith  ", "Bob Jones"],
-        "nationality": ["American", "British"],
-    })
+    return pd.DataFrame(
+        {
+            "artist_id": [1, 2],
+            "name": ["  Alice Smith  ", "Bob Jones"],
+            "nationality": ["American", "British"],
+        }
+    )
 
 
 # -----------------------------------------------------------------------------
@@ -66,7 +72,9 @@ class TestDuckDBJoinProcessor:
         with pytest.warns(DeprecationWarning, match="DuckDBJoinProcessor is deprecated"):
             DuckDBJoinProcessor(joins=[("table", "id", "id")])
 
-    def test_join_with_dataframe_input(self, sales_df: pd.DataFrame, artworks_df: pd.DataFrame) -> None:
+    def test_join_with_dataframe_input(
+        self, sales_df: pd.DataFrame, artworks_df: pd.DataFrame
+    ) -> None:
         """Test joining a DataFrame with a registered table."""
         import duckdb
 
@@ -188,9 +196,7 @@ class TestDuckDBSQLProcessor:
 
     def test_filtering(self, sales_df: pd.DataFrame) -> None:
         """Test filtering via SQL."""
-        processor = DuckDBSQLProcessor(
-            sql="SELECT * FROM _input WHERE sale_price_usd > 100000"
-        )
+        processor = DuckDBSQLProcessor(sql="SELECT * FROM _input WHERE sale_price_usd > 100000")
         result = processor.process(sales_df)
 
         assert len(result) == 2  # Only 250000 and 150000
@@ -245,12 +251,14 @@ class TestDuckDBQueryProcessor:
         conn.close()
 
         configure(db_path=str(db_path), read_only=True)
-        processor = DuckDBQueryProcessor(sql="""
+        processor = DuckDBQueryProcessor(
+            sql="""
             SELECT o.id AS order_id, p.name AS product_name
             FROM orders o
             JOIN products p ON o.product_id = p.id
             ORDER BY o.id
-        """)
+        """
+        )
         result = processor.process()
 
         assert len(result) == 2
@@ -368,10 +376,12 @@ class TestChain:
         """Test chaining multiple Polars processors."""
         import polars as pl
 
-        chain = Chain([
-            PolarsStringProcessor("name", "strip"),
-            PolarsStringProcessor("name", "upper"),
-        ])
+        chain = Chain(
+            [
+                PolarsStringProcessor("name", "strip"),
+                PolarsStringProcessor("name", "upper"),
+            ]
+        )
         result = chain.process(artists_df)
 
         assert isinstance(result, pl.DataFrame)
@@ -384,10 +394,12 @@ class TestChain:
         # Add a string column for testing
         sales_df["status"] = ["  pending  ", "completed", "  pending  ", "completed"]
 
-        chain = Chain([
-            PolarsFilterProcessor("sale_price_usd", 100000, ">="),
-            PolarsStringProcessor("status", "strip"),
-        ])
+        chain = Chain(
+            [
+                PolarsFilterProcessor("sale_price_usd", 100000, ">="),
+                PolarsStringProcessor("status", "strip"),
+            ]
+        )
         result = chain.process(sales_df)
 
         assert isinstance(result, pl.DataFrame)

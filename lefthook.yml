@@ -25,9 +25,9 @@ pre-commit:
         - merge
         - rebase
 
-    # 3. Type checking with mypy
+    # 3. Type checking with mypy (only src code, not tests/examples/scripts)
     mypy-check:
-      glob: "*.py"
+      glob: "{src,cogapp_deps}/**/*.py"
       run: uv run mypy {staged_files}
       skip:
         - merge

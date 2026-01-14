@@ -26,6 +26,7 @@ from cogapp_deps.dagster import (
 # Example 1: Simple XML File
 # ==========================
 
+
 @dlt.source(name="artwork_catalog")
 def artwork_xml_source():
     """Harvest artwork catalog from XML file."""
@@ -62,6 +63,7 @@ def artwork_xml_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResourc
 # Example 2: RSS Feed
 # ===================
 
+
 @dlt.source(name="rss_feed")
 def rss_feed_source():
     """Harvest RSS feed as XML."""
@@ -81,6 +83,7 @@ def rss_feed_source():
 # Example 3: Large File Streaming
 # ================================
 
+
 @dlt.source(name="large_catalog")
 def large_xml_streaming():
     """Stream large XML file (>1GB) efficiently."""
@@ -98,6 +101,7 @@ def large_xml_streaming():
 
 # Example 4: XML with Namespaces
 # ===============================
+
 
 @dlt.source(name="namespaced_xml")
 def namespaced_xml_source():
@@ -121,6 +125,7 @@ def namespaced_xml_source():
 
 # Example 5: Multiple XML Sources
 # ================================
+
 
 @dlt.source(name="multi_xml_harvest")
 def multi_xml_harvest():
@@ -181,6 +186,7 @@ def multi_xml_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource)
 # Example 6: SOAP API Response
 # =============================
 
+
 @dlt.source(name="soap_api")
 def soap_xml_source():
     """Parse SOAP API response."""
@@ -205,6 +211,7 @@ def soap_xml_source():
 
 # Example 7: Nested XML Structures
 # =================================
+
 
 @dlt.source(name="nested_xml")
 def nested_xml_source():
@@ -270,4 +277,4 @@ if __name__ == "__main__":
     streaming_source = large_xml_streaming()
     load_info = streaming_pipeline.run(streaming_source)
 
-    print(f"Streamed records from large file")
+    print("Streamed records from large file")

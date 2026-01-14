@@ -68,6 +68,18 @@ module = "honey_duck.defs.original.assets"
 # Original processor-based implementation has complex DataFrame/LazyFrame union types
 ignore_errors = true
 
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = "examples.*"
+disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = "scripts.*"
+disallow_untyped_defs = false
+
 [tool.ruff]
 line-length = 100
 

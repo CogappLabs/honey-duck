@@ -1,10 +1,8 @@
 """Tests for cogapp_deps.dagster helpers."""
 
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import pandas as pd
-import pytest
 
 from cogapp_deps.dagster import read_table, write_json_output
 from cogapp_deps.processors.duckdb import configure
@@ -56,11 +54,13 @@ class TestWriteJsonOutput:
     def test_writes_json_file(self, tmp_path) -> None:
         """Test that JSON file is written correctly."""
         output_path = tmp_path / "output" / "test.json"
-        df = pd.DataFrame({
-            "id": [1, 2, 3],
-            "name": ["A", "B", "C"],
-            "value": [10.5, 20.5, 30.5],
-        })
+        df = pd.DataFrame(
+            {
+                "id": [1, 2, 3],
+                "name": ["A", "B", "C"],
+                "value": [10.5, 20.5, 30.5],
+            }
+        )
 
         # Mock Dagster context
         mock_context = MagicMock()
@@ -72,6 +72,7 @@ class TestWriteJsonOutput:
 
         # Check content
         import json
+
         with open(output_path) as f:
             data = json.load(f)
         assert len(data) == 3
@@ -109,8 +110,10 @@ class TestWriteJsonOutput:
         mock_context = MagicMock()
 
         write_json_output(
-            df, output_path, mock_context,
-            extra_metadata={"custom_key": "custom_value", "count": 42}
+            df,
+            output_path,
+            mock_context,
+            extra_metadata={"custom_key": "custom_value", "count": 42},
         )
 
         call_args = mock_context.add_output_metadata.call_args[0][0]

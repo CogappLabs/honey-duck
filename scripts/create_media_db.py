@@ -76,37 +76,41 @@ def create_media_db() -> None:
         sort_order = 1
 
         # Primary image for every artwork (sort_order=1)
-        media_records.append({
-            "media_id": media_id,
-            "artwork_id": artwork_id,
-            "sort_order": sort_order,
-            "filename": f"{filename_base}_main.jpg",
-            "media_type": "primary",
-            "file_format": "jpg",
-            "width_px": random.choice([1920, 2560, 3840]),
-            "height_px": random.choice([1080, 1440, 2160]),
-            "file_size_kb": random.randint(500, 5000),
-            "alt_text": f"{title} - primary image",
-            "created_date": f"202{random.randint(0, 4)}-{random.randint(1, 12):02d}-{random.randint(1, 28):02d}",
-        })
+        media_records.append(
+            {
+                "media_id": media_id,
+                "artwork_id": artwork_id,
+                "sort_order": sort_order,
+                "filename": f"{filename_base}_main.jpg",
+                "media_type": "primary",
+                "file_format": "jpg",
+                "width_px": random.choice([1920, 2560, 3840]),
+                "height_px": random.choice([1080, 1440, 2160]),
+                "file_size_kb": random.randint(500, 5000),
+                "alt_text": f"{title} - primary image",
+                "created_date": f"202{random.randint(0, 4)}-{random.randint(1, 12):02d}-{random.randint(1, 28):02d}",
+            }
+        )
         media_id += 1
         sort_order += 1
 
         # High-res scan (60% chance)
         if random.random() < 0.6:
-            media_records.append({
-                "media_id": media_id,
-                "artwork_id": artwork_id,
-                "sort_order": sort_order,
-                "filename": f"{filename_base}_hires.tiff",
-                "media_type": "high_res_scan",
-                "file_format": "tiff",
-                "width_px": 8000,
-                "height_px": 6000,
-                "file_size_kb": random.randint(20000, 80000),
-                "alt_text": f"{title} - high resolution scan",
-                "created_date": f"202{random.randint(0, 4)}-{random.randint(1, 12):02d}-{random.randint(1, 28):02d}",
-            })
+            media_records.append(
+                {
+                    "media_id": media_id,
+                    "artwork_id": artwork_id,
+                    "sort_order": sort_order,
+                    "filename": f"{filename_base}_hires.tiff",
+                    "media_type": "high_res_scan",
+                    "file_format": "tiff",
+                    "width_px": 8000,
+                    "height_px": 6000,
+                    "file_size_kb": random.randint(20000, 80000),
+                    "alt_text": f"{title} - high resolution scan",
+                    "created_date": f"202{random.randint(0, 4)}-{random.randint(1, 12):02d}-{random.randint(1, 28):02d}",
+                }
+            )
             media_id += 1
             sort_order += 1
 
@@ -114,37 +118,41 @@ def create_media_db() -> None:
         if random.random() < 0.4:
             num_details = random.randint(1, 3)
             for i in range(num_details):
-                media_records.append({
-                    "media_id": media_id,
-                    "artwork_id": artwork_id,
-                    "sort_order": sort_order,
-                    "filename": f"{filename_base}_detail_{i + 1}.jpg",
-                    "media_type": "detail",
-                    "file_format": "jpg",
-                    "width_px": 4000,
-                    "height_px": 3000,
-                    "file_size_kb": random.randint(1000, 4000),
-                    "alt_text": f"{title} - detail {i + 1}",
-                    "created_date": f"202{random.randint(0, 4)}-{random.randint(1, 12):02d}-{random.randint(1, 28):02d}",
-                })
+                media_records.append(
+                    {
+                        "media_id": media_id,
+                        "artwork_id": artwork_id,
+                        "sort_order": sort_order,
+                        "filename": f"{filename_base}_detail_{i + 1}.jpg",
+                        "media_type": "detail",
+                        "file_format": "jpg",
+                        "width_px": 4000,
+                        "height_px": 3000,
+                        "file_size_kb": random.randint(1000, 4000),
+                        "alt_text": f"{title} - detail {i + 1}",
+                        "created_date": f"202{random.randint(0, 4)}-{random.randint(1, 12):02d}-{random.randint(1, 28):02d}",
+                    }
+                )
                 media_id += 1
                 sort_order += 1
 
         # Frame photo (25% chance)
         if random.random() < 0.25:
-            media_records.append({
-                "media_id": media_id,
-                "artwork_id": artwork_id,
-                "sort_order": sort_order,
-                "filename": f"{filename_base}_frame.png",
-                "media_type": "frame",
-                "file_format": "png",
-                "width_px": 4000,
-                "height_px": 3000,
-                "file_size_kb": random.randint(2000, 8000),
-                "alt_text": f"{title} - frame and mounting",
-                "created_date": f"202{random.randint(0, 4)}-{random.randint(1, 12):02d}-{random.randint(1, 28):02d}",
-            })
+            media_records.append(
+                {
+                    "media_id": media_id,
+                    "artwork_id": artwork_id,
+                    "sort_order": sort_order,
+                    "filename": f"{filename_base}_frame.png",
+                    "media_type": "frame",
+                    "file_format": "png",
+                    "width_px": 4000,
+                    "height_px": 3000,
+                    "file_size_kb": random.randint(2000, 8000),
+                    "alt_text": f"{title} - frame and mounting",
+                    "created_date": f"202{random.randint(0, 4)}-{random.randint(1, 12):02d}-{random.randint(1, 28):02d}",
+                }
+            )
             media_id += 1
             sort_order += 1
 
@@ -164,16 +172,18 @@ def create_media_db() -> None:
     # Print summary (artworks CSV is NOT modified)
     cursor.execute("SELECT COUNT(*) FROM media")
     total = cursor.fetchone()[0]
-    cursor.execute("SELECT media_type, COUNT(*) FROM media GROUP BY media_type ORDER BY COUNT(*) DESC")
+    cursor.execute(
+        "SELECT media_type, COUNT(*) FROM media GROUP BY media_type ORDER BY COUNT(*) DESC"
+    )
     by_type = cursor.fetchall()
     cursor.execute("SELECT AVG(cnt) FROM (SELECT COUNT(*) as cnt FROM media GROUP BY artwork_id)")
     avg_per_artwork = cursor.fetchone()[0]
 
     print(f"Created {total} media records in {MEDIA_DB}")
-    print(f"\nMedia summary:")
+    print("\nMedia summary:")
     print(f"  Total records: {total}")
     print(f"  Avg per artwork: {avg_per_artwork:.1f}")
-    print(f"  By type:")
+    print("  By type:")
     for media_type, count in by_type:
         print(f"    {media_type}: {count}")
 
