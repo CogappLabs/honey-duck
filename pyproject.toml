@@ -41,16 +41,6 @@ packages = ["src/honey_duck", "cogapp_deps"]
 honey_duck = "honey_duck.components"
 cogapp_deps = "cogapp_deps.dagster.components"
 
-[tool.uv]
-dev-dependencies = [
-    "pytest>=8.0",
-    "ruff",
-    "mypy>=1.11",
-    "pandas-stubs>=2.0",
-    "types-requests",
-    "lefthook",
-]
-
 [tool.mypy]
 python_version = "3.12"
 warn_return_any = true
@@ -108,6 +98,14 @@ root_module = "honey_duck"
 code_location_target_module = "honey_duck.defs.definitions"
 
 [dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff",
+    "mypy>=1.11",
+    "pandas-stubs>=2.0",
+    "types-requests",
+    "lefthook",
+]
 docs = [
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.7.1",
