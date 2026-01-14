@@ -8,193 +8,44 @@ A Polars/Parquet data pipeline with Dagster orchestration, using dlt for data in
 # Install dependencies
 uv sync
 
-# Optional: Enable persistent run history
-cp .env.example .env
-# Edit .env with your absolute path
-
 # Start Dagster UI
 uv run dg dev
-
-# Or run pipeline via CLI
-uv run dg launch --job processors_pipeline
-
-# List all definitions
-uv run dg list defs
 ```
 
-Open http://localhost:3000 and click **"Materialize all"** to run the pipeline!
-
-### Frontend Dashboard
-
-A Next.js dashboard for client-friendly pipeline monitoring:
-
-```bash
-# Start Dagster (frontend expects port 3003)
-uv run dg dev -p 3003
-
-# In another terminal
-cd frontend && npm install && npm run dev
-```
-
-Open http://localhost:3001 for the dashboard. See the **[Frontend Dashboard Guide](https://cogapplabs.github.io/honey-duck/user-guide/frontend-dashboard/)** for details.
+Open http://localhost:3000 and click **"Materialize all"** to run the pipeline.
 
 ## Documentation
 
 **[View Full Documentation](https://cogapplabs.github.io/honey-duck)**
 
-Quick links:
-- [Tutorial](https://cogapplabs.github.io/honey-duck/getting-started/tutorial/) - Build your first asset
-- [Best Practices](https://cogapplabs.github.io/honey-duck/user-guide/best-practices/) - Production guidelines
+- [Getting Started](https://cogapplabs.github.io/honey-duck/getting-started/tutorial/) - Installation and first steps
+- [User Guide](https://cogapplabs.github.io/honey-duck/user-guide/best-practices/) - Best practices and patterns
 - [API Reference](https://cogapplabs.github.io/honey-duck/api/) - Processor and helper docs
 - [Integrations](https://cogapplabs.github.io/honey-duck/integrations/elasticsearch/) - Elasticsearch, S3, and more
 
-**For contributors**: See [CLAUDE.md](CLAUDE.md) for project structure, commands, and coding conventions.
+**For contributors**: See [CLAUDE.md](CLAUDE.md) for project structure and coding conventions.
 
 ## Architecture
 
 ```
-CSV files → dlt harvest → Transform asset → Output assets → JSON
-                 ↓              ↓                 ↓
-             DuckDB raw    DuckDB main    DuckDB main + JSON files
-             schema        schema         (via IOManager)
+CSV files → dlt harvest → Transform assets → Output assets → JSON
+                ↓               ↓                  ↓
+           Parquet raw     Parquet files      JSON files
+           (data/harvest)  (data/storage)     (data/output)
 ```
 
-Uses [dlt](https://dlthub.com/) (data load tool) for CSV harvesting with automatic schema inference, and [dagster-dlt](https://docs.dagster.io/integrations/dlt) for Dagster integration.
-
-## Asset Graph
-
-6 parallel implementations sharing the harvest layer:
+6 parallel implementations share the harvest layer, each demonstrating different Dagster patterns:
 
 ```
-dlt_harvest_* (shared) ──→ sales_transform_<impl> ──→ sales_output_<impl>
-                       └──→ artworks_*_<impl> ──→ artworks_output_<impl>
+dlt_harvest_* (shared) ──→ transform_<impl> ──→ output_<impl>
 ```
 
-**Implementations:**
-| Suffix | Description | Features |
-|--------|-------------|----------|
-| (none) | Original with processor classes | Processor pattern |
-| `_polars` | Pure Polars with intermediate steps | Lazy evaluation, visualization |
-| `_duckdb` | Pure DuckDB SQL queries | SQL-based transforms |
-| `_polars_fs` | Polars variant (different group) | Same logic, separate group |
-| `_polars_ops` | Graph-backed assets with ops | Detailed observability |
-| `_polars_multi` | Multi-asset pattern | Tightly coupled steps |
+| Implementation | Pattern |
+|----------------|---------|
+| `processors_pipeline` | Processor classes |
+| `polars_pipeline` | Pure Polars with intermediate steps |
+| `duckdb_pipeline` | Pure DuckDB SQL |
+| `polars_ops_pipeline` | Graph-backed assets with ops |
+| `polars_multi_pipeline` | Multi-asset pattern |
 
-**Jobs:**
-- `processors_pipeline` - Original implementation with processor classes
-- `polars_pipeline` - Pure Polars with intermediate step assets
-- `duckdb_pipeline` - Pure DuckDB SQL
-- `polars_fs_pipeline` - Polars variant
-- `polars_ops_pipeline` - Graph-backed assets (ops)
-- `polars_multi_pipeline` - Multi-asset pattern
-
-## Project Structure
-
-```
-src/honey_duck/
-  defs/
-    definitions.py        # Combined Dagster Definitions (6 jobs)
-    harvest/              # dlt ingestion layer
-      sources.py          # dlt source configuration
-      assets.py           # dagster-dlt asset wrapper
-    original/             # Original implementation (processor classes)
-      assets.py
-    polars/               # Pure Polars implementations
-      assets.py           # Split intermediate steps
-      assets_fs.py        # Polars variant (different group)
-      assets_ops.py       # Graph-backed assets with ops
-      assets_multi.py     # Multi-asset pattern
-    duckdb/               # Pure DuckDB SQL implementation
-      assets.py
-    shared/               # Shared resources
-      resources.py        # ConfigurableResource classes
-      jobs.py             # Job definitions (6 jobs)
-      schemas.py          # Pandera validation schemas
-      constants.py        # Business constants
-
-cogapp_deps/              # Utilities (simulates external package)
-  dagster/helpers.py      # write_json_output, track_timing, altair_to_metadata
-  processors/             # DuckDB and Polars processors
-
-data/
-  input/                  # Source CSV files
-  output/                 # Final JSON outputs
-  storage/                # IO manager intermediate storage (Parquet)
-  harvest/                # dlt raw Parquet data
-```
-
-## Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DAGSTER_HOME` | Dagster persistence directory (absolute path). Without this, run history uses temp storage. | (optional) |
-| `HONEY_DUCK_DB_PATH` | DuckDB database path | `data/output/dagster.duckdb` |
-| `HONEY_DUCK_SALES_OUTPUT` | Sales JSON output path | `data/output/sales_output.json` |
-| `HONEY_DUCK_ARTWORKS_OUTPUT` | Artworks JSON output path | `data/output/artworks_output.json` |
-
-Copy `.env.example` to `.env` and set `DAGSTER_HOME` to persist run history between sessions.
-
-## DuckDB Lakehouse Benefits
-
-1. **Persistence** - Data survives between runs (vs in-memory loss)
-2. **Queryable** - Inspect intermediate tables via DuckDB CLI
-3. **Scalable** - Handles larger datasets without memory pressure
-4. **Zero-copy** - Efficient pandas/polars integration
-5. **Debuggable** - Each stage persisted, restart from any point
-
-## Data Flow
-
-1. **Harvest (dlt)** - Load CSV files into DuckDB `raw` schema with automatic schema inference
-2. **Transform** - SQL joins + window aggregations via DuckDB processors, string transforms via Polars Chain
-3. **Output** - Two views: high-value sales ($30M+) and artwork catalog with sales history
-
-## Processors
-
-Generic processor utilities in `cogapp_deps/processors/`:
-
-- **DuckDBQueryProcessor** - Query tables from the configured database
-- **DuckDBSQLProcessor** - Transform DataFrames with SQL (in-memory)
-- **DuckDBWindowProcessor** - Add window function columns
-- **DuckDBAggregateProcessor** - GROUP BY aggregations
-- **PolarsFilterProcessor** - Filter rows by condition
-- **PolarsStringProcessor** - String transformations (strip, upper, lower)
-- **Chain** - Compose Polars processors with lazy optimization
-
-## Adding a New Asset
-
-1. **Define the asset** in the appropriate technology folder (e.g., `src/honey_duck/defs/polars/assets.py`):
-
-```python
-@dg.asset(
-    kinds={"polars"},           # Shows up in UI as Polars asset
-    deps=HARVEST_DEPS,          # Depends on raw tables
-    group_name="transform",     # Groups in UI
-)
-def my_new_transform(context: dg.AssetExecutionContext):
-    """Docstring shown in Dagster UI."""
-    # Read harvest tables
-    tables = read_harvest_tables_lazy(
-        paths.harvest_dir,
-        ("sales_raw", ["sale_id", "sale_price_usd"]),
-        asset_name="my_new_transform",
-    )
-
-    # Transform with Polars
-    result = tables["sales_raw"].filter(pl.col("sale_price_usd") > 1000).collect()
-
-    # Add metadata for UI
-    context.add_output_metadata({
-        "record_count": len(result),
-        "preview": dg.MetadataValue.md(result.head(5).to_pandas().to_markdown()),
-    })
-    return result
-```
-
-2. The asset is **automatically registered** via `load_from_defs_folder()` in definitions.py.
-
-3. **Add to job** (optional) in `src/honey_duck/defs/shared/jobs.py` if you want a separate execution target.
-
-**Tips:**
-- Return `pl.DataFrame` for Polars output, `pd.DataFrame` for pandas - the IO manager handles both
-- Use `pl.DataFrame` type hints on input parameters so the IO manager knows what to load
-- Add business constants to `src/honey_duck/defs/shared/constants.py`
+See the [Architecture Guide](https://cogapplabs.github.io/honey-duck/getting-started/architecture/) for details.
