@@ -95,12 +95,15 @@ from honey_duck.defs.shared.resources import PathsResource
     kinds={"polars"},
     group_name="tutorial",
 )
-def expensive_artworks(context: dg.AssetExecutionContext) -> pl.DataFrame:
+def expensive_artworks(
+    context: dg.AssetExecutionContext,
+    paths: PathsResource,
+) -> pl.DataFrame:
     """Find artworks priced over $1 million."""
 
     # Load data from harvest
     tables = read_harvest_tables_lazy(
-        HARVEST_PARQUET_DIR,
+        paths.harvest_dir,
         ("artworks_raw", ["artwork_id", "title", "price_usd"]),
         asset_name="expensive_artworks",
     )
@@ -169,22 +172,28 @@ After materialization:
 
 ```python
 from cogapp_deps.dagster import read_harvest_tables_lazy
+from honey_duck.defs.shared.resources import PathsResource
 
-# Read multiple tables at once
-tables = read_harvest_tables_lazy(
-    HARVEST_PARQUET_DIR,
-    ("sales_raw", ["sale_id", "sale_price_usd"]),  # Validates columns
-    ("artworks_raw", ["artwork_id", "title"]),
-    asset_name="my_asset",  # For error messages
-)
+@dg.asset
+def my_asset(
+    context: dg.AssetExecutionContext,
+    paths: PathsResource,  # Injected by Dagster
+) -> pl.DataFrame:
+    # Read multiple tables at once
+    tables = read_harvest_tables_lazy(
+        paths.harvest_dir,  # Use injected resource
+        ("sales_raw", ["sale_id", "sale_price_usd"]),  # Validates columns
+        ("artworks_raw", ["artwork_id", "title"]),
+        asset_name="my_asset",  # For error messages
+    )
 
-# Use lazy operations, then collect
-result = (
-    tables["sales_raw"]
-    .join(tables["artworks_raw"], on="artwork_id")
-    .filter(pl.col("sale_price_usd") > 1000)
-    .collect()  # ← Execute here
-)
+    # Use lazy operations, then collect
+    return (
+        tables["sales_raw"]
+        .join(tables["artworks_raw"], on="artwork_id")
+        .filter(pl.col("sale_price_usd") > 1000)
+        .collect()  # ← Execute here
+    )
 ```
 
 ### Pattern 2: Adding Metadata
@@ -213,23 +222,26 @@ def my_transform(context: dg.AssetExecutionContext) -> pl.DataFrame:
 ### Pattern 3: Writing JSON Output
 
 ```python
-from cogapp_deps.dagster import write_json_and_return
+from cogapp_deps.dagster import write_json_output
 from honey_duck.defs.shared.resources import OutputPathsResource
 
 @dg.asset(kinds={"polars", "json"})
 def my_output(
     context: dg.AssetExecutionContext,
     my_transform: pl.DataFrame,
+    output_paths: OutputPathsResource,  # Injected by Dagster
 ) -> pl.DataFrame:
     """Filter and write to JSON."""
     filtered = my_transform.filter(pl.col("amount") > 100)
 
-    return write_json_and_return(
+    # Write to configured output path
+    write_json_output(
         filtered,
-        JSON_OUTPUT_DIR / "my_output.json",
+        output_paths.sales_polars,  # Use configured path
         context,
-        extra_metadata={"threshold": 100},
     )
+
+    return filtered
 ```
 
 ### Pattern 4: External Dependencies
@@ -422,10 +434,10 @@ def my_asset(context):
 **Fix:**
 ```python
 @dg.asset
-def my_asset(context):
+def my_asset(context, paths: PathsResource):
     # Use helper - automatic validation!
     tables = read_harvest_tables_lazy(
-        HARVEST_PARQUET_DIR,
+        paths.harvest_dir,
         ("sales_raw", ["sale_id", "price"]),
         asset_name="my_asset",
     )

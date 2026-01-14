@@ -92,7 +92,10 @@ Open `src/honey_duck/defs/polars/assets.py` and add this at the end:
     deps=HARVEST_DEPS,
     group_name="transform_polars",
 )
-def artist_artworks_tutorial(context: dg.AssetExecutionContext) -> pl.DataFrame:
+def artist_artworks_tutorial(
+    context: dg.AssetExecutionContext,
+    paths: PathsResource,  # Injected resource for path configuration
+) -> pl.DataFrame:
     """Find all artworks by Vincent van Gogh and Claude Monet.
 
     This is a tutorial asset demonstrating:
@@ -104,7 +107,7 @@ def artist_artworks_tutorial(context: dg.AssetExecutionContext) -> pl.DataFrame:
     with track_timing(context, "loading and filtering"):
         # Read artworks and artists tables
         tables = read_harvest_tables_lazy(
-            HARVEST_PARQUET_DIR,
+            paths.harvest_dir,  # Use injected resource
             ("artworks_raw", ["artwork_id", "title", "artist_id", "year"]),
             ("artists_raw", ["artist_id", "name", "nationality"]),
             asset_name="artist_artworks_tutorial",
@@ -173,12 +176,15 @@ Replace the previous asset with this enhanced version:
     deps=HARVEST_DEPS,
     group_name="transform_polars",
 )
-def artist_artworks_tutorial(context: dg.AssetExecutionContext) -> pl.DataFrame:
+def artist_artworks_tutorial(
+    context: dg.AssetExecutionContext,
+    paths: PathsResource,
+) -> pl.DataFrame:
     """Find artworks by famous artists with age computation."""
 
     with track_timing(context, "transformation"):
         tables = read_harvest_tables_lazy(
-            HARVEST_PARQUET_DIR,
+            paths.harvest_dir,
             ("artworks_raw", ["artwork_id", "title", "artist_id", "year", "medium"]),
             ("artists_raw", ["artist_id", "name", "nationality"]),
             asset_name="artist_artworks_tutorial",

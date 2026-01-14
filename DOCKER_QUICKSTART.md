@@ -381,7 +381,7 @@ Edit `docker-compose.yml` to customize:
 
 ### Deploy to Cloud
 
-See `docs/DEPLOYMENT.md` for:
+See `docs/development/deployment.md` for:
 - AWS ECS/Fargate deployment
 - Google Cloud Run deployment
 - Kubernetes with Helm charts
@@ -391,10 +391,10 @@ See `docs/DEPLOYMENT.md` for:
 
 ## Resources
 
-- **Full Deployment Guide**: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+- **Full Deployment Guide**: [docs/development/deployment.md](docs/development/deployment.md)
 - **Dagster Docs**: https://docs.dagster.io/
 - **Docker Docs**: https://docs.docker.com/
-- **Troubleshooting**: [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
+- **Troubleshooting**: [docs/user-guide/troubleshooting.md](docs/user-guide/troubleshooting.md)
 
 ---
 

@@ -45,7 +45,6 @@ dlt_harvest_* (shared) ──→ transform_<impl> ──→ output_<impl>
 | `processors_pipeline` | Processor classes |
 | `polars_pipeline` | Pure Polars with intermediate steps |
 | `duckdb_pipeline` | Pure DuckDB SQL |
+| `polars_fs_pipeline` | Polars variant (different asset group) |
 | `polars_ops_pipeline` | Graph-backed assets with ops |
 | `polars_multi_pipeline` | Multi-asset pattern |
-
-See the [Architecture Guide](https://cogapplabs.github.io/honey-duck/getting-started/architecture/) for details.
