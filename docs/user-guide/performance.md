@@ -2,6 +2,24 @@
 
 Comprehensive guide to optimizing Dagster pipelines with Polars, DuckDB, and Parquet for maximum performance.
 
+## Fastest Implementations
+
+For best transform performance, use:
+
+- **`polars_pipeline`** - Pure Polars with eager DataFrames (fastest)
+- **`duckdb_pipeline`** - Pure DuckDB SQL queries (fastest)
+
+Other implementations trade some performance for different benefits:
+
+| Implementation | Performance | Benefit |
+|----------------|-------------|---------|
+| `polars_pipeline` | Fastest | Simple, direct transforms |
+| `duckdb_pipeline` | Fastest | SQL syntax, complex joins |
+| `polars_multi_pipeline` | Fast | Multi-asset pattern |
+| `polars_fs_pipeline` | Fast | Different asset grouping |
+| `polars_ops_pipeline` | Moderate | Op-level observability & retries |
+| `processors_pipeline` | Slowest | Processor class abstraction |
+
 ## Table of Contents
 
 - [Quick Wins](#quick-wins)

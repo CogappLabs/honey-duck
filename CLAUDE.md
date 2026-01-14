@@ -97,7 +97,7 @@ dlt_harvest_* (shared)├──→ sales_transform_duckdb ──→ sales_output
 3. **polars_multi** - Multi-asset pattern for tightly coupled steps (polars/assets_multi.py)
 4. **polars_fs** - Polars variant, same logic different group (polars/assets_fs.py)
 5. **polars_ops** - Graph-backed assets with ops for detailed observability (polars/assets_ops.py)
-6. **original** - Processor classes with pandas (original/assets.py) - slowest
+6. **original** - Processor classes (original/assets.py) - slowest due to abstraction overhead
 
 **Jobs** (6 total):
 - `processors_pipeline` - Original implementation with processor classes
