@@ -78,8 +78,8 @@ nav:
     - Common Outputs: integrations/common-outputs.md
     - API Harvesting: integrations/api-harvesting.md
     - Sitemaps: integrations/sitemaps.md
-    - IIIF Tiles: IIIF_TILE_GENERATION.md
-    - LocalStack S3: LOCALSTACK_S3_GUIDE.md
+    - IIIF Tiles: integrations/iiif-tiles.md
+    - LocalStack S3: integrations/localstack-s3.md
   - API Reference:
     - Overview: api/index.md
     - Dagster Helpers: api/dagster-helpers.md
@@ -87,10 +87,10 @@ nav:
     - IO Managers: api/io-managers.md
   - Development:
     - CLI Reference: development/cli.md
+    - Testing: development/testing.md
+    - Pre-commit Hooks: development/hooks.md
     - Deployment: development/deployment.md
     - Contributing: development/contributing.md
-    - Pre-commit Hooks: PRE_COMMIT_HOOKS.md
-    - Best Practices Analysis: DAGSTER_BEST_PRACTICES_IMPROVEMENTS.md
 
 extra:
   social:
