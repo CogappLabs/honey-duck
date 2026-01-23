@@ -10,7 +10,12 @@ import dagster as dg
 import polars as pl
 from pathlib import Path
 
-from cogapp_libs.dagster import parse_xml_file
+from cogapp_libs.dagster import (
+    add_dataframe_metadata,
+    parse_xml_file,
+    table_preview_to_metadata,
+    track_timing,
+)
 
 
 # =============================================================================
@@ -21,31 +26,45 @@ from cogapp_libs.dagster import parse_xml_file
 @dg.asset(group_name="xml_harvest", kinds={"xml"})
 def plant_catalog(context: dg.AssetExecutionContext) -> pl.DataFrame:
     """Harvest plant catalog from XML with nested elements as JSON."""
-    records = parse_xml_file(
-        file_path=Path("examples/data/plant_catalog.xml"),
-        record_path="./PLANT",  # Direct children only
-        fields={
-            "plant_id": "./@id",
-            "common_name": "./COMMON/text()",
-            "botanical_name": "./BOTANICAL/text()",
-            "zone": "./ZONE/text()",
-            "light": "./LIGHT/text()",
-            "price": "./PRICE/text()",
-            "availability": "./AVAILABILITY/text()",
-        },
-        nested_fields={
-            "images": "./IMAGES/IMAGE",  # Each IMAGE → JSON with type attr
-            "companions": "./COMPANIONS/PLANT",  # Each companion plant → JSON
-        },
+    with track_timing(context, "XML parsing"):
+        records = parse_xml_file(
+            file_path=Path("examples/data/plant_catalog.xml"),
+            record_path="./PLANT",  # Direct children only
+            fields={
+                "plant_id": "./@id",
+                "common_name": "./COMMON/text()",
+                "botanical_name": "./BOTANICAL/text()",
+                "zone": "./ZONE/text()",
+                "light": "./LIGHT/text()",
+                "price": "./PRICE/text()",
+                "availability": "./AVAILABILITY/text()",
+            },
+            nested_fields={
+                "images": "./IMAGES/IMAGE",  # Each IMAGE → JSON with type attr
+                "companions": "./COMPANIONS/PLANT",  # Each companion plant → JSON
+            },
+        )
+
+        df = pl.DataFrame(records)
+
+    # Rich metadata: record count, columns, markdown table preview
+    add_dataframe_metadata(
+        context,
+        df,
+        # Custom extras
+        unique_zones=df["zone"].n_unique(),
+        light_conditions=df["light"].unique().to_list(),
     )
 
-    df = pl.DataFrame(records)
+    # Additional preview showing just names and prices
     context.add_output_metadata(
-        {
-            "row_count": len(df),
-            "columns": df.columns,
-        }
+        table_preview_to_metadata(
+            df.select("common_name", "botanical_name", "price"),
+            title="price_list",
+            header="Plant Price List",
+        )
     )
+
     return df
 
 

@@ -8,30 +8,32 @@ Parse XML files into Polars DataFrames, with nested elements stored as JSON colu
 import dagster as dg
 import polars as pl
 from pathlib import Path
-from cogapp_libs.dagster import parse_xml_file
+from cogapp_libs.dagster import add_dataframe_metadata, parse_xml_file, track_timing
 
 @dg.asset(group_name="harvest", kinds={"xml"})
 def plant_catalog(context: dg.AssetExecutionContext) -> pl.DataFrame:
     """Harvest plant catalog from XML."""
-    records = parse_xml_file(
-        file_path=Path("examples/data/plant_catalog.xml"),
-        record_path="./PLANT",  # Direct children of root
-        fields={
-            "plant_id": "./@id",
-            "common_name": "./COMMON/text()",
-            "botanical_name": "./BOTANICAL/text()",
-            "zone": "./ZONE/text()",
-            "light": "./LIGHT/text()",
-            "price": "./PRICE/text()",
-        },
-        nested_fields={
-            "images": "./IMAGES/IMAGE",
-            "companions": "./COMPANIONS/PLANT",
-        },
-    )
+    with track_timing(context, "XML parsing"):
+        records = parse_xml_file(
+            file_path=Path("examples/data/plant_catalog.xml"),
+            record_path="./PLANT",  # Direct children of root
+            fields={
+                "plant_id": "./@id",
+                "common_name": "./COMMON/text()",
+                "botanical_name": "./BOTANICAL/text()",
+                "zone": "./ZONE/text()",
+                "light": "./LIGHT/text()",
+                "price": "./PRICE/text()",
+            },
+            nested_fields={
+                "images": "./IMAGES/IMAGE",
+                "companions": "./COMPANIONS/PLANT",
+            },
+        )
+        df = pl.DataFrame(records)
 
-    df = pl.DataFrame(records)
-    context.add_output_metadata({"row_count": len(df)})
+    # Rich metadata: record count, columns, markdown preview table
+    add_dataframe_metadata(context, df, unique_zones=df["zone"].n_unique())
     return df
 ```
 
@@ -248,6 +250,52 @@ All functions accept:
 - `fields`: Simple value extraction (one value per record)
 - `nested_fields`: Repeated elements → JSON arrays
 - `namespaces`: XML namespace prefix mappings
+
+---
+
+## Rich Metadata
+
+Use the helper functions to add useful metadata to the Dagster UI:
+
+```python
+from cogapp_libs.dagster import (
+    add_dataframe_metadata,
+    table_preview_to_metadata,
+    track_timing,
+)
+
+@dg.asset(group_name="harvest", kinds={"xml"})
+def plant_catalog(context: dg.AssetExecutionContext) -> pl.DataFrame:
+    # track_timing adds processing_time_ms + logs completion
+    with track_timing(context, "XML parsing"):
+        records = parse_xml_file(...)
+        df = pl.DataFrame(records)
+
+    # add_dataframe_metadata adds record_count, columns, preview table
+    add_dataframe_metadata(
+        context,
+        df,
+        # Custom extras appear in metadata panel
+        unique_zones=df["zone"].n_unique(),
+        source_file="plant_catalog.xml",
+    )
+
+    # Add additional preview tables
+    context.add_output_metadata(
+        table_preview_to_metadata(
+            df.select("common_name", "price"),
+            title="price_list",
+            header="Price List",
+        )
+    )
+    return df
+```
+
+| Helper | Adds to Metadata |
+|--------|------------------|
+| `track_timing(context, "operation")` | `processing_time_ms` |
+| `add_dataframe_metadata(context, df)` | `record_count`, `columns`, `preview` (markdown table) |
+| `table_preview_to_metadata(df, "title")` | Custom markdown table preview |
 
 ---
 
