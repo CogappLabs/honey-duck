@@ -18,7 +18,7 @@ uv run ruff check .
 uv run ruff format .
 
 # Type checking
-uv run mypy src/honey_duck cogapp_deps
+uv run mypy src/honey_duck cogapp_libs
 ```
 
 ## Pre-commit Hooks

@@ -178,7 +178,7 @@ uv run dg dev
 # tests/test_io_managers.py
 import pytest
 from pathlib import Path
-from cogapp_deps.dagster.io_managers import UniversalJSONIOManager
+from cogapp_libs.dagster.io_managers import UniversalJSONIOManager
 
 def test_json_io_manager_local(tmp_path):
     """Test IO manager with local filesystem."""
@@ -298,7 +298,7 @@ df = conn.sql("""
 
 ## Quick Start Implementation
 
-Add this to `cogapp_deps/dagster/io_managers.py`:
+Add this to `cogapp_libs/dagster/io_managers.py`:
 
 ```python
 class UniversalJSONIOManager(JSONIOManager):

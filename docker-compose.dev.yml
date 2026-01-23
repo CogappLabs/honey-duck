@@ -24,7 +24,7 @@ services:
     volumes:
       # Mount code for hot reload
       - ./src/honey_duck:/app/src/honey_duck
-      - ./cogapp_deps:/app/cogapp_deps
+      - ./cogapp_libs:/app/cogapp_libs
       - ./data:/app/data
       # Persist dagster home
       - dagster-dev-home:/app/dagster_home

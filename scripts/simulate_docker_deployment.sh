@@ -177,7 +177,7 @@ echo "Image contents:"
 echo "   • Python 3.12 slim"
 echo "   • uv package manager"
 echo "   • honey_duck package"
-echo "   • cogapp_deps utilities"
+echo "   • cogapp_libs utilities"
 echo "   • All dependencies from pyproject.toml"
 echo ""
 

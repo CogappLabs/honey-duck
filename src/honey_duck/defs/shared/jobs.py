@@ -13,7 +13,7 @@ processors_pipeline_job = dg.define_asset_job(
     description="""
     Original implementation using reusable processor classes.
 
-    Demonstrates the processor pattern from cogapp_deps:
+    Demonstrates the processor pattern from cogapp_libs:
     - PolarsFilterProcessor, PolarsStringProcessor for transformations
     - DuckDBJoinProcessor, DuckDBWindowProcessor for SQL operations
 

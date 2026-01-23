@@ -88,7 +88,7 @@ Add to `src/honey_duck/defs/polars/my_first_asset.py`:
 ```python
 import dagster as dg
 import polars as pl
-from cogapp_deps.dagster import read_harvest_tables_lazy, add_dataframe_metadata
+from cogapp_libs.dagster import read_harvest_tables_lazy, add_dataframe_metadata
 from honey_duck.defs.shared.resources import PathsResource
 
 @dg.asset(
@@ -171,7 +171,7 @@ After materialization:
 ### Pattern 1: Reading from Harvest Tables
 
 ```python
-from cogapp_deps.dagster import read_harvest_tables_lazy
+from cogapp_libs.dagster import read_harvest_tables_lazy
 from honey_duck.defs.shared.resources import PathsResource
 
 @dg.asset
@@ -199,7 +199,7 @@ def my_asset(
 ### Pattern 2: Adding Metadata
 
 ```python
-from cogapp_deps.dagster import add_dataframe_metadata, track_timing
+from cogapp_libs.dagster import add_dataframe_metadata, track_timing
 
 @dg.asset
 def my_transform(context: dg.AssetExecutionContext) -> pl.DataFrame:
@@ -222,7 +222,7 @@ def my_transform(context: dg.AssetExecutionContext) -> pl.DataFrame:
 ### Pattern 3: Writing JSON Output
 
 ```python
-from cogapp_deps.dagster import write_json_output
+from cogapp_libs.dagster import write_json_output
 from honey_duck.defs.shared.resources import OutputPathsResource
 
 @dg.asset(kinds={"polars", "json"})

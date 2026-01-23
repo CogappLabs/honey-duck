@@ -142,19 +142,19 @@ class TestIOManagerRegistry:
 
     def test_json_io_manager_exists(self) -> None:
         """JSONIOManager is properly exported."""
-        from cogapp_deps.dagster.io_managers import JSONIOManager
+        from cogapp_libs.dagster.io_managers import JSONIOManager
 
         assert JSONIOManager is not None
 
     def test_elasticsearch_io_manager_exists(self) -> None:
         """ElasticsearchIOManager is properly exported."""
-        from cogapp_deps.dagster.io_managers import ElasticsearchIOManager
+        from cogapp_libs.dagster.io_managers import ElasticsearchIOManager
 
         assert ElasticsearchIOManager is not None
 
     def test_opensearch_io_manager_exists(self) -> None:
         """OpenSearchIOManager is properly exported."""
-        from cogapp_deps.dagster.io_managers import OpenSearchIOManager
+        from cogapp_libs.dagster.io_managers import OpenSearchIOManager
 
         assert OpenSearchIOManager is not None
 
@@ -164,7 +164,7 @@ class TestProcessorImports:
 
     def test_polars_processors(self) -> None:
         """Polars processors import correctly."""
-        from cogapp_deps.processors.polars import (
+        from cogapp_libs.processors.polars import (
             PolarsFilterProcessor,
             PolarsStringProcessor,
         )
@@ -174,7 +174,7 @@ class TestProcessorImports:
 
     def test_duckdb_processors(self) -> None:
         """DuckDB processors import correctly."""
-        from cogapp_deps.processors.duckdb import (
+        from cogapp_libs.processors.duckdb import (
             DuckDBAggregateProcessor,
             DuckDBJoinProcessor,
             DuckDBQueryProcessor,
@@ -188,6 +188,6 @@ class TestProcessorImports:
 
     def test_chain_processor(self) -> None:
         """Chain processor imports correctly."""
-        from cogapp_deps.processors import Chain
+        from cogapp_libs.processors import Chain
 
         assert Chain is not None

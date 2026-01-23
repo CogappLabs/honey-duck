@@ -24,10 +24,10 @@ Sitemaps are XML files that inform search engines about the pages, images, and o
 
 ### 1. Install (Already Included)
 
-Sitemap utilities are part of `cogapp_deps.dagster`:
+Sitemap utilities are part of `cogapp_libs.dagster`:
 
 ```python
-from cogapp_deps.dagster import (
+from cogapp_libs.dagster import (
     create_sitemap_asset,
     create_image_sitemap_asset,
     generate_sitemap_xml,
@@ -38,7 +38,7 @@ from cogapp_deps.dagster import (
 
 ```python
 import dagster as dg
-from cogapp_deps.dagster import create_sitemap_asset
+from cogapp_libs.dagster import create_sitemap_asset
 
 # Define your data asset
 @dg.asset
@@ -82,7 +82,7 @@ echo "Sitemap: https://example.com/sitemap.xml" >> robots.txt
 ### Basic Example
 
 ```python
-from cogapp_deps.dagster import create_sitemap_asset
+from cogapp_libs.dagster import create_sitemap_asset
 
 sitemap = create_sitemap_asset(
     name="sitemap_main",
@@ -137,7 +137,7 @@ For better image search results in Google Images.
 ### Example
 
 ```python
-from cogapp_deps.dagster import create_image_sitemap_asset
+from cogapp_libs.dagster import create_image_sitemap_asset
 
 sitemap_images = create_image_sitemap_asset(
     name="sitemap_images",
@@ -207,7 +207,7 @@ def sitemap_index(
     sitemap_artists: dict,
 ) -> dict:
     """Create sitemap index referencing all sitemaps."""
-    from cogapp_deps.dagster import generate_sitemap_index_xml
+    from cogapp_libs.dagster import generate_sitemap_index_xml
     from datetime import datetime
 
     sitemaps = [
@@ -337,7 +337,7 @@ def sitemap_from_elasticsearch(
     artworks_searchable: pl.DataFrame,  # Auto-loaded from ES
 ) -> dict:
     """Generate sitemap from Elasticsearch data."""
-    from cogapp_deps.dagster import generate_sitemap_xml
+    from cogapp_libs.dagster import generate_sitemap_xml
 
     urls = [
         {
@@ -362,7 +362,7 @@ def sitemap_from_elasticsearch(
 import dagster as dg
 import polars as pl
 from pathlib import Path
-from cogapp_deps.dagster import (
+from cogapp_libs.dagster import (
     create_sitemap_asset,
     create_image_sitemap_asset,
     generate_sitemap_index_xml,

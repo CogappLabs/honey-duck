@@ -386,7 +386,7 @@ Then run: `uv sync`
 
 **Guidelines**:
 - **Project-specific logic** → `src/honey_duck/defs/` (organized by technology: polars/, duckdb/, etc.)
-- **Reusable utilities** → `cogapp_deps/`
+- **Reusable utilities** → `cogapp_libs/`
 
 ---
 
@@ -431,7 +431,7 @@ print(df.collect_schema())  # Shows all columns
 ```python
 import dagster as dg
 import polars as pl
-from cogapp_deps.dagster import (
+from cogapp_libs.dagster import (
     read_harvest_tables_lazy,
     track_timing,
     add_dataframe_metadata,

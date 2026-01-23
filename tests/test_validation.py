@@ -1,4 +1,4 @@
-"""Tests for cogapp_deps.dagster.validation module.
+"""Tests for cogapp_libs.dagster.validation module.
 
 These tests verify the validation functions that read harvest tables
 and validate DataFrame schemas. Critical for catching issues like
@@ -11,13 +11,13 @@ import dagster as dg
 import polars as pl
 import pytest
 
-from cogapp_deps.dagster import (
+from cogapp_libs.dagster import (
     read_harvest_table_lazy,
     read_harvest_tables_lazy,
     read_parquet_table_lazy,
     validate_dataframe,
 )
-from cogapp_deps.dagster.exceptions import MissingColumnError, MissingTableError
+from cogapp_libs.dagster.exceptions import MissingColumnError, MissingTableError
 
 
 class TestReadParquetTableLazy:

@@ -15,7 +15,7 @@ import dagster as dg
 import polars as pl
 from dagster_duckdb import DuckDBResource
 
-from cogapp_deps.dagster import write_json_output
+from cogapp_libs.dagster import write_json_output
 
 from ..shared.constants import (
     MIN_SALE_VALUE_USD,

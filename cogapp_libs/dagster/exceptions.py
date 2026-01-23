@@ -4,7 +4,7 @@ Provides structured error handling with actionable error messages.
 Integrates with Dagster's Failure exception for UI metadata rendering.
 
 Usage:
-    from cogapp_deps.dagster import MissingTableError, raise_as_dagster_failure
+    from cogapp_libs.dagster import MissingTableError, raise_as_dagster_failure
 
     # Automatic Failure wrapping (recommended)
     try:

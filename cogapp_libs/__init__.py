@@ -4,15 +4,15 @@ This package provides reusable DataFrame processors for common
 data transformation patterns.
 
 Structure:
-    cogapp_deps/
+    cogapp_libs/
     └── processors/
         ├── polars/   - Filtering, string transforms (chainable)
         └── duckdb/   - SQL-based operations
 
 Example:
     ```python
-    from cogapp_deps.processors import Chain
-    from cogapp_deps.processors.polars import PolarsStringProcessor, PolarsFilterProcessor
+    from cogapp_libs.processors import Chain
+    from cogapp_libs.processors.polars import PolarsStringProcessor, PolarsFilterProcessor
     chain = Chain([
         PolarsStringProcessor("name", "upper"),
         PolarsFilterProcessor("price", 1000, ">="),

@@ -17,7 +17,7 @@ from dagster_duckdb.io_manager import DbTypeHandler
 from dagster_duckdb_pandas import DuckDBPandasTypeHandler
 from dagster_duckdb_polars import DuckDBPolarsTypeHandler
 
-from cogapp_deps.processors.duckdb import get_connection
+from cogapp_libs.processors.duckdb import get_connection
 
 if TYPE_CHECKING:
     import polars as pl

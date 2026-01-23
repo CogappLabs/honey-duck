@@ -25,7 +25,7 @@ Custom IO managers for various storage backends.
 ## Quick Import
 
 ```python
-from cogapp_deps.dagster import (
+from cogapp_libs.dagster import (
     # Data Loading
     read_harvest_table_lazy,
     read_harvest_tables_lazy,
@@ -56,7 +56,7 @@ from cogapp_deps.dagster import (
 ```python
 import dagster as dg
 import polars as pl
-from cogapp_deps.dagster import (
+from cogapp_libs.dagster import (
     read_harvest_tables_lazy,
     track_timing,
     add_dataframe_metadata,
@@ -65,7 +65,7 @@ from cogapp_deps.dagster import (
 
 @dg.asset(kinds={"polars"}, group_name="transform")
 def my_asset(context: dg.AssetExecutionContext) -> pl.DataFrame:
-    """Example asset using cogapp_deps helpers."""
+    """Example asset using cogapp_libs helpers."""
 
     with track_timing(context, "data loading"):
         tables = read_harvest_tables_lazy(

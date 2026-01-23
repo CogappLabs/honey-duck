@@ -7,8 +7,8 @@ from unittest.mock import MagicMock
 
 import dagster as dg
 
-from cogapp_deps.dagster import ElasticsearchIOManagerComponent
-from cogapp_deps.dagster.io_managers import ElasticsearchIOManager
+from cogapp_libs.dagster import ElasticsearchIOManagerComponent
+from cogapp_libs.dagster.io_managers import ElasticsearchIOManager
 
 
 class TestElasticsearchIOManagerComponent:
@@ -139,12 +139,12 @@ class TestComponentImports:
 
     def test_import_from_components_module(self) -> None:
         """Component can be imported from components submodule."""
-        from cogapp_deps.dagster.components import ElasticsearchIOManagerComponent as Component
+        from cogapp_libs.dagster.components import ElasticsearchIOManagerComponent as Component
 
         assert Component is not None
 
     def test_import_from_main_package(self) -> None:
         """Component can be imported from main dagster package."""
-        from cogapp_deps.dagster import ElasticsearchIOManagerComponent as Component
+        from cogapp_libs.dagster import ElasticsearchIOManagerComponent as Component
 
         assert Component is not None

@@ -67,7 +67,7 @@ open http://localhost:5601
 ```python
 # src/honey_duck/defs/definitions.py
 import os
-from cogapp_deps.dagster import ElasticsearchIOManager
+from cogapp_libs.dagster import ElasticsearchIOManager
 
 defs = dg.Definitions(
     assets=[sales_output, artworks_output],

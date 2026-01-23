@@ -12,23 +12,23 @@ Reusable DataFrame transformation classes for data pipelines.
 
 ### DuckDBQueryProcessor
 
-::: cogapp_deps.processors.duckdb.DuckDBQueryProcessor
+::: cogapp_libs.processors.duckdb.DuckDBQueryProcessor
 
 ### DuckDBSQLProcessor
 
-::: cogapp_deps.processors.duckdb.DuckDBSQLProcessor
+::: cogapp_libs.processors.duckdb.DuckDBSQLProcessor
 
 ### DuckDBWindowProcessor
 
-::: cogapp_deps.processors.duckdb.DuckDBWindowProcessor
+::: cogapp_libs.processors.duckdb.DuckDBWindowProcessor
 
 ### DuckDBAggregateProcessor
 
-::: cogapp_deps.processors.duckdb.DuckDBAggregateProcessor
+::: cogapp_libs.processors.duckdb.DuckDBAggregateProcessor
 
 ### DuckDBJoinProcessor
 
-::: cogapp_deps.processors.duckdb.DuckDBJoinProcessor
+::: cogapp_libs.processors.duckdb.DuckDBJoinProcessor
 
 ---
 
@@ -36,11 +36,11 @@ Reusable DataFrame transformation classes for data pipelines.
 
 ### PolarsFilterProcessor
 
-::: cogapp_deps.processors.polars.PolarsFilterProcessor
+::: cogapp_libs.processors.polars.PolarsFilterProcessor
 
 ### PolarsStringProcessor
 
-::: cogapp_deps.processors.polars.PolarsStringProcessor
+::: cogapp_libs.processors.polars.PolarsStringProcessor
 
 ---
 
@@ -48,13 +48,13 @@ Reusable DataFrame transformation classes for data pipelines.
 
 ### Chain
 
-::: cogapp_deps.processors.Chain
+::: cogapp_libs.processors.Chain
 
 Process multiple transformations in sequence with lazy optimization for Polars.
 
 ```python
-from cogapp_deps.processors import Chain
-from cogapp_deps.processors.polars import PolarsFilterProcessor, PolarsStringProcessor
+from cogapp_libs.processors import Chain
+from cogapp_libs.processors.polars import PolarsFilterProcessor, PolarsStringProcessor
 
 chain = Chain([
     PolarsStringProcessor("name", "upper"),

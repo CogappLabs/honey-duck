@@ -108,7 +108,7 @@ The IO manager uses `sink_parquet()` instead of `write_parquet()`, never materia
 Add charts and tables to Dagster asset metadata:
 
 ```python
-from cogapp_deps.dagster import altair_to_metadata, table_preview_to_metadata
+from cogapp_libs.dagster import altair_to_metadata, table_preview_to_metadata
 
 @dg.asset
 def my_output(context, data: pl.LazyFrame) -> pl.DataFrame:

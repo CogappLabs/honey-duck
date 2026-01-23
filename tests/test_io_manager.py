@@ -3,7 +3,7 @@
 import pandas as pd
 import polars as pl
 
-from cogapp_deps.dagster import DuckDBPandasPolarsIOManager
+from cogapp_libs.dagster import DuckDBPandasPolarsIOManager
 
 
 class TestDuckDBPandasPolarsIOManager:
@@ -47,7 +47,7 @@ class TestWriteJsonOutputPolars:
         """Test that Polars DataFrame is written correctly to JSON."""
         from unittest.mock import MagicMock
 
-        from cogapp_deps.dagster import write_json_output
+        from cogapp_libs.dagster import write_json_output
 
         output_path = tmp_path / "output.json"
         df = pl.DataFrame(
@@ -74,7 +74,7 @@ class TestWriteJsonOutputPolars:
         """Test that Polars and Pandas produce equivalent JSON output."""
         from unittest.mock import MagicMock
 
-        from cogapp_deps.dagster import write_json_output
+        from cogapp_libs.dagster import write_json_output
 
         # Same data in both formats
         pandas_df = pd.DataFrame(

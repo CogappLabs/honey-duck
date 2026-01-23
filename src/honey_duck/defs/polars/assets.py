@@ -21,7 +21,7 @@ from datetime import timedelta
 import dagster as dg
 import polars as pl
 
-from cogapp_deps.dagster import (
+from cogapp_libs.dagster import (
     altair_to_metadata,
     read_harvest_table_lazy,
     table_preview_to_metadata,

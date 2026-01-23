@@ -1,11 +1,11 @@
-"""Tests for cogapp_deps.dagster helpers."""
+"""Tests for cogapp_libs.dagster helpers."""
 
 from unittest.mock import MagicMock
 
 import pandas as pd
 
-from cogapp_deps.dagster import read_table, write_json_output
-from cogapp_deps.processors.duckdb import configure
+from cogapp_libs.dagster import read_table, write_json_output
+from cogapp_libs.processors.duckdb import configure
 
 
 class TestReadTable:

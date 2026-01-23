@@ -6,7 +6,7 @@ on pipeline completion.
 
 Example usage:
     ```python
-    from cogapp_deps.dagster.notifications import create_slack_notification_asset
+    from cogapp_libs.dagster.notifications import create_slack_notification_asset
 
     # Create a notification asset that depends on pipeline completion
     notify_on_success = create_slack_notification_asset(
@@ -147,7 +147,7 @@ def create_email_notification_asset(
     """Create an email notification asset with Jinja2 templating and Cogapp branding.
 
     Sends HTML and plain text email using Jinja2 templates with professional Cogapp styling.
-    Templates are located in cogapp_deps/dagster/templates/email/.
+    Templates are located in cogapp_libs/dagster/templates/email/.
 
     Args:
         name: Asset name (e.g., "email_pipeline_report")

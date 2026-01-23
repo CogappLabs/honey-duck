@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CATALOG>
+  <PLANT id="P001">
+    <COMMON>Bloodroot</COMMON>
+    <BOTANICAL>Sanguinaria canadensis</BOTANICAL>
+    <ZONE>4</ZONE>
+    <LIGHT>Mostly Shady</LIGHT>
+    <PRICE>$2.44</PRICE>
+    <AVAILABILITY>031599</AVAILABILITY>
+    <IMAGES>
+      <IMAGE type="thumbnail">bloodroot_thumb.jpg</IMAGE>
+      <IMAGE type="full">bloodroot_full.jpg</IMAGE>
+    </IMAGES>
+    <COMPANIONS>
+      <PLANT>Trillium</PLANT>
+      <PLANT>Hepatica</PLANT>
+    </COMPANIONS>
+  </PLANT>
+  <PLANT id="P002">
+    <COMMON>Columbine</COMMON>
+    <BOTANICAL>Aquilegia canadensis</BOTANICAL>
+    <ZONE>3</ZONE>
+    <LIGHT>Mostly Shady</LIGHT>
+    <PRICE>$9.37</PRICE>
+    <AVAILABILITY>030699</AVAILABILITY>
+    <IMAGES>
+      <IMAGE type="thumbnail">columbine_thumb.jpg</IMAGE>
+      <IMAGE type="full">columbine_full.jpg</IMAGE>
+      <IMAGE type="detail">columbine_flower.jpg</IMAGE>
+    </IMAGES>
+    <COMPANIONS>
+      <PLANT>Fern</PLANT>
+    </COMPANIONS>
+  </PLANT>
+  <PLANT id="P003">
+    <COMMON>Marsh Marigold</COMMON>
+    <BOTANICAL>Caltha palustris</BOTANICAL>
+    <ZONE>4</ZONE>
+    <LIGHT>Mostly Sunny</LIGHT>
+    <PRICE>$6.81</PRICE>
+    <AVAILABILITY>051799</AVAILABILITY>
+    <IMAGES>
+      <IMAGE type="thumbnail">marsh_marigold_thumb.jpg</IMAGE>
+    </IMAGES>
+    <COMPANIONS>
+      <PLANT>Iris</PLANT>
+      <PLANT>Cardinal Flower</PLANT>
+      <PLANT>Bee Balm</PLANT>
+    </COMPANIONS>
+  </PLANT>
+  <PLANT id="P004">
+    <COMMON>Trillium</COMMON>
+    <BOTANICAL>Trillium grandiflorum</BOTANICAL>
+    <ZONE>5</ZONE>
+    <LIGHT>Sun or Shade</LIGHT>
+    <PRICE>$3.90</PRICE>
+    <AVAILABILITY>042999</AVAILABILITY>
+    <IMAGES>
+      <IMAGE type="thumbnail">trillium_thumb.jpg</IMAGE>
+      <IMAGE type="full">trillium_full.jpg</IMAGE>
+    </IMAGES>
+    <COMPANIONS>
+      <PLANT>Bloodroot</PLANT>
+      <PLANT>Jack-In-The-Pulpit</PLANT>
+    </COMPANIONS>
+  </PLANT>
+  <PLANT id="P005">
+    <COMMON>Black-Eyed Susan</COMMON>
+    <BOTANICAL>Rudbeckia hirta</BOTANICAL>
+    <ZONE>Annual</ZONE>
+    <LIGHT>Sunny</LIGHT>
+    <PRICE>$9.80</PRICE>
+    <AVAILABILITY>061899</AVAILABILITY>
+    <IMAGES>
+      <IMAGE type="thumbnail">black_eyed_susan_thumb.jpg</IMAGE>
+      <IMAGE type="full">black_eyed_susan_full.jpg</IMAGE>
+    </IMAGES>
+    <COMPANIONS>
+      <PLANT>Coneflower</PLANT>
+      <PLANT>Butterfly Weed</PLANT>
+    </COMPANIONS>
+  </PLANT>
+</CATALOG>

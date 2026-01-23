@@ -13,7 +13,7 @@ Processors:
 Connection Configuration:
     By default, processors use in-memory DuckDB. To use a persistent database:
 
-        from cogapp_deps.processors.duckdb import configure
+        from cogapp_libs.processors.duckdb import configure
         configure(db_path="/path/to/database.duckdb")
 
     Or set the DUCKDB_PROCESSOR_PATH environment variable.

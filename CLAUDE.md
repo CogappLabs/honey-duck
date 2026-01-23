@@ -55,7 +55,7 @@ src/honey_duck/
         ├── jobs.py       # Job definitions (6 jobs)
         └── checks.py     # Asset checks (Pandera + quality)
 
-cogapp_deps/              # Utilities (simulates external package)
+cogapp_libs/              # Utilities (simulates external package)
 ├── dagster/              # Dagster helpers
 │   ├── __init__.py       # Exports write_json_output, track_timing, etc.
 │   ├── io.py             # DuckDBPandasPolarsIOManager (unused)
@@ -187,7 +187,7 @@ result = sales.filter(pl.col("id").is_in(artworks["id"]))
 Add charts and tables to Dagster asset metadata:
 
 ```python
-from cogapp_deps.dagster import altair_to_metadata, table_preview_to_metadata
+from cogapp_libs.dagster import altair_to_metadata, table_preview_to_metadata
 
 # Bar chart (Altair via Polars .plot)
 chart = df.plot.bar(x="category", y="count")

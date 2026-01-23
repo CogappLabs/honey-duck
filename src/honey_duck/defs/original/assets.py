@@ -49,14 +49,14 @@ from datetime import timedelta
 import dagster as dg
 import polars as pl
 
-from cogapp_deps.dagster import write_json_output
-from cogapp_deps.processors import Chain
-from cogapp_deps.processors.duckdb import (
+from cogapp_libs.dagster import write_json_output
+from cogapp_libs.processors import Chain
+from cogapp_libs.processors.duckdb import (
     DuckDBQueryProcessor,
     DuckDBSQLProcessor,
     configure as configure_duckdb,
 )
-from cogapp_deps.processors.polars import PolarsFilterProcessor, PolarsStringProcessor
+from cogapp_libs.processors.polars import PolarsFilterProcessor, PolarsStringProcessor
 
 from ..shared.constants import (
     MIN_SALE_VALUE_USD,

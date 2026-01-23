@@ -3,7 +3,7 @@
 Provides a YAML-configurable component for bulk indexing DataFrames to Elasticsearch.
 
 Usage in component.yaml:
-    type: cogapp_deps.dagster.components.ElasticsearchIOManagerComponent
+    type: cogapp_libs.dagster.components.ElasticsearchIOManagerComponent
     params:
       hosts:
         - ${ELASTICSEARCH_HOST}
@@ -48,7 +48,7 @@ class ElasticsearchIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
         Returns:
             Definitions object with the IO manager resource
         """
-        from cogapp_deps.dagster.io_managers import ElasticsearchIOManager
+        from cogapp_libs.dagster.io_managers import ElasticsearchIOManager
 
         io_manager = ElasticsearchIOManager(
             hosts=self.hosts,

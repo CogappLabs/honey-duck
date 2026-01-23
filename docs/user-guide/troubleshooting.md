@@ -163,7 +163,7 @@ uv run dg launch --assets dlt_harvest_sales
 
 3. **Check table names**:
 ```python
-from cogapp_deps.dagster import read_harvest_tables_lazy
+from cogapp_libs.dagster import read_harvest_tables_lazy
 
 # This validates table exists and shows available tables in error message
 tables = read_harvest_tables_lazy(
@@ -208,7 +208,7 @@ Available columns: ['sale_id', 'sale_price_usd', 'artwork_id']
 
 3. **Use helper validation**:
 ```python
-from cogapp_deps.dagster import read_harvest_tables_lazy
+from cogapp_libs.dagster import read_harvest_tables_lazy
 
 # Validates columns exist
 tables = read_harvest_tables_lazy(
@@ -319,7 +319,7 @@ df = df.collect()  # ← Only loads filtered data
 
 2. **Profile your code**:
 ```python
-from cogapp_deps.dagster import track_timing
+from cogapp_libs.dagster import track_timing
 
 @dg.asset
 def my_asset(context):

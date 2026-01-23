@@ -24,7 +24,7 @@ RUN uv sync --no-dev
 
 # Copy application code
 COPY src/honey_duck src/honey_duck/
-COPY cogapp_deps cogapp_deps/
+COPY cogapp_libs cogapp_libs/
 COPY data/input data/input/
 COPY scripts scripts/
 

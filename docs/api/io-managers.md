@@ -11,12 +11,12 @@ Custom IO managers for various storage backends.
 
 ### ElasticsearchIOManager
 
-::: cogapp_deps.dagster.io_managers.ElasticsearchIOManager
+::: cogapp_libs.dagster.io_managers.ElasticsearchIOManager
 
 **Example:**
 
 ```python
-from cogapp_deps.dagster import ElasticsearchIOManager
+from cogapp_libs.dagster import ElasticsearchIOManager
 
 defs = dg.Definitions(
     resources={
@@ -40,12 +40,12 @@ def sales_searchable(sales_transform: pl.DataFrame) -> pl.DataFrame:
 
 ### OpenSearchIOManager
 
-::: cogapp_deps.dagster.io_managers.OpenSearchIOManager
+::: cogapp_libs.dagster.io_managers.OpenSearchIOManager
 
 **Example (AWS):**
 
 ```python
-from cogapp_deps.dagster import OpenSearchIOManager
+from cogapp_libs.dagster import OpenSearchIOManager
 
 opensearch_io_manager = OpenSearchIOManager(
     hosts=["https://search-domain.us-east-1.es.amazonaws.com"],
@@ -60,12 +60,12 @@ opensearch_io_manager = OpenSearchIOManager(
 
 ### JSONIOManager
 
-::: cogapp_deps.dagster.io_managers.JSONIOManager
+::: cogapp_libs.dagster.io_managers.JSONIOManager
 
 **Example:**
 
 ```python
-from cogapp_deps.dagster import JSONIOManager
+from cogapp_libs.dagster import JSONIOManager
 
 defs = dg.Definitions(
     resources={

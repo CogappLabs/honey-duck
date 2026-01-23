@@ -49,7 +49,7 @@ Process large volumes of prompts using Claude's [Message Batches API](https://do
 
 ```python
 import dlt
-from cogapp_deps.dagster import claude_message_batches
+from cogapp_libs.dagster import claude_message_batches
 
 # Define prompts to process
 prompts = [
@@ -83,7 +83,7 @@ print(f"Processed {load_info.load_packages[0].state['row_counts']} prompts")
 ```python
 import dagster as dg
 from dagster_dlt import DagsterDltResource, dlt_assets
-from cogapp_deps.dagster import claude_message_batches, create_duckdb_pipeline
+from cogapp_libs.dagster import claude_message_batches, create_duckdb_pipeline
 
 @dlt.source(name="customer_support")
 def support_tickets_source(context: dg.AssetExecutionContext):
@@ -231,7 +231,7 @@ Generate embeddings for large text collections using [Voyage AI](https://www.voy
 
 ```python
 import dlt
-from cogapp_deps.dagster import voyage_embeddings_batch
+from cogapp_libs.dagster import voyage_embeddings_batch
 
 # Texts to embed
 texts = [
@@ -266,7 +266,7 @@ print(f"Generated {load_info.load_packages[0].state['row_counts']} embeddings")
 ```python
 import dagster as dg
 from dagster_dlt import DagsterDltResource, dlt_assets
-from cogapp_deps.dagster import voyage_embeddings_batch, create_duckdb_pipeline
+from cogapp_libs.dagster import voyage_embeddings_batch, create_duckdb_pipeline
 
 @dlt.source(name="knowledge_base")
 def knowledge_base_embeddings():

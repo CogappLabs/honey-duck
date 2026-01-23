@@ -27,14 +27,14 @@ Examples
 
 Query from database:
 
-    from cogapp_deps.processors.duckdb import DuckDBQueryProcessor, configure
+    from cogapp_libs.processors.duckdb import DuckDBQueryProcessor, configure
     configure(db_path="data.duckdb", read_only=True)
 
     df = DuckDBQueryProcessor(sql="SELECT * FROM raw.sales").process()
 
 Transform a DataFrame with SQL:
 
-    from cogapp_deps.processors.duckdb import DuckDBSQLProcessor
+    from cogapp_libs.processors.duckdb import DuckDBSQLProcessor
 
     result = DuckDBSQLProcessor(sql=\"\"\"
         SELECT *, price * 1.1 AS price_with_tax FROM _input
@@ -42,8 +42,8 @@ Transform a DataFrame with SQL:
 
 Chain Polars processors:
 
-    from cogapp_deps.processors import Chain
-    from cogapp_deps.processors.polars import PolarsStringProcessor, PolarsFilterProcessor
+    from cogapp_libs.processors import Chain
+    from cogapp_libs.processors.polars import PolarsStringProcessor, PolarsFilterProcessor
 
     result = Chain([
         PolarsStringProcessor("name", "upper"),

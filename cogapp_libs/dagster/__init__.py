@@ -10,11 +10,11 @@ try:
     import dagster as _dg  # noqa: F401
 except ImportError as e:
     raise ImportError(
-        "dagster is required for cogapp_deps.dagster. "
+        "dagster is required for cogapp_libs.dagster. "
         "Install with: pip install cogapp-deps[dagster]"
     ) from e
 
-from cogapp_deps.dagster.exceptions import (
+from cogapp_libs.dagster.exceptions import (
     ConfigurationError,
     DataValidationError,
     MissingColumnError,
@@ -22,14 +22,14 @@ from cogapp_deps.dagster.exceptions import (
     PipelineError,
     raise_as_dagster_failure,
 )
-from cogapp_deps.dagster.helpers import (
+from cogapp_libs.dagster.helpers import (
     add_dataframe_metadata,
     altair_to_metadata,
     read_tables_from_duckdb,
     table_preview_to_metadata,
     track_timing,
 )
-from cogapp_deps.dagster.io import (
+from cogapp_libs.dagster.io import (
     DuckDBPandasPolarsIOManager,
     DuckDBRelationTypeHandler,
     read_table,
@@ -37,7 +37,7 @@ from cogapp_deps.dagster.io import (
     write_json_from_duckdb,
     write_json_output,
 )
-from cogapp_deps.dagster.io_managers import (
+from cogapp_libs.dagster.io_managers import (
     ElasticsearchIOManager,
     JSONIOManager,
     OpenSearchIOManager,
@@ -45,25 +45,25 @@ from cogapp_deps.dagster.io_managers import (
 
 # Components (for YAML-based configuration)
 try:
-    from cogapp_deps.dagster.components import ElasticsearchIOManagerComponent
+    from cogapp_libs.dagster.components import ElasticsearchIOManagerComponent
 
     _HAS_COMPONENTS = True
 except ImportError:
     _HAS_COMPONENTS = False
     ElasticsearchIOManagerComponent = None  # type: ignore[assignment, misc]
-from cogapp_deps.dagster.notifications import (
+from cogapp_libs.dagster.notifications import (
     create_email_notification_asset,
     create_pipeline_status_notification,
     create_slack_notification_asset,
 )
-from cogapp_deps.dagster.sitemap import (
+from cogapp_libs.dagster.sitemap import (
     create_image_sitemap_asset,
     create_sitemap_asset,
     generate_image_sitemap_xml,
     generate_sitemap_index_xml,
     generate_sitemap_xml,
 )
-from cogapp_deps.dagster.validation import (
+from cogapp_libs.dagster.validation import (
     read_duckdb_table_lazy,
     read_harvest_table_lazy,
     read_harvest_tables_lazy,
@@ -71,23 +71,26 @@ from cogapp_deps.dagster.validation import (
     validate_dataframe,
 )
 
+# XML parsing (no dlt dependency)
+from cogapp_libs.dagster.xml_sources import (
+    parse_xml_file,
+    parse_xml_http,
+    parse_xml_s3,
+    parse_xml_streaming,
+    parse_xml_string,
+)
+
 try:
     import dlt as _dlt  # noqa: F401
 
-    from cogapp_deps.dagster.api_sources import (
+    from cogapp_libs.dagster.api_sources import (
         claude_message_batches,
         voyage_embeddings_batch,
     )
-    from cogapp_deps.dagster.dlt_helpers import (
+    from cogapp_libs.dagster.dlt_helpers import (
         create_duckdb_pipeline,
         create_parquet_pipeline,
         setup_harvest_parquet_views,
-    )
-    from cogapp_deps.dagster.xml_sources import (
-        xml_file_source,
-        xml_http_source,
-        xml_multi_source,
-        xml_streaming_source,
     )
 
     _HAS_DLT = True
@@ -98,10 +101,6 @@ except ImportError:
     setup_harvest_parquet_views = None  # type: ignore[assignment]
     claude_message_batches = None  # type: ignore[assignment]
     voyage_embeddings_batch = None
-    xml_file_source = None  # type: ignore[assignment]
-    xml_http_source = None  # type: ignore[assignment]
-    xml_multi_source = None  # type: ignore[assignment]
-    xml_streaming_source = None  # type: ignore[assignment]
 
 __all__ = [
     # IO utilities
@@ -153,9 +152,10 @@ __all__ = [
     # API sources (optional, requires dlt)
     "claude_message_batches",
     "voyage_embeddings_batch",
-    # XML sources (optional, requires dlt)
-    "xml_file_source",
-    "xml_http_source",
-    "xml_streaming_source",
-    "xml_multi_source",
+    # XML parsing
+    "parse_xml_file",
+    "parse_xml_string",
+    "parse_xml_streaming",
+    "parse_xml_http",
+    "parse_xml_s3",
 ]

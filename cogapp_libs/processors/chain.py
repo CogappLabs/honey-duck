@@ -16,8 +16,8 @@ class Chain:
     The entire chain is executed as a single optimized Polars query.
 
     Example:
-        from cogapp_deps.processors import Chain
-        from cogapp_deps.processors.polars import PolarsStringProcessor, PolarsFilterProcessor
+        from cogapp_libs.processors import Chain
+        from cogapp_libs.processors.polars import PolarsStringProcessor, PolarsFilterProcessor
 
         chain = Chain([
             PolarsStringProcessor("name", "upper"),

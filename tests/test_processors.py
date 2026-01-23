@@ -1,10 +1,10 @@
-"""Tests for cogapp_deps processors."""
+"""Tests for cogapp_libs processors."""
 
 import pandas as pd
 import pytest
 
-from cogapp_deps.processors import Chain
-from cogapp_deps.processors.duckdb import (
+from cogapp_libs.processors import Chain
+from cogapp_libs.processors.duckdb import (
     DuckDBAggregateProcessor,
     DuckDBJoinProcessor,
     DuckDBQueryProcessor,
@@ -12,7 +12,7 @@ from cogapp_deps.processors.duckdb import (
     DuckDBWindowProcessor,
     configure,
 )
-from cogapp_deps.processors.polars import PolarsFilterProcessor, PolarsStringProcessor
+from cogapp_libs.processors.polars import PolarsFilterProcessor, PolarsStringProcessor
 
 
 # -----------------------------------------------------------------------------

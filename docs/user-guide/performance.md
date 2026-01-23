@@ -84,7 +84,7 @@ result = pl.scan_parquet(
 
 **Or with read_harvest_table_lazy**:
 ```python
-from cogapp_deps.dagster import read_harvest_table_lazy
+from cogapp_libs.dagster import read_harvest_table_lazy
 
 df = read_harvest_table_lazy(
     HARVEST_PARQUET_DIR,
@@ -449,7 +449,7 @@ conn.execute("PRAGMA disable_profiling")
 ### Dagster Timing
 
 ```python
-from cogapp_deps.dagster import track_timing
+from cogapp_libs.dagster import track_timing
 
 @dg.asset
 def my_asset(context: dg.AssetExecutionContext) -> pl.DataFrame:

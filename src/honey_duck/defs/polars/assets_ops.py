@@ -30,7 +30,7 @@ import dagster as dg
 from dagster import Nothing
 import polars as pl
 
-from cogapp_deps.dagster import (
+from cogapp_libs.dagster import (
     read_harvest_table_lazy,
     track_timing,
     write_json_output,

@@ -39,7 +39,7 @@ from typing import Iterator
 import dagster as dg
 import polars as pl
 
-from cogapp_deps.dagster import read_harvest_table_lazy, write_json_output
+from cogapp_libs.dagster import read_harvest_table_lazy, write_json_output
 
 from ..shared.constants import (
     MIN_SALE_VALUE_USD,

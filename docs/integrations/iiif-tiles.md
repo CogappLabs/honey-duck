@@ -59,7 +59,7 @@ import dagster as dg
 import polars as pl
 from pathlib import Path
 import pyvips
-from cogapp_deps.dagster import add_dataframe_metadata, track_timing
+from cogapp_libs.dagster import add_dataframe_metadata, track_timing
 
 @dg.asset(
     kinds={"image", "iiif"},
@@ -513,7 +513,7 @@ location /iiif/ {
 from pathlib import Path
 import dagster as dg
 import polars as pl
-from cogapp_deps.dagster import add_dataframe_metadata
+from cogapp_libs.dagster import add_dataframe_metadata
 
 # 1. List artwork images
 @dg.asset

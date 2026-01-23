@@ -1,6 +1,6 @@
 # Cogapp Deps API Reference
 
-Complete reference for the `cogapp_deps` reusable utilities library.
+Complete reference for the `cogapp_libs` reusable utilities library.
 
 ## Table of Contents
 
@@ -24,7 +24,7 @@ Complete reference for the `cogapp_deps` reusable utilities library.
 Read a single Parquet table as a Polars LazyFrame with validation.
 
 ```python
-from cogapp_deps.dagster import read_harvest_table_lazy
+from cogapp_libs.dagster import read_harvest_table_lazy
 
 df = read_harvest_table_lazy(
     base_dir="/path/to/parquet",
@@ -53,7 +53,7 @@ df = read_harvest_table_lazy(
 Batch read multiple Parquet tables with validation.
 
 ```python
-from cogapp_deps.dagster import read_harvest_tables_lazy
+from cogapp_libs.dagster import read_harvest_tables_lazy
 
 tables = read_harvest_tables_lazy(
     "/path/to/parquet",
@@ -89,7 +89,7 @@ artists = tables["artists_raw"]
 Read any Parquet file with validation (not limited to harvest dir).
 
 ```python
-from cogapp_deps.dagster import read_parquet_table_lazy
+from cogapp_libs.dagster import read_parquet_table_lazy
 
 df = read_parquet_table_lazy(
     file_path="/custom/path/data.parquet",
@@ -107,7 +107,7 @@ df = read_parquet_table_lazy(
 Validate DataFrame schema and contents.
 
 ```python
-from cogapp_deps.dagster import validate_dataframe, DataValidationError
+from cogapp_libs.dagster import validate_dataframe, DataValidationError
 
 try:
     validate_dataframe(
@@ -135,7 +135,7 @@ except DataValidationError as e:
 
 **Base Exception**:
 ```python
-from cogapp_deps.dagster import PipelineError
+from cogapp_libs.dagster import PipelineError
 
 # Base class for all pipeline errors
 raise PipelineError("Something went wrong")
@@ -152,7 +152,7 @@ raise PipelineError("Something went wrong")
 
 **Example Usage**:
 ```python
-from cogapp_deps.dagster import MissingTableError, MissingColumnError
+from cogapp_libs.dagster import MissingTableError, MissingColumnError
 
 # Table error
 raise MissingTableError(
@@ -177,7 +177,7 @@ raise MissingColumnError(
 Convert exceptions to Dagster failures (stops execution gracefully).
 
 ```python
-from cogapp_deps.dagster import raise_as_dagster_failure
+from cogapp_libs.dagster import raise_as_dagster_failure
 
 try:
     risky_operation()
@@ -194,7 +194,7 @@ except Exception as e:
 Add standard DataFrame metadata to asset context.
 
 ```python
-from cogapp_deps.dagster import add_dataframe_metadata
+from cogapp_libs.dagster import add_dataframe_metadata
 
 @dg.asset
 def my_asset(context: dg.AssetExecutionContext) -> pl.DataFrame:
@@ -232,7 +232,7 @@ def my_asset(context: dg.AssetExecutionContext) -> pl.DataFrame:
 Context manager for automatic timing and logging.
 
 ```python
-from cogapp_deps.dagster import track_timing
+from cogapp_libs.dagster import track_timing
 
 @dg.asset
 def my_asset(context: dg.AssetExecutionContext) -> pl.DataFrame:
@@ -262,7 +262,7 @@ def my_asset(context: dg.AssetExecutionContext) -> pl.DataFrame:
 Convert an Altair chart to Dagster metadata with embedded PNG.
 
 ```python
-from cogapp_deps.dagster import altair_to_metadata
+from cogapp_libs.dagster import altair_to_metadata
 
 @dg.asset
 def my_asset(context: dg.AssetExecutionContext) -> pl.DataFrame:
@@ -293,7 +293,7 @@ def my_asset(context: dg.AssetExecutionContext) -> pl.DataFrame:
 Convert a Polars DataFrame to a markdown table for Dagster metadata.
 
 ```python
-from cogapp_deps.dagster import table_preview_to_metadata
+from cogapp_libs.dagster import table_preview_to_metadata
 
 @dg.asset
 def my_asset(context: dg.AssetExecutionContext) -> pl.DataFrame:
@@ -324,7 +324,7 @@ def my_asset(context: dg.AssetExecutionContext) -> pl.DataFrame:
 ### Example: Combined Visualization
 
 ```python
-from cogapp_deps.dagster import altair_to_metadata, table_preview_to_metadata
+from cogapp_libs.dagster import altair_to_metadata, table_preview_to_metadata
 
 @dg.asset
 def sales_summary(context: dg.AssetExecutionContext, sales: pl.DataFrame) -> pl.DataFrame:
@@ -355,7 +355,7 @@ def sales_summary(context: dg.AssetExecutionContext, sales: pl.DataFrame) -> pl.
 Write and read Polars/Pandas DataFrames as JSON files.
 
 ```python
-from cogapp_deps.dagster import JSONIOManager
+from cogapp_libs.dagster import JSONIOManager
 
 defs = dg.Definitions(
     resources={
@@ -382,7 +382,7 @@ def my_asset() -> pl.DataFrame:
 Write and read DataFrames from Elasticsearch 8/9.
 
 ```python
-from cogapp_deps.dagster import ElasticsearchIOManager
+from cogapp_libs.dagster import ElasticsearchIOManager
 
 defs = dg.Definitions(
     resources={
@@ -417,7 +417,7 @@ def sales_searchable(sales_transform: pl.DataFrame) -> pl.DataFrame:
 Write and read DataFrames from OpenSearch (AWS).
 
 ```python
-from cogapp_deps.dagster import OpenSearchIOManager
+from cogapp_libs.dagster import OpenSearchIOManager
 
 # Self-hosted OpenSearch
 opensearch_io_manager = OpenSearchIOManager(
@@ -461,7 +461,7 @@ def my_asset() -> pl.DataFrame:
 Create a DLT pipeline that writes to Parquet files.
 
 ```python
-from cogapp_deps.dagster import create_parquet_pipeline
+from cogapp_libs.dagster import create_parquet_pipeline
 
 pipeline = create_parquet_pipeline(
     pipeline_name="my_harvest",
@@ -484,7 +484,7 @@ pipeline = create_parquet_pipeline(
 Create a DLT pipeline that writes to DuckDB.
 
 ```python
-from cogapp_deps.dagster import create_duckdb_pipeline
+from cogapp_libs.dagster import create_duckdb_pipeline
 
 pipeline = create_duckdb_pipeline(
     pipeline_name="my_harvest",
@@ -502,7 +502,7 @@ pipeline = create_duckdb_pipeline(
 DLT resource for bulk Claude API processing (50% cost reduction).
 
 ```python
-from cogapp_deps.dagster import claude_message_batches
+from cogapp_libs.dagster import claude_message_batches
 import dlt
 
 @dlt.source
@@ -541,7 +541,7 @@ def analyze_documents():
 DLT resource for bulk embedding generation with Voyage AI.
 
 ```python
-from cogapp_deps.dagster import voyage_embeddings_batch
+from cogapp_libs.dagster import voyage_embeddings_batch
 import dlt
 
 @dlt.source
@@ -579,7 +579,7 @@ def embed_documents():
 Factory function for Slack notification assets.
 
 ```python
-from cogapp_deps.dagster import create_slack_notification_asset
+from cogapp_libs.dagster import create_slack_notification_asset
 
 slack_notify = create_slack_notification_asset(
     name="pipeline_slack_notification",
@@ -607,7 +607,7 @@ slack_notify = create_slack_notification_asset(
 Factory function for email notification assets.
 
 ```python
-from cogapp_deps.dagster import create_email_notification_asset
+from cogapp_libs.dagster import create_email_notification_asset
 
 email_notify = create_email_notification_asset(
     name="pipeline_email_notification",
@@ -636,7 +636,7 @@ email_notify = create_email_notification_asset(
 Factory function for standard XML sitemap assets.
 
 ```python
-from cogapp_deps.dagster import create_sitemap_asset
+from cogapp_libs.dagster import create_sitemap_asset
 
 sitemap = create_sitemap_asset(
     name="sitemap_artworks",
@@ -668,7 +668,7 @@ sitemap = create_sitemap_asset(
 Factory function for image sitemap assets.
 
 ```python
-from cogapp_deps.dagster import create_image_sitemap_asset
+from cogapp_libs.dagster import create_image_sitemap_asset
 
 sitemap_images = create_image_sitemap_asset(
     name="sitemap_images",
@@ -690,7 +690,7 @@ sitemap_images = create_image_sitemap_asset(
 Low-level function to generate sitemap XML.
 
 ```python
-from cogapp_deps.dagster import generate_sitemap_xml
+from cogapp_libs.dagster import generate_sitemap_xml
 
 urls = [
     {
@@ -717,7 +717,7 @@ url_count = generate_sitemap_xml(
 Write DataFrame to JSON with automatic metadata.
 
 ```python
-from cogapp_deps.dagster import write_json_output
+from cogapp_libs.dagster import write_json_output
 
 @dg.asset
 def my_output(context, my_transform: pl.DataFrame) -> pl.DataFrame:
@@ -757,7 +757,7 @@ def my_output(context, my_transform: pl.DataFrame) -> pl.DataFrame:
 ```python
 import dagster as dg
 import polars as pl
-from cogapp_deps.dagster import (
+from cogapp_libs.dagster import (
     read_harvest_tables_lazy,
     track_timing,
     add_dataframe_metadata,
@@ -839,7 +839,7 @@ export SMTP_PASSWORD="..."
 ### Unit Test Example
 
 ```python
-from cogapp_deps.dagster import read_harvest_table_lazy, MissingTableError
+from cogapp_libs.dagster import read_harvest_table_lazy, MissingTableError
 import pytest
 
 def test_read_missing_table():
@@ -856,7 +856,7 @@ def test_read_missing_table():
 
 ## Resources
 
-- **Source Code**: `cogapp_deps/dagster/` in repository
+- **Source Code**: `cogapp_libs/dagster/` in repository
 - **Examples**: `src/honey_duck/defs/` for usage patterns
 - **Tests**: `tests/` for test examples
 - **Dagster Docs**: https://docs.dagster.io/

@@ -13,7 +13,7 @@ Features:
 Example:
     ```python
     import dlt
-    from cogapp_deps.dagster.api_sources import claude_message_batches
+    from cogapp_libs.dagster.api_sources import claude_message_batches
 
     @dlt.source
     def my_source():

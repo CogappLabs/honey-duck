@@ -7,7 +7,7 @@ on:
     paths:
       - 'docs/**'
       - 'mkdocs.yml'
-      - 'cogapp_deps/**'
+      - 'cogapp_libs/**'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
 

@@ -6,7 +6,7 @@ image sitemaps, and video sitemaps.
 
 Example:
     ```python
-    from cogapp_deps.dagster import create_sitemap_asset
+    from cogapp_libs.dagster import create_sitemap_asset
 
     # Create sitemap from asset data
     sitemap = create_sitemap_asset(
@@ -307,7 +307,7 @@ def create_sitemap_asset(
 
     Example:
         ```python
-        from cogapp_deps.dagster import create_sitemap_asset
+        from cogapp_libs.dagster import create_sitemap_asset
 
         sitemap = create_sitemap_asset(
             name="sitemap_artworks",

@@ -106,7 +106,7 @@ class DuckDBQueryProcessor:
 
     Example:
         ```python
-        from cogapp_deps.processors.duckdb import configure
+        from cogapp_libs.processors.duckdb import configure
         configure(db_path="warehouse.duckdb", read_only=True)
 
         processor = DuckDBQueryProcessor(sql=\"\"\"
