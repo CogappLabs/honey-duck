@@ -8,7 +8,7 @@ Every commit automatically runs:
 
 1. **Ruff Linting** - Fast Python linter (auto-fixes issues)
 2. **Ruff Formatting** - Code formatting check
-3. **MyPy Type Checking** - Static type analysis
+3. **ty Type Checking** - Static type analysis (Astral's Rust-based checker)
 4. **Pytest Tests** - Full test suite
 
 **If any check fails, the commit is prevented** 
@@ -43,7 +43,7 @@ git commit -m "test commit"
 # Hooks run automatically:
 # → Ruff check
 # → Ruff format
-# → MyPy
+# → ty
 # → Pytest
 ```
 
@@ -62,7 +62,7 @@ git commit -m "Add new feature"
 # Hooks run:
 # ✓ Ruff linting... passed
 # ✓ Ruff formatting... passed
-# ✓ MyPy type check... passed
+# ✓ ty type check... passed
 # ✓ Pytest... passed
 # Commit successful!
 ```
@@ -150,11 +150,11 @@ git add .
 git commit -m "Fix formatting"
 ```
 
-### 3. MyPy Type Checking
+### 3. ty Type Checking
 
-**What**: Static type checker for Python
+**What**: Static type checker for Python (Astral's Rust-based type checker)
 **Auto-fixes**: No
-**Config**: `pyproject.toml` → `[tool.mypy]`
+**Config**: `pyproject.toml` → `[tool.ty]`
 
 **What it checks**:
 - Type annotations
@@ -216,9 +216,9 @@ pre-commit:
       glob: "*.py"
       run: uv run ruff format --check {staged_files}
 
-    mypy-check:
+    ty-check:
       glob: "*.py"
-      run: uv run mypy {staged_files}
+      run: uv run ty check {staged_files}
 
     pytest:
       run: uv run pytest -xvs --tb=short
@@ -234,8 +234,8 @@ Edit `lefthook.yml` to:
 ```yaml
 pre-commit:
   commands:
-    mypy-check:
-      skip: true  # Disable MyPy
+    ty-check:
+      skip: true  # Disable ty
 ```
 
 **Change check order**:
@@ -308,20 +308,20 @@ git add .
 git commit -m "Apply formatting"
 ```
 
-### Issue: MyPy Fails
+### Issue: ty Fails
 
 **Symptom**: Type checking errors
 
 **Solutions**:
 ```bash
 # 1. See errors
-uv run mypy .
+uv run ty check .
 
 # 2. Add type hints
 # Example: def foo(x: int) -> str:
 
-# 3. Or add type: ignore for specific lines
-result = some_function()  # type: ignore
+# 3. Or add ty: ignore for specific lines
+result = some_function()  # ty: ignore
 
 # 4. Commit with fixes
 git commit -m "Add type hints"
@@ -366,8 +366,8 @@ LEFTHOOK_EXCLUDE=pytest git commit -m "Quick fix"
 **3. Only run on changed files**:
 ```yaml
 # Edit lefthook.yml
-mypy-check:
-  run: uv run mypy {staged_files}  # Only check changed files
+ty-check:
+  run: uv run ty check {staged_files}  # Only check changed files
 ```
 
 ---
@@ -381,7 +381,7 @@ mypy-check:
 - **Run checks manually** during development:
   ```bash
   uv run ruff check .
-  uv run mypy .
+  uv run ty check .
   uv run pytest
   ```
 - **Commit often** with passing checks
@@ -408,7 +408,7 @@ uv run ruff check --fix .
 uv run ruff format .
 
 # Type check
-uv run mypy .
+uv run ty check .
 
 # Run tests
 uv run pytest -xvs
@@ -416,7 +416,7 @@ uv run pytest -xvs
 # Run all checks (simulate pre-commit)
 uv run ruff check . && \
 uv run ruff format --check . && \
-uv run mypy . && \
+uv run ty check . && \
 uv run pytest
 ```
 
@@ -449,7 +449,7 @@ jobs:
         run: |
           uv run ruff check .
           uv run ruff format --check .
-          uv run mypy .
+          uv run ty check .
           uv run pytest
 ```
 
@@ -478,7 +478,7 @@ lefthook install
 
 - **Lefthook**: https://github.com/evilmartians/lefthook
 - **Ruff**: https://docs.astral.sh/ruff/
-- **MyPy**: https://mypy.readthedocs.io/
+- **ty**: https://docs.astral.sh/ty/
 - **Pytest**: https://docs.pytest.org/
 
 ---

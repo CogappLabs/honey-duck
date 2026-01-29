@@ -18,14 +18,14 @@ uv run ruff check .
 uv run ruff format .
 
 # Type checking
-uv run mypy src/honey_duck cogapp_libs
+uv run ty check src/ cogapp_libs/
 ```
 
 ## Pre-commit Hooks
 
 The project uses [lefthook](https://github.com/evilmartians/lefthook) for pre-commit hooks:
 
-- **mypy** - Type checking
+- **ty** - Type checking (Astral's Rust-based type checker)
 - **pytest** - Run tests
 - **ruff** - Linting and formatting
 
