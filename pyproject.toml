@@ -41,34 +41,16 @@ packages = ["src/honey_duck", "cogapp_libs"]
 honey_duck = "honey_duck.components"
 cogapp_libs = "cogapp_libs.dagster.components"
 
-[tool.mypy]
-python_version = "3.12"
-warn_return_any = true
-warn_unused_ignores = true
-disallow_untyped_defs = true
-ignore_missing_imports = true
+[tool.ty.src]
+exclude = [
+    "tests/**",
+    "examples/**",
+    "scripts/**",
+]
 
-[[tool.mypy.overrides]]
-module = "cogapp_libs.dagster.*"
-disallow_untyped_defs = false
-warn_return_any = false
-
-[[tool.mypy.overrides]]
-module = "honey_duck.defs.original.assets"
-# Original processor-based implementation has complex DataFrame/LazyFrame union types
-ignore_errors = true
-
-[[tool.mypy.overrides]]
-module = "tests.*"
-disallow_untyped_defs = false
-
-[[tool.mypy.overrides]]
-module = "examples.*"
-disallow_untyped_defs = false
-
-[[tool.mypy.overrides]]
-module = "scripts.*"
-disallow_untyped_defs = false
+[tool.ty.rules]
+# Optional dependencies that may not be installed (anthropic, voyageai, elasticsearch, etc.)
+unresolved-import = "ignore"
 
 [tool.ruff]
 line-length = 100
@@ -101,9 +83,7 @@ code_location_target_module = "honey_duck.defs.definitions"
 dev = [
     "pytest>=8.0",
     "ruff",
-    "mypy>=1.11",
-    "pandas-stubs>=2.0",
-    "types-requests",
+    "ty>=0.0.14",
     "lefthook",
 ]
 docs = [

@@ -20,6 +20,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import dlt
+from dlt.extract.source import DltSource
+from dlt.pipeline.pipeline import Pipeline
 from dlt.sources.filesystem import filesystem, read_csv
 from dlt.sources.sql_database import sql_database
 
@@ -32,7 +34,7 @@ if TYPE_CHECKING:
 def create_honey_duck_source(
     paths: PathsResource,
     database: DatabaseResource,
-) -> dlt.sources.DltSource:
+) -> DltSource:
     """Create harvest source combining CSV files and SQLite database.
 
     Args:
@@ -92,7 +94,7 @@ def create_honey_duck_source(
     return _source()
 
 
-def create_harvest_pipeline(paths: PathsResource) -> dlt.Pipeline:
+def create_harvest_pipeline(paths: PathsResource) -> Pipeline:
     """Create the dlt pipeline for harvesting to Parquet files.
 
     Args:

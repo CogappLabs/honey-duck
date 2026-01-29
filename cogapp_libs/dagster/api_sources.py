@@ -233,7 +233,7 @@ def claude_message_batches(
             }
 
 
-@dlt.resource(  # type: ignore[call-overload]
+@dlt.resource(
     name="voyage_embeddings",
     write_disposition="append",
     columns={

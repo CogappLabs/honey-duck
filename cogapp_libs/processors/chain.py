@@ -5,6 +5,8 @@ Chain multiple Polars processors together - they are optimized as a single query
 
 from __future__ import annotations
 
+from typing import overload
+
 import pandas as pd
 import polars as pl
 
@@ -39,6 +41,13 @@ class Chain:
                 )
 
         self.processors = processors
+
+    @overload
+    def process(self, df: pl.LazyFrame) -> pl.LazyFrame: ...
+    @overload
+    def process(self, df: pl.DataFrame) -> pl.DataFrame: ...
+    @overload
+    def process(self, df: pd.DataFrame) -> pl.DataFrame: ...
 
     def process(
         self, df: pd.DataFrame | pl.DataFrame | pl.LazyFrame

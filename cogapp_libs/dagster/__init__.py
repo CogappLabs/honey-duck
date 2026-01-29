@@ -100,7 +100,7 @@ except ImportError:
     create_parquet_pipeline = None  # type: ignore[assignment]
     setup_harvest_parquet_views = None  # type: ignore[assignment]
     claude_message_batches = None  # type: ignore[assignment]
-    voyage_embeddings_batch = None
+    voyage_embeddings_batch = None  # type: ignore[assignment]
 
 __all__ = [
     # IO utilities

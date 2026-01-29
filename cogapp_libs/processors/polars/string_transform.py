@@ -11,7 +11,7 @@ Supports lazy evaluation for query optimization when chained.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, overload
 
 import pandas as pd
 
@@ -69,6 +69,13 @@ class PolarsStringProcessor:
             return lf.with_columns(pl.col(self.column).str.strip_chars())
         return lf
 
+    @overload
+    def process(self, df: "pl.LazyFrame") -> "pl.LazyFrame": ...
+    @overload
+    def process(self, df: "pl.DataFrame") -> "pl.DataFrame": ...
+    @overload
+    def process(self, df: pd.DataFrame) -> "pl.DataFrame": ...
+
     def process(
         self, df: pd.DataFrame | "pl.DataFrame" | "pl.LazyFrame"
     ) -> "pl.DataFrame | pl.LazyFrame":
@@ -125,6 +132,4 @@ def uppercase_column(df: pd.DataFrame, column: str) -> pd.DataFrame:
     processor = PolarsStringProcessor(column, "upper")
     result = processor.process(df)
     # Convert back to pandas for backwards compatibility
-    if hasattr(result, "to_pandas"):
-        return result.to_pandas()
-    return result  # type: ignore[return-value]
+    return result.to_pandas()

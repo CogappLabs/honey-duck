@@ -7,6 +7,7 @@ common destinations (Parquet, DuckDB, etc.).
 from pathlib import Path
 
 import dlt
+from dlt.pipeline.pipeline import Pipeline
 
 # Optional DuckDB support
 try:
@@ -22,7 +23,7 @@ def create_parquet_pipeline(
     destination_dir: str | Path,
     dataset_name: str = "raw",
     layout: str = "{table_name}/{load_id}.{file_id}.{ext}",
-) -> dlt.Pipeline:
+) -> Pipeline:
     """Create DLT pipeline with Parquet filesystem destination.
 
     Args:
@@ -61,7 +62,7 @@ def create_duckdb_pipeline(
     pipeline_name: str,
     db_path: str | Path,
     dataset_name: str = "raw",
-) -> dlt.Pipeline:
+) -> Pipeline:
     """Create DLT pipeline with DuckDB destination.
 
     Args:

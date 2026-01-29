@@ -5,6 +5,8 @@ Supports lazy evaluation for query optimization when chained.
 
 from __future__ import annotations
 
+from typing import overload
+
 import pandas as pd
 
 try:
@@ -65,6 +67,13 @@ class PolarsFilterProcessor:
     def _apply(self, lf: "pl.LazyFrame") -> "pl.LazyFrame":
         """Apply filter to LazyFrame (for chaining optimization)."""
         return lf.filter(self._get_filter_expr())
+
+    @overload
+    def process(self, df: "pl.LazyFrame") -> "pl.LazyFrame": ...
+    @overload
+    def process(self, df: "pl.DataFrame") -> "pl.DataFrame": ...
+    @overload
+    def process(self, df: pd.DataFrame) -> "pl.DataFrame": ...
 
     def process(
         self, df: pd.DataFrame | "pl.DataFrame" | "pl.LazyFrame"

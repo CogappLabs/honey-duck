@@ -108,6 +108,7 @@ def sales_transform(context: dg.AssetExecutionContext, paths: PathsResource) -> 
             ON aw.artist_id = ar.artist_id
     """
     ).process()
+    assert isinstance(result, pl.DataFrame)
 
     # Transform: add price metrics (with division safety)
     result = DuckDBSQLProcessor(
@@ -122,10 +123,11 @@ def sales_transform(context: dg.AssetExecutionContext, paths: PathsResource) -> 
         ORDER BY sale_date DESC, sale_id
     """
     ).process(result)
+    assert isinstance(result, pl.DataFrame)
 
     # Transform: normalize artist names (Chain converts to Polars)
-    result: pl.DataFrame = Chain(
-        [  # type: ignore[no-redef]
+    result = Chain(
+        [
             PolarsStringProcessor("artist_name", "strip"),
             PolarsStringProcessor("artist_name", "upper"),
         ]
@@ -137,9 +139,7 @@ def sales_transform(context: dg.AssetExecutionContext, paths: PathsResource) -> 
         {
             "record_count": len(result),
             "columns": result.columns,
-            "preview": dg.MetadataValue.md(
-                result.head(5).to_pandas().to_markdown(index=False)  # type: ignore[operator]
-            ),
+            "preview": dg.MetadataValue.md(result.head(5).to_pandas().to_markdown(index=False)),
             "unique_artworks": result["artwork_id"].n_unique(),
             "total_sales_value": float(result["sale_price_usd"].sum()),
             "date_range": f"{str(result['sale_date'].min())} to {str(result['sale_date'].max())}",
@@ -147,7 +147,7 @@ def sales_transform(context: dg.AssetExecutionContext, paths: PathsResource) -> 
         }
     )
     context.log.info(f"Transformed {len(result)} sales records in {elapsed_ms:.1f}ms")
-    return result  # type: ignore[return-value]
+    return result
 
 
 @dg.asset(
@@ -221,6 +221,7 @@ def artworks_transform(context: dg.AssetExecutionContext, paths: PathsResource) 
         GROUP BY s.artwork_id
     """
     ).process()
+    assert isinstance(sales_per_artwork, pl.DataFrame)
 
     # Extract: build artwork catalog (from Parquet files)
     catalog = DuckDBQueryProcessor(
@@ -238,6 +239,7 @@ def artworks_transform(context: dg.AssetExecutionContext, paths: PathsResource) 
             ON aw.artist_id = ar.artist_id
     """
     ).process()
+    assert isinstance(catalog, pl.DataFrame)
 
     # Extract: process media (from Parquet files)
     media_df = DuckDBQueryProcessor(
@@ -245,6 +247,7 @@ def artworks_transform(context: dg.AssetExecutionContext, paths: PathsResource) 
         SELECT * FROM read_parquet('{harvest_dir}/raw/media/**/*.parquet')
     """
     ).process()
+    assert isinstance(media_df, pl.DataFrame)
 
     primary_media = DuckDBSQLProcessor(
         sql="""
@@ -253,6 +256,7 @@ def artworks_transform(context: dg.AssetExecutionContext, paths: PathsResource) 
         WHERE sort_order = 1
     """
     ).process(media_df)
+    assert isinstance(primary_media, pl.DataFrame)
 
     all_media = DuckDBSQLProcessor(
         sql="""
@@ -266,6 +270,7 @@ def artworks_transform(context: dg.AssetExecutionContext, paths: PathsResource) 
         GROUP BY artwork_id
     """
     ).process(media_df)
+    assert isinstance(all_media, pl.DataFrame)
 
     # Transform: final assembly - join all intermediate results
     # Price tier thresholds: budget < $500k, mid < $3M, premium >= $3M
@@ -303,9 +308,10 @@ def artworks_transform(context: dg.AssetExecutionContext, paths: PathsResource) 
             "all_media": all_media,
         },
     )
+    assert isinstance(result, pl.DataFrame)
 
     # Transform: normalize artist names (converts to Polars)
-    result: pl.DataFrame = PolarsStringProcessor("artist_name", "upper").process(result)  # type: ignore[no-redef]
+    result = PolarsStringProcessor("artist_name", "upper").process(result)
 
     # Report
     elapsed_ms = (time.perf_counter() - start_time) * 1000
@@ -316,14 +322,12 @@ def artworks_transform(context: dg.AssetExecutionContext, paths: PathsResource) 
             "artworks_unsold": int((~result["has_sold"]).sum()),
             "artworks_with_media": int((result["media_count"] > 0).sum()),
             "total_catalog_value": float(result["list_price_usd"].sum()),
-            "preview": dg.MetadataValue.md(
-                result.head(5).to_pandas().to_markdown(index=False)  # type: ignore[operator]
-            ),
+            "preview": dg.MetadataValue.md(result.head(5).to_pandas().to_markdown(index=False)),
             "processing_time_ms": round(elapsed_ms, 2),
         }
     )
     context.log.info(f"Transformed {len(result)} artworks in {elapsed_ms:.1f}ms")
-    return result  # type: ignore[return-value]
+    return result
 
 
 @dg.asset(
