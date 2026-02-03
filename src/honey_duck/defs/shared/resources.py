@@ -77,6 +77,13 @@ class OutputPathsResource(dg.ConfigurableResource):
     sales_polars_multi: str = str(OUTPUT_DIR / "sales_output_polars_multi.json")
     artworks_polars_multi: str = str(OUTPUT_DIR / "artworks_output_polars_multi.json")
 
+    # DuckDB + Soda implementation
+    sales_soda: str = str(OUTPUT_DIR / "sales_output_soda.json")
+    artworks_soda: str = str(OUTPUT_DIR / "artworks_output_soda.json")
+
+    # DuckDB + Soda intermediate transforms (parquet)
+    transforms_soda_dir: str = str(STORAGE_DIR / "transforms_soda")
+
 
 class DatabaseResource(dg.ConfigurableResource):
     """Database file paths for DuckDB and SQLite."""

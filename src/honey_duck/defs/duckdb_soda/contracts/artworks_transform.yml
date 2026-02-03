@@ -1,0 +1,58 @@
+# Soda v4 Contract: Artworks Transform
+# Validates the output of the artworks transform pipeline
+
+dataset: duckdb_check/artworks_transform
+
+columns:
+  - name: artwork_id
+  - name: title
+    checks:
+      - missing:
+          must_be: 0
+  - name: medium
+  - name: list_price_usd
+    checks:
+      - missing:
+          must_be: 0
+      - invalid:
+          must_be: 0
+          valid_min: 1
+  - name: artist_name
+    checks:
+      - missing:
+          must_be: 0
+  - name: sale_count
+    checks:
+      - invalid:
+          must_be: 0
+          valid_min: 0
+  - name: total_sales_value
+    checks:
+      - invalid:
+          must_be: 0
+          valid_min: 0
+  - name: has_sold
+  - name: price_tier
+    checks:
+      - missing:
+          must_be: 0
+      - invalid:
+          must_be: 0
+          valid_values: ['budget', 'mid', 'premium']
+  - name: sales_rank
+    checks:
+      - invalid:
+          must_be: 0
+          valid_min: 1
+  - name: media_count
+    checks:
+      - invalid:
+          must_be: 0
+          valid_min: 0
+
+checks:
+  - row_count:
+      must_be_greater_than: 0
+  - duplicate:
+      columns: [artwork_id]
+      must_be: 0

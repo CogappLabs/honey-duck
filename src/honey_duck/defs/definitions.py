@@ -16,6 +16,7 @@ Groups
 - transform/output: Original implementation with processor classes
 - transform_polars/output_polars: Pure Polars expressions (split into steps)
 - transform_duckdb/output_duckdb: Pure DuckDB SQL queries
+- transform_soda/output_soda: DuckDB SQL + Soda validation (SQL-based checks)
 - transform_polars_fs/output_polars_fs: Polars with FilesystemIOManager
 - transform_polars_ops/output_polars_ops: Graph-backed assets with ops (detailed observability)
 - transform_polars_multi/output_polars_multi: Multi-asset implementation (tightly coupled steps)
@@ -44,6 +45,8 @@ import dagster as dg
 from dagster_dlt import DagsterDltResource
 from dagster_duckdb import DuckDBResource
 from dagster_polars import PolarsParquetIOManager
+
+from cogapp_libs.dagster.io_managers import ParquetPathIOManager
 
 # Original implementation
 from .original.assets import artworks_output, artworks_transform, sales_output, sales_transform
@@ -92,6 +95,16 @@ from .polars.assets_multi import (
     sales_pipeline_multi,
 )
 
+# DuckDB + Soda implementation
+from .duckdb_soda import (
+    artworks_output_soda,
+    artworks_transform_soda,
+    check_artworks_transform_soda,
+    check_sales_transform_soda,
+    sales_output_soda,
+    sales_transform_soda,
+)
+
 from .shared.checks import (
     check_artworks_transform_schema,
     check_sales_above_threshold,
@@ -101,6 +114,7 @@ from .shared.checks import (
 from .harvest.assets import dlt_harvest_assets
 from .shared.jobs import (
     duckdb_pipeline_job,
+    duckdb_soda_pipeline_job,
     processors_pipeline_job,
     polars_fs_pipeline_job,
     polars_multi_pipeline_job,
@@ -159,11 +173,17 @@ defs = dg.Definitions(
         artworks_pipeline_multi,
         sales_output_polars_multi,
         artworks_output_polars_multi,
+        # DuckDB + Soda implementation
+        sales_transform_soda,
+        artworks_transform_soda,
+        sales_output_soda,
+        artworks_output_soda,
     ],
     jobs=[
         processors_pipeline_job,
         polars_pipeline_job,
         duckdb_pipeline_job,
+        duckdb_soda_pipeline_job,
         polars_fs_pipeline_job,
         polars_ops_pipeline_job,
         polars_multi_pipeline_job,
@@ -172,6 +192,9 @@ defs = dg.Definitions(
         # Blocking Pandera schema checks (prevent downstream on failure)
         check_sales_transform_schema,
         check_artworks_transform_schema,
+        # Blocking Soda schema checks (for DuckDB + Soda pipeline)
+        check_sales_transform_soda,
+        check_artworks_transform_soda,
         # Output quality checks
         check_sales_above_threshold,
         check_valid_price_tiers,
@@ -185,10 +208,17 @@ defs = dg.Definitions(
         "io_manager": PolarsParquetIOManager(
             base_dir=str(STORAGE_DIR),
         ),
+        "parquet_path_io_manager": ParquetPathIOManager(
+            base_dir=str(STORAGE_DIR / "parquet_paths"),
+        ),
         # External resources
         "dlt": DagsterDltResource(),
         "duckdb": DuckDBResource(
-            database=DUCKDB_PATH,  # Use shared path constant
+            database=DUCKDB_PATH,
+            connection_config={
+                "memory_limit": "4GB",
+                "threads": 4,
+            },
         ),
     },
 )

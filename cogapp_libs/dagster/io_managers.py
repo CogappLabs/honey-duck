@@ -23,6 +23,8 @@ from dagster import InputContext, OutputContext
 from dagster._core.storage.upath_io_manager import UPathIOManager
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     import pandas as pd
     import polars as pl
     from upath import UPath
@@ -762,4 +764,129 @@ class OpenSearchIOManager(dg.IOManager):
         return df
 
 
-__all__ = ["JSONIOManager", "ElasticsearchIOManager", "OpenSearchIOManager"]
+class ParquetPathIOManager(dg.IOManager):
+    """IO Manager that passes parquet file paths between assets.
+
+    For DuckDB-native pipelines where assets write parquet directly using
+    COPY ... TO and downstream assets read via read_parquet(). Data never
+    materializes as DataFrames in Python memory.
+
+    Flow:
+        Asset writes parquet → returns path string → IO manager stores path
+        → downstream asset receives path → uses read_parquet(path) in SQL
+
+    The path is stored in a small .path file alongside the parquet file.
+
+    Args:
+        base_dir: Base directory for storing path reference files.
+                  Defaults to ".dagster/parquet_paths"
+
+    Example:
+        ```python
+        # In definitions.py:
+        defs = dg.Definitions(
+            resources={
+                "parquet_path_io_manager": ParquetPathIOManager(
+                    base_dir="data/transforms"
+                ),
+            },
+        )
+
+        # In asset - write parquet directly, return path:
+        @dg.asset(io_manager_key="parquet_path_io_manager")
+        def sales_transform(duckdb: DuckDBResource, paths: PathsResource) -> str:
+            output = paths.transforms_dir / "sales.parquet"
+            with duckdb.get_connection() as conn:
+                conn.execute(f"COPY (...) TO '{output}' (FORMAT PARQUET)")
+            return str(output)
+
+        # Downstream asset receives path string:
+        @dg.asset(io_manager_key="parquet_path_io_manager")
+        def sales_output(duckdb: DuckDBResource, sales_transform: str) -> str:
+            with duckdb.get_connection() as conn:
+                conn.execute(f'''
+                    COPY (SELECT * FROM read_parquet('{sales_transform}') WHERE ...)
+                    TO 'output.parquet' (FORMAT PARQUET)
+                ''')
+            return "output.parquet"
+        ```
+    """
+
+    def __init__(self, base_dir: str = ".dagster/parquet_paths"):
+        from pathlib import Path
+
+        self.base_dir = Path(base_dir)
+        self.base_dir.mkdir(parents=True, exist_ok=True)
+
+    def _get_path_file(self, context: OutputContext | InputContext) -> "Path":
+        """Get the .path file location for an asset."""
+
+        asset_name = context.asset_key.path[-1]
+        return self.base_dir / f"{asset_name}.path"
+
+    def handle_output(self, context: OutputContext, obj: str) -> None:
+        """Store the parquet path for downstream assets.
+
+        Args:
+            context: Dagster output context
+            obj: Path to the parquet file (string)
+        """
+        from pathlib import Path
+
+        if not isinstance(obj, str):
+            raise TypeError(
+                f"ParquetPathIOManager expects a path string, got {type(obj).__name__}. "
+                "Asset should write parquet directly and return the path."
+            )
+
+        parquet_path = Path(obj)
+        if not parquet_path.exists():
+            raise FileNotFoundError(
+                f"Parquet file not found: {obj}. "
+                "Asset must write the parquet file before returning the path."
+            )
+
+        # Store path reference
+        path_file = self._get_path_file(context)
+        path_file.write_text(obj)
+
+        # Add metadata
+        file_size_mb = parquet_path.stat().st_size / (1024 * 1024)
+        context.add_output_metadata(
+            {
+                "parquet_path": dg.MetadataValue.path(obj),
+                "file_size_mb": round(file_size_mb, 2),
+            }
+        )
+
+        context.log.info(f"Stored parquet path: {obj} ({file_size_mb:.2f} MB)")
+
+    def load_input(self, context: InputContext) -> str:
+        """Load the parquet path for use in downstream SQL.
+
+        Args:
+            context: Dagster input context
+
+        Returns:
+            Path string for use with read_parquet()
+        """
+        path_file = self._get_path_file(context)
+
+        if not path_file.exists():
+            raise FileNotFoundError(
+                f"Path reference not found: {path_file}. Materialize the upstream asset first."
+            )
+
+        parquet_path = path_file.read_text().strip()
+
+        context.log.info(f"Loaded parquet path: {parquet_path}")
+
+        return parquet_path
+
+
+__all__ = [
+    "JSONIOManager",
+    "ElasticsearchIOManager",
+    "OpenSearchIOManager",
+    "ParquetPathIOManager",
+]

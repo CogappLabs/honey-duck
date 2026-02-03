@@ -47,6 +47,9 @@ src/honey_duck/
     │   └── assets_multi.py # Multi-asset pattern
     ├── duckdb/           # Pure DuckDB SQL implementation
     │   └── assets.py     # SQL queries for transforms
+    ├── duckdb_soda/      # DuckDB + Soda with column lineage
+    │   ├── assets.py     # Cleaner DuckDB patterns + lineage examples
+    │   └── checks.py     # Soda data quality checks
     └── shared/           # Shared resources and utilities
         ├── resources.py  # ConfigurableResource classes
         ├── constants.py  # Business constants (thresholds, tiers)
@@ -79,30 +82,33 @@ dagster_home/             # Dagster persistence directory
 
 ## Key Patterns
 
-**Asset graph** (6 parallel implementations sharing harvest layer):
+**Asset graph** (7 parallel implementations sharing harvest layer):
 
 ```
                       ┌──→ sales_transform ──→ sales_output (original)
                       ├──→ sales_joined_polars ──→ sales_transform_polars ──→ sales_output_polars
 dlt_harvest_* (shared)├──→ sales_transform_duckdb ──→ sales_output_duckdb
+                      ├──→ sales_transform_soda ──→ sales_output_soda (with column lineage)
                       ├──→ sales_transform_polars_fs ──→ sales_output_polars_fs
                       ├──→ sales_transform_polars_ops ──→ sales_output_polars_ops
                       └──→ sales_pipeline_multi ──→ sales_output_polars_multi
                       (same pattern for artworks with more intermediate steps in polars)
 ```
 
-**Implementations** (6 total, ordered by performance):
+**Implementations** (7 total, ordered by performance):
 1. **polars** - Pure Polars with eager DataFrames (polars/assets.py) - fastest
 2. **duckdb** - Pure DuckDB SQL queries (duckdb/assets.py) - fastest
-3. **polars_multi** - Multi-asset pattern for tightly coupled steps (polars/assets_multi.py)
-4. **polars_fs** - Polars variant, same logic different group (polars/assets_fs.py)
-5. **polars_ops** - Graph-backed assets with ops for detailed observability (polars/assets_ops.py)
-6. **original** - Processor classes (original/assets.py) - slowest due to abstraction overhead
+3. **duckdb_soda** - DuckDB + Soda with column lineage (duckdb_soda/assets.py) - demonstrates lineage
+4. **polars_multi** - Multi-asset pattern for tightly coupled steps (polars/assets_multi.py)
+5. **polars_fs** - Polars variant, same logic different group (polars/assets_fs.py)
+6. **polars_ops** - Graph-backed assets with ops for detailed observability (polars/assets_ops.py)
+7. **original** - Processor classes (original/assets.py) - slowest due to abstraction overhead
 
-**Jobs** (6 total):
+**Jobs** (7 total):
 - `processors_pipeline` - Original implementation with processor classes
 - `polars_pipeline` - Pure Polars with intermediate step assets
 - `duckdb_pipeline` - Pure DuckDB SQL
+- `duckdb_soda_pipeline` - DuckDB + Soda with column lineage and example values
 - `polars_fs_pipeline` - Polars variant
 - `polars_ops_pipeline` - Graph-backed assets (ops)
 - `polars_multi_pipeline` - Multi-asset pattern
@@ -116,6 +122,7 @@ All path configuration uses Dagster's ConfigurableResource for runtime injection
 **IO Managers**:
 - `io_manager` (default): PolarsParquetIOManager - stores Polars DataFrames as Parquet
 - `pandas_io_manager`: DuckDBPandasIOManager - stores Pandas DataFrames in DuckDB
+- `parquet_path_io_manager`: ParquetPathIOManager - passes file paths (not data) for DuckDB pipelines
 
 **Storage pattern**:
 - Harvest layer: dlt writes Parquet to `data/harvest/raw/`
@@ -198,6 +205,250 @@ context.add_output_metadata(
     table_preview_to_metadata(df.head(5), "preview", "Top 5 Results")
 )
 ```
+
+## ParquetPathIOManager
+
+For DuckDB-native pipelines where data never materializes as Python DataFrames, use
+`ParquetPathIOManager` to pass file paths between assets instead of data.
+
+```python
+from cogapp_libs.dagster import ParquetPathIOManager
+
+# In definitions.py:
+defs = dg.Definitions(
+    resources={
+        "parquet_path_io_manager": ParquetPathIOManager(
+            base_dir="data/transforms"
+        ),
+    },
+)
+```
+
+**How it works:**
+1. Asset writes parquet directly via DuckDB `COPY ... TO` or `.write_parquet()`
+2. Asset returns the path string (not a DataFrame)
+3. IO manager stores the path in a small `.path` file
+4. Downstream asset receives the path string
+5. Downstream uses `FROM 'path'` or `read_parquet(path)` in SQL
+
+```python
+@dg.asset(io_manager_key="parquet_path_io_manager")
+def sales_transform_soda(context, paths, database, sales_raw, ...) -> str:
+    output_path = paths.transforms_dir / "sales.parquet"
+    with duckdb.connect(database.db_path) as conn:
+        # Register views and transform via SQL
+        conn.sql("...").write_parquet(str(output_path))
+    return str(output_path)  # Return path, not DataFrame
+
+@dg.asset(io_manager_key="parquet_path_io_manager")
+def sales_output_soda(context, paths, database, sales_transform_soda: str) -> str:
+    # sales_transform_soda is the path string, not data
+    with duckdb.connect(database.db_path) as conn:
+        result = conn.sql(f"SELECT * FROM '{sales_transform_soda}'")
+        # ...process and write output
+```
+
+**Benefits:**
+- Memory efficient: Data stays in DuckDB, never loads into Python
+- Clean SQL: Use `FROM 'path'` instead of registering DataFrames
+- Soda compatible: Checks receive paths to validate parquet directly
+
+## Soda Data Quality Checks
+
+The DuckDB+Soda pipeline uses [Soda Core v4](https://docs.soda.io/) for data quality validation.
+Soda validates parquet files directly via DuckDB SQL - no data loads into Python memory.
+
+**Installation:**
+```bash
+pip install -i https://pypi.cloud.soda.io/simple soda-duckdb>=4
+```
+
+**Contract YAML files** define expected schema and quality rules:
+
+```yaml
+# contracts/sales_transform.yml
+dataset: sales_transform
+schema:
+  - name: sale_id
+    data_type: integer
+    checks:
+      - type: no_missing_values
+      - type: no_duplicate_values
+  - name: sale_price
+    data_type: decimal
+    checks:
+      - type: no_missing_values
+  - name: artist_name
+    data_type: varchar
+```
+
+**Blocking checks** prevent downstream assets from running if validation fails:
+
+```python
+from dagster import asset_check, AssetCheckResult
+
+@dg.asset_check(asset=sales_transform_soda, blocking=True)
+def check_sales_transform_soda(
+    context: dg.AssetCheckExecutionContext,
+    sales_transform_soda: str,  # Receives path from ParquetPathIOManager
+) -> dg.AssetCheckResult:
+    """Validate against Soda contract. Blocks sales_output_soda if failed."""
+    return _run_soda_check_v4(
+        parquet_path=sales_transform_soda,
+        table_name="sales_transform",
+        contract_path=CONTRACTS_DIR / "sales_transform.yml",
+        context=context,
+    )
+```
+
+**How Soda validation works:**
+1. Asset check receives parquet path (not data)
+2. Creates temp DuckDB data source config pointing to parquet
+3. Runs `verify_contract_locally()` - all validation happens in SQL
+4. Returns pass/fail with metadata (checks passed/failed, execution time)
+
+**Metadata emitted:**
+- `contract`: Contract file name
+- `checks_passed`: Number of passing checks
+- `checks_failed`: Number of failing checks
+- `record_count`: Row count (via DuckDB)
+- `execution_time_ms`: Validation duration
+- `errors`: Detailed error messages (if any)
+
+## Column Lineage with Example Values
+
+The DuckDB+Soda pipeline (`defs/duckdb_soda/`) demonstrates column-level lineage tracking with
+example values, making data flow visible in both Dagster UI and our custom frontend.
+
+### How It Works
+
+Each asset emits two metadata entries:
+- `dagster/column_lineage` - Dagster's native column lineage format (shows in UI catalog)
+- `lineage_examples` - JSON dict mapping column names to formatted example values
+
+```python
+from dagster import TableColumnLineage, TableColumnDep
+
+def _lineage_metadata(
+    conn,
+    path: str,
+    lineage_fn,
+    renames: dict | None = None,
+    id_field: str | None = None,
+    id_value: int | str | None = None,
+) -> dict:
+    """Generate column lineage metadata with example values.
+
+    Args:
+        conn: DuckDB connection
+        path: Path to parquet file for reading examples
+        lineage_fn: Function returning TableColumnLineage
+        renames: Optional {new_name: old_name} for renamed columns
+        id_field: Optional field to filter by (e.g., "sale_id")
+        id_value: Optional value to match (e.g., 2 for specific record)
+    """
+    examples = _example_row(conn, path, id_field, id_value)
+    if renames:
+        for new_name, old_name in renames.items():
+            examples[new_name] = examples.pop(old_name, None)
+    return {
+        "dagster/column_lineage": lineage_fn(),
+        "lineage_examples": examples,
+    }
+```
+
+### Defining Column Lineage
+
+Define a function that returns `TableColumnLineage` with dependencies:
+
+```python
+def _sales_transform_lineage():
+    return TableColumnLineage(
+        deps_by_column={
+            # Direct pass-through columns
+            "sale_id": [TableColumnDep("dlt_harvest_sales_raw", "sale_id")],
+            # Computed columns with multiple dependencies
+            "price_difference": [
+                TableColumnDep("dlt_harvest_sales_raw", "sale_price"),
+                TableColumnDep("dlt_harvest_artworks_raw", "estimated_value"),
+            ],
+            # Joined columns
+            "artist_name": [TableColumnDep("dlt_harvest_artists_raw", "name")],
+        }
+    )
+```
+
+### Usage in Assets
+
+```python
+@dg.asset(kinds={"duckdb", "parquet"}, group_name="soda")
+def sales_transform_soda(context, paths, database, sales_raw, artworks_raw, artists_raw):
+    with duckdb.connect(database.db_path) as conn:
+        # Register views and run SQL transformations...
+
+        # Get lineage with specific record example
+        lineage = _lineage_metadata(
+            conn, str(output_path), _sales_transform_lineage,
+            id_field="sale_id", id_value=2  # Day Dream $86M sale
+        )
+
+        return dg.MaterializeResult(metadata={
+            "row_count": row_count,
+            **lineage,
+        })
+```
+
+### Tracking Column Renames
+
+When a column is renamed, pass the mapping to track lineage correctly:
+
+```python
+# In transform: price_diff computed from sale_price - estimated_value
+# In output: renamed to price_difference
+
+lineage = _lineage_metadata(
+    conn, str(output_path), _sales_output_lineage,
+    renames={"price_difference": "price_diff"},  # new_name: old_name
+)
+```
+
+### Value Formatting
+
+Example values are automatically formatted for readability:
+- Large numbers: `$86,300,000` → `$86.3M`
+- Thousands: `$1,500` → `$1.5K`
+- Negatives: `-$560,000` → `-$560K`
+- Floats: `123.45` → `$123.45`
+- Others: Converted to string
+
+### Frontend Integration
+
+The lineage page (`frontend/src/app/lineage/`) fetches examples via GraphQL:
+
+```graphql
+query AllLineageQuery {
+  assetsOrError {
+    ... on AssetConnection {
+      nodes {
+        assetMaterializations(limit: 1) {
+          metadataEntries {
+            ... on TableColumnLineageMetadataEntry {
+              lineage { columnName, columnDeps { assetKey, columnName } }
+            }
+            ... on JsonMetadataEntry { jsonString }  # lineage_examples
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+The UI shows:
+- Asset selector with lineage-enabled assets
+- Column table with example values
+- Visual lineage diagram: Source → Target → Downstream
+- Example values at each step for the same record (e.g., Day Dream sale)
 
 ## Known Limitations
 

@@ -188,6 +188,80 @@ export const ASSET_DEPENDENCIES_QUERY = gql`
 	}
 `
 
+// Get column lineage for an asset
+export const COLUMN_LINEAGE_QUERY = gql`
+	query ColumnLineageQuery($assetKey: AssetKeyInput!) {
+		assetOrError(assetKey: $assetKey) {
+			... on Asset {
+				key {
+					path
+				}
+				definition {
+					description
+					groupName
+				}
+				assetMaterializations(limit: 1) {
+					timestamp
+					metadataEntries {
+						label
+						... on TableColumnLineageMetadataEntry {
+							lineage {
+								columnName
+								columnDeps {
+									assetKey {
+										path
+									}
+									columnName
+								}
+							}
+						}
+					}
+				}
+			}
+			... on AssetNotFoundError {
+				message
+			}
+		}
+	}
+`
+
+// Get all assets with column lineage and example data
+export const ALL_LINEAGE_QUERY = gql`
+	query AllLineageQuery {
+		assetsOrError {
+			... on AssetConnection {
+				nodes {
+					key {
+						path
+					}
+					definition {
+						groupName
+					}
+					assetMaterializations(limit: 1) {
+						metadataEntries {
+							label
+							... on TableColumnLineageMetadataEntry {
+								lineage {
+									columnName
+									columnDeps {
+										assetKey {
+											path
+										}
+										columnName
+									}
+								}
+							}
+							... on JsonMetadataEntry {
+								jsonString
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+`
+
 // Get jobs
 export const JOBS_QUERY = gql`
 	query JobsQuery {

@@ -29,6 +29,13 @@ dagster = [
     "dagster>=1.12",
     "dagster-webserver>=1.12",
 ]
+# Soda Core for SQL-based data validation
+# NOTE: soda-core-duckdb requires duckdb<1.1.0 which conflicts with duckdb>=1.1
+# For now, install manually: pip install -i https://pypi.cloud.soda.io/simple soda-duckdb>=4
+# This installs soda v4 which supports modern DuckDB versions
+soda = [
+    # "soda-core-duckdb>=3.5",  # Conflicts with duckdb>=1.1
+]
 
 [build-system]
 requires = ["hatchling"]

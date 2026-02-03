@@ -48,6 +48,9 @@ export default function RootLayout({
 											<Link href="/jobs" className="hover:text-amber-200 transition-colors">
 												Jobs
 											</Link>
+											<Link href="/lineage" className="hover:text-amber-200 transition-colors">
+												Lineage
+											</Link>
 										</div>
 									</div>
 									<a

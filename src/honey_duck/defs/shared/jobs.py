@@ -124,3 +124,27 @@ polars_multi_pipeline_job = dg.define_asset_job(
     3. Output: Filter and write JSON
     """,
 )
+
+
+# DuckDB + Soda implementation pipeline
+duckdb_soda_pipeline_job = dg.define_asset_job(
+    name="duckdb_soda_pipeline",
+    selection=dg.AssetSelection.groups("harvest", "transform_soda", "output_soda"),
+    description="""
+    DuckDB + Soda implementation of honey-duck pipeline.
+
+    Uses DuckDB for all transformations and Soda Core for data validation.
+    Validation runs as SQL queries - no data loaded into Python memory.
+
+    Key Features:
+    - Pure SQL transformations via DuckDB
+    - Soda contract YAML files define data quality expectations
+    - Memory-efficient: DuckDB handles spill-to-disk
+    - Blocking checks prevent bad data from flowing downstream
+
+    1. Harvest (dlt): Load raw data to Parquet (shared)
+    2. Transform: Join and enrich using DuckDB SQL
+    3. Validate: Soda checks run SQL against DuckDB
+    4. Output: Filter and write JSON
+    """,
+)
