@@ -42,6 +42,11 @@ from cogapp_libs.dagster.io_managers import (
     JSONIOManager,
     OpenSearchIOManager,
 )
+from cogapp_libs.dagster.lineage import (
+    add_lineage_examples_to_dlt_results,
+    format_value,
+    get_example_row,
+)
 
 # Components (for YAML-based configuration)
 try:
@@ -135,6 +140,10 @@ __all__ = [
     # Visualization helpers
     "altair_to_metadata",
     "table_preview_to_metadata",
+    # Lineage helpers
+    "format_value",
+    "get_example_row",
+    "add_lineage_examples_to_dlt_results",
     # Notifications
     "create_slack_notification_asset",
     "create_email_notification_asset",

@@ -328,33 +328,11 @@ Each asset emits two metadata entries:
 
 ```python
 from dagster import TableColumnLineage, TableColumnDep
+from cogapp_libs.dagster.lineage import get_example_row
 
-def _lineage_metadata(
-    conn,
-    path: str,
-    lineage_fn,
-    renames: dict | None = None,
-    id_field: str | None = None,
-    id_value: int | str | None = None,
-) -> dict:
-    """Generate column lineage metadata with example values.
-
-    Args:
-        conn: DuckDB connection
-        path: Path to parquet file for reading examples
-        lineage_fn: Function returning TableColumnLineage
-        renames: Optional {new_name: old_name} for renamed columns
-        id_field: Optional field to filter by (e.g., "sale_id")
-        id_value: Optional value to match (e.g., 2 for specific record)
-    """
-    examples = _example_row(conn, path, id_field, id_value)
-    if renames:
-        for new_name, old_name in renames.items():
-            examples[new_name] = examples.pop(old_name, None)
-    return {
-        "dagster/column_lineage": lineage_fn(),
-        "lineage_examples": examples,
-    }
+# get_example_row fetches one row and formats values for display
+# ($86.3M, $1.5K, etc.)
+examples = get_example_row(conn, path, id_field="sale_id", id_value=2)
 ```
 
 ### Defining Column Lineage
@@ -381,40 +359,40 @@ def _sales_transform_lineage():
 ### Usage in Assets
 
 ```python
+from cogapp_libs.dagster.lineage import get_example_row
+
 @dg.asset(kinds={"duckdb", "parquet"}, group_name="soda")
-def sales_transform_soda(context, paths, database, sales_raw, artworks_raw, artists_raw):
-    with duckdb.connect(database.db_path) as conn:
-        # Register views and run SQL transformations...
+def sales_transform_soda(context, duckdb, paths, output_paths):
+    with duckdb.get_connection() as conn:
+        # Transform and write parquet...
+        conn.sql(SALES_TRANSFORM_SQL).write_parquet(str(output_path))
 
-        # Get lineage with specific record example
-        lineage = _lineage_metadata(
-            conn, str(output_path), _sales_transform_lineage,
-            id_field="sale_id", id_value=2  # Day Dream $86M sale
-        )
+        # Get example row for lineage display
+        examples = get_example_row(conn, str(output_path), "sale_id", 2)
 
-        return dg.MaterializeResult(metadata={
-            "row_count": row_count,
-            **lineage,
-        })
+    context.add_output_metadata({
+        "dagster/column_lineage": _sales_transform_lineage(),
+        "lineage_examples": examples,
+        "record_count": row_count,
+    })
+    return str(output_path)
 ```
 
 ### Tracking Column Renames
 
-When a column is renamed, pass the mapping to track lineage correctly:
+When a column is renamed, update the examples dict:
 
 ```python
 # In transform: price_diff computed from sale_price - estimated_value
 # In output: renamed to price_difference
 
-lineage = _lineage_metadata(
-    conn, str(output_path), _sales_output_lineage,
-    renames={"price_difference": "price_diff"},  # new_name: old_name
-)
+examples = get_example_row(conn, path, "sale_id", 2)
+examples["price_difference"] = examples.pop("price_diff", None)
 ```
 
 ### Value Formatting
 
-Example values are automatically formatted for readability:
+`get_example_row()` automatically formats values for readability:
 - Large numbers: `$86,300,000` → `$86.3M`
 - Thousands: `$1,500` → `$1.5K`
 - Negatives: `-$560,000` → `-$560K`
