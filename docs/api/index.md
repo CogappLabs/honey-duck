@@ -1,3 +1,8 @@
+---
+title: API Reference
+description: API documentation for Honey Duck's processors, IO managers, Dagster helpers, and utility functions.
+---
+
 # API Reference
 
 Auto-generated documentation from source code docstrings.

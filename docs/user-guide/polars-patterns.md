@@ -1,3 +1,8 @@
+---
+title: Polars Patterns
+description: Common Polars patterns for data transformation including joins, aggregations, window functions, and struct operations.
+---
+
 # Polars Patterns
 
 Best practices for writing efficient Polars code in Dagster pipelines.

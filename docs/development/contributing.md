@@ -1,3 +1,8 @@
+---
+title: Contributing
+description: Contribution guidelines for Honey Duck including code style, testing requirements, and pull request process.
+---
+
 # Contributing
 
 Guidelines for contributing to Honey Duck.

@@ -1,3 +1,8 @@
+---
+title: Quick Start
+description: Get Honey Duck running in minutes with this quick start guide covering installation, configuration, and first pipeline run.
+---
+
 # Quick Start
 
 Get up and running with Honey Duck in under 5 minutes.

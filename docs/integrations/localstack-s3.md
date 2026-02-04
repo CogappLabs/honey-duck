@@ -1,3 +1,8 @@
+---
+title: LocalStack S3
+description: Test S3 uploads locally using LocalStack with Dagster resources for development and CI environments.
+---
+
 # LocalStack S3 Integration Guide
 
 ## Is LocalStack Worth Implementing?

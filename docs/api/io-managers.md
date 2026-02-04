@@ -1,3 +1,8 @@
+---
+title: IO Managers
+description: Custom Dagster IO managers for Parquet, JSON, Elasticsearch, and path-based storage patterns.
+---
+
 # IO Managers
 
 Custom IO managers for various storage backends.

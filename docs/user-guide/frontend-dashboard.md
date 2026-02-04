@@ -1,3 +1,8 @@
+---
+title: Frontend Dashboard
+description: Build a Next.js dashboard to visualize Dagster asset lineage, metadata, and pipeline status using GraphQL.
+---
+
 # Frontend Dashboard
 
 A Next.js dashboard for monitoring Dagster pipelines, providing a client-friendly view of pipeline status, runs, and assets.

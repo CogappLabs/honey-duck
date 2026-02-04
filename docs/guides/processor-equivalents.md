@@ -1,3 +1,8 @@
+---
+title: Processor Equivalents
+description: Replace Honeysuckle processors with native Polars expressions and DuckDB SQL for faster, simpler data transformations.
+---
+
 # Processor Equivalents
 
 Common Honeysuckle processors and their native Polars/DuckDB equivalents.

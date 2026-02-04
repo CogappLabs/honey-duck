@@ -1,3 +1,8 @@
+---
+title: XML Harvesting
+description: Parse and transform XML data sources including OAI-PMH feeds, METS/MODS records, and custom XML schemas.
+---
+
 # XML Harvesting
 
 Parse XML files into Polars DataFrames, with nested elements stored as JSON columns.

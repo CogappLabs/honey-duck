@@ -1,3 +1,8 @@
+---
+title: Sitemaps
+description: Generate XML sitemaps from pipeline data with automatic URL building, lastmod dates, and sitemap index files.
+---
+
 # Sitemap Generation Guide
 
 Complete guide to generating XML sitemaps from Dagster pipeline data for SEO and search engine discoverability.

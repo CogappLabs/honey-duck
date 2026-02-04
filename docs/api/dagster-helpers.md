@@ -1,3 +1,8 @@
+---
+title: Dagster Helpers
+description: Helper functions for Dagster assets including metadata builders, timing utilities, and visualization helpers.
+---
+
 # Dagster Helpers
 
 Utilities for building Dagster assets with less boilerplate.

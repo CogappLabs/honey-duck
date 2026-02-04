@@ -1,3 +1,8 @@
+---
+title: CLI Reference
+description: Command reference for dg CLI including asset listing, job launching, and development server commands.
+---
+
 # CLI Reference - Quick Guide
 
 Essential CLI commands for honey-duck development.

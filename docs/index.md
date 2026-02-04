@@ -1,3 +1,8 @@
+---
+title: Honey Duck
+description: A Polars/Parquet data pipeline with Dagster orchestration, dlt ingestion, and DuckDB SQL queries.
+---
+
 # Honey Duck
 
 A Polars/Parquet data pipeline with Dagster orchestration, using dlt for data ingestion and DuckDB for SQL queries.

@@ -1,3 +1,8 @@
+---
+title: Best Practices
+description: Best practices for Dagster development including asset design, testing strategies, and production-ready patterns.
+---
+
 # Best Practices for Dagster Development
 
 Guidelines and recommendations for writing maintainable, performant Dagster pipelines in honey-duck.

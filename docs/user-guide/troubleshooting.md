@@ -1,3 +1,8 @@
+---
+title: Troubleshooting
+description: Solutions to common Dagster, Polars, and DuckDB issues including import errors, memory problems, and pipeline failures.
+---
+
 # Troubleshooting Guide - Common Issues & Solutions
 
 Solutions to common problems when working with Dagster in honey-duck.

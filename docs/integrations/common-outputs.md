@@ -1,3 +1,8 @@
+---
+title: Common Outputs
+description: Configure IO managers for JSON, Parquet, Elasticsearch, and other output formats in Dagster pipelines.
+---
+
 # Common Pipeline Outputs - IO Manager Guide
 
 Guide to common output destinations for data pipelines and how to implement them with Dagster IO Managers.

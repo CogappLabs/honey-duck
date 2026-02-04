@@ -1,3 +1,8 @@
+---
+title: Pre-Commit Hooks
+description: Configure Lefthook pre-commit hooks for linting, formatting, and testing with ruff, ty, and pytest.
+---
+
 # Pre-Commit Hooks with Lefthook
 
 Automated code quality checks that run before every commit to ensure code consistency and catch issues early.

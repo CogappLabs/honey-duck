@@ -1,3 +1,8 @@
+---
+title: Elasticsearch
+description: Index pipeline outputs to Elasticsearch with bulk operations, custom mappings, and the ElasticsearchIOManager.
+---
+
 # Elasticsearch Integration Guide
 
 Complete guide for using Elasticsearch 8/9 as an output target for Dagster pipelines.

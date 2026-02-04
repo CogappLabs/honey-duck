@@ -1,3 +1,8 @@
+---
+title: Installation
+description: Install Honey Duck and set up your development environment with uv, Dagster, and optional dependencies.
+---
+
 # Getting Started with Dagster - For New Developers
 
 A hands-on guide to understanding and working with Dagster in the honey-duck project.

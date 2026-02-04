@@ -1,3 +1,8 @@
+---
+title: IIIF Tiles
+description: Generate IIIF image tiles from source images using Dagster assets with configurable tile sizes and formats.
+---
+
 # IIIF Tile Generation with Dagster
 
 Complete guide to generating IIIF (International Image Interoperability Framework) tiles from high-resolution images using pyvips in Dagster pipelines.

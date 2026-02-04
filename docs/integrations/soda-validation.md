@@ -1,3 +1,8 @@
+---
+title: Soda Validation
+description: Validate data quality with Soda Core contracts, blocking asset checks, and DuckDB-native validation.
+---
+
 # Soda Data Quality Validation
 
 Validate data quality using Soda Core v4 with DuckDB. Parquet files are validated directly via SQL - no data loads into Python memory.

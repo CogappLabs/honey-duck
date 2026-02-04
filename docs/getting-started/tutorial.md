@@ -1,3 +1,8 @@
+---
+title: Tutorial - Your First Asset
+description: Step-by-step tutorial to create your first Dagster asset with Polars transformations and DuckDB queries.
+---
+
 # Quick Start Tutorial: Your First Asset
 
 **Goal**: Get from `git clone` to writing your first custom Dagster asset in 15 minutes.
@@ -320,7 +325,7 @@ You've created your first Dagster asset with:
 **Advanced Topics:**
 
 - [Elasticsearch Integration](../integrations/elasticsearch.md) - Full-text search
-- [API Bulk Harvesting](../integrations/api-harvesting.md) - Claude & Voyage AI
+- [API Bulk Harvesting](../integrations/api-harvesting.md) - Voyage AI
 - [Sitemap Generation](../integrations/sitemaps.md) - SEO optimization
 
 ---

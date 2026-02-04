@@ -1,3 +1,8 @@
+---
+title: Testing
+description: Test Dagster assets and pipelines with pytest fixtures, asset materialization tests, and CI integration.
+---
+
 # Testing Guide
 
 Comprehensive guide to testing Dagster pipelines in honey-duck.

@@ -1,3 +1,8 @@
+---
+title: Performance Tuning
+description: Optimize Polars and DuckDB pipeline performance with lazy evaluation, partitioning, and memory management techniques.
+---
+
 # Performance Tuning Guide
 
 Comprehensive guide to optimizing Dagster pipelines with Polars, DuckDB, and Parquet for maximum performance.

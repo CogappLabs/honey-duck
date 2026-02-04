@@ -1,3 +1,8 @@
+---
+title: Deployment
+description: Deploy Dagster pipelines to production with Docker, Kubernetes, and cloud platform configurations.
+---
+
 # Production Deployment Guide
 
 Complete guide to deploying honey-duck Dagster pipelines in production using Docker.

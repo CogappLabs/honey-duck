@@ -1,3 +1,8 @@
+---
+title: Processors
+description: Reusable DataFrame processor classes for DuckDB SQL queries, Polars transformations, and pandas operations.
+---
+
 # Processors
 
 Reusable DataFrame transformation classes for data pipelines.
