@@ -374,9 +374,11 @@ Additional patterns:
 -- Case-insensitive with ILIKE
 SELECT description ILIKE '%important%' AS has_keyword FROM items
 
--- Regex pattern
+-- Regex pattern with regexp_matches()
 SELECT regexp_matches(email, '@gmail\.com$') AS is_gmail FROM items
 ```
+
+See also: [`regexp_matches()`](https://duckdb.org/docs/sql/functions/regular_expressions#regexp_matchesstring-pattern)
 
 ---
 
@@ -576,7 +578,7 @@ df = df.with_columns(
 --8<-- "scripts/test_processor_equivalents.py:concat_sql"
 ```
 
-Best practice - skip nulls:
+Best practice - skip nulls with [`concat_ws()`](https://duckdb.org/docs/sql/functions/text#concat_wsseparator-string-):
 ```sql
 SELECT concat_ws(' ', first, last) AS full_name FROM items
 ```
@@ -753,6 +755,8 @@ df = df.with_columns(
     pl.max_horizontal(pl.col("price"), pl.lit(0)).alias("price"),
 )
 ```
+
+Note: [`max_horizontal()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.max_horizontal.html) returns the maximum value across columns, useful for clamping values.
 
 ### DuckDB
 
@@ -1010,7 +1014,7 @@ df = df.with_columns(
 )
 ```
 
-Best practice for substring/regex replacement:
+Best practice for substring/regex replacement with [`str.replace_all()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.str.replace_all.html):
 ```python
 df = df.with_columns(
     pl.col("text").str.replace_all(r"\s+", " ")  # Collapse whitespace
@@ -1023,7 +1027,7 @@ df = df.with_columns(
 --8<-- "scripts/test_processor_equivalents.py:replace_sql"
 ```
 
-Best practice for substring/regex replacement:
+Best practice for substring/regex replacement with [`regexp_replace()`](https://duckdb.org/docs/sql/functions/regular_expressions#regexp_replacestring-pattern-replacement):
 ```sql
 SELECT regexp_replace(text, '\s+', ' ', 'g') AS text FROM items
 ```
@@ -1604,7 +1608,7 @@ df = (
 --8<-- "scripts/test_processor_equivalents.py:columns_to_dicts_sql"
 ```
 
-Multivalue: transform parallel lists into list of structs:
+Multivalue: transform parallel lists into list of structs using [`list_zip()`](https://duckdb.org/docs/sql/functions/list#list_ziplist1-list2-):
 ```sql
 SELECT [
     {'name': name, 'role': role}
