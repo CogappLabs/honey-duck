@@ -9,6 +9,10 @@ Common Honeysuckle processors and their native Polars/DuckDB equivalents.
     - **Simpler**: Less boilerplate, more readable
     - **Type-safe**: Better IDE support and error messages
 
+!!! tip "Test Script"
+    All examples are tested in [`scripts/test_processor_equivalents.py`](https://github.com/CogappLabs/honey-duck/blob/main/scripts/test_processor_equivalents.py).
+    Run with: `uv run scripts/test_processor_equivalents.py --verbose`
+
 ## Documentation Links
 
 - **Polars**: [docs.pola.rs](https://docs.pola.rs/) | [Expressions Guide](https://docs.pola.rs/user-guide/expressions/) | [API Reference](https://docs.pola.rs/api/python/stable/reference/)
@@ -82,22 +86,12 @@ FillEmptyProcessor(column_name="name", column_fill="display_name", constant_fill
 ### Polars
 
 ```python
-import polars as pl
+--8<-- "scripts/test_processor_equivalents.py:fill_empty_polars"
+```
 
-# Input
-df = pl.DataFrame({"title": [None, "Main"], "alt_title": ["Backup", "Backup"]})
-
-# Fill from another column
-df = df.with_columns(
-    pl.col("title").fill_null(pl.col("alt_title"))
-)
-
-# Fill with constant
-df = df.with_columns(
-    pl.col("price").fill_null(0)
-)
-
-# Fill from column first, then constant for remaining nulls (chained)
+Additional pattern - chained fallback:
+```python
+# Fill from column first, then constant for remaining nulls
 df = df.with_columns(
     pl.col("name").fill_null(pl.col("display_name")).fill_null("Unknown")
 )
@@ -105,14 +99,12 @@ df = df.with_columns(
 
 ### DuckDB
 
+```python
+--8<-- "scripts/test_processor_equivalents.py:fill_empty_duckdb"
+```
+
+Chained coalesce:
 ```sql
--- Fill from another column
-SELECT coalesce(title, alt_title) AS title FROM items
-
--- Fill with constant
-SELECT ifnull(price, 0) AS price FROM items
-
--- Fill from column first, then constant (chained coalesce)
 SELECT coalesce(name, display_name, 'Unknown') AS name FROM items
 ```
 
@@ -130,7 +122,7 @@ Remove null values from list/array columns.
 
 ```python
 # Honeysuckle
-RemoveMultivalueNullsProcessor(column_name="tags")
+RemoveMultivalueNullsProcessor(column="tags")
 ```
 
 ### Example
@@ -138,30 +130,25 @@ RemoveMultivalueNullsProcessor(column_name="tags")
 | tags | | | tags |
 |------|---|---|------|
 | `["a", None, "b"]` | → | | `["a", "b"]` |
-| `[None, None]` | → | | `[]` |
+| `[None, None]` | → | | `null` |
 
 ### Polars
 
 ```python
-import polars as pl
-
-# Input
-df = pl.DataFrame({"tags": [["a", None, "b"], [None, None]]})
-
-# Remove nulls from list column using list.eval()
-df = df.with_columns(
-    pl.col("tags").list.eval(pl.element().drop_nulls())
-)
+--8<-- "scripts/test_processor_equivalents.py:remove_nulls_polars"
 ```
 
 ### DuckDB
 
-```sql
--- Remove nulls using list_filter with lambda
-SELECT list_filter(tags, x -> x IS NOT NULL) AS tags FROM items
+```python
+--8<-- "scripts/test_processor_equivalents.py:remove_nulls_duckdb"
+```
 
--- Alternative: list comprehension syntax
-SELECT [x FOR x IN tags IF x IS NOT NULL] AS tags FROM items
+Alternative list comprehension:
+```sql
+SELECT
+    nullif([x FOR x IN tags IF x IS NOT NULL], []) AS tags
+FROM items
 ```
 
 ---
@@ -192,20 +179,13 @@ StripStringProcessor(column_name="code", new_column="code", strip_string="-")
 ### Polars
 
 ```python
-import polars as pl
+--8<-- "scripts/test_processor_equivalents.py:strip_string_polars"
+```
 
-# Input
-df = pl.DataFrame({"name": ["  hello  ", "\tworld\n"]})
-
-# Strip whitespace to new column
-df = df.with_columns(
-    pl.col("name").str.strip_chars().alias("name_clean")
-)
-
+Additional patterns:
+```python
 # Strip specific character
-df = df.with_columns(
-    pl.col("code").str.strip_chars("-")
-)
+df = df.with_columns(pl.col("code").str.strip_chars("-"))
 
 # Strip only leading (start) or trailing (end)
 df = df.with_columns(
@@ -216,15 +196,14 @@ df = df.with_columns(
 
 ### DuckDB
 
-```sql
--- Strip whitespace (dot notation - preferred)
-SELECT name.trim() AS name_clean FROM items
+```python
+--8<-- "scripts/test_processor_equivalents.py:strip_string_duckdb"
+```
 
+Additional patterns:
+```sql
 -- Strip specific character
 SELECT trim(code, '-') AS code FROM items
-
--- Chain with other string operations (dot notation)
-SELECT name.trim().upper() AS name_clean FROM items
 
 -- Strip only leading/trailing
 SELECT name.ltrim() AS name FROM items  -- Left only
@@ -259,29 +238,17 @@ ExtractFirstProcessor(column_name="tags")  # Overwrites same column
 ### Polars
 
 ```python
-import polars as pl
-
-# Input
-df = pl.DataFrame({"authors": [["Alice", "Bob"], ["Charlie"]]})
-
-# Extract first to new column
-df = df.with_columns(
-    pl.col("authors").list.first().alias("primary_author")
-)
-
-# Extract first, overwrite same column
-df = df.with_columns(
-    pl.col("tags").list.first()
-)
+--8<-- "scripts/test_processor_equivalents.py:extract_first_polars"
 ```
 
 ### DuckDB
 
-```sql
--- Extract first element (1-indexed in DuckDB)
-SELECT authors[1] AS primary_author FROM items
+```python
+--8<-- "scripts/test_processor_equivalents.py:extract_first_duckdb"
+```
 
--- Keep all columns, replace tags with first element
+Replace in-place:
+```sql
 SELECT * REPLACE (tags[1] AS tags) FROM items
 ```
 
@@ -300,10 +267,9 @@ Extract value from one column to another based on a condition.
 ```python
 # Honeysuckle
 ExtractOnConditionProcessor(
-    source_column="price",
-    target_column="sale_price",
-    condition_column="is_on_sale",
-    condition_value=True
+    expression="is_on_sale == True",
+    extract_columns=["price"],
+    result_columns=["sale_price"],
 )
 ```
 
@@ -317,20 +283,11 @@ ExtractOnConditionProcessor(
 ### Polars
 
 ```python
-import polars as pl
+--8<-- "scripts/test_processor_equivalents.py:extract_on_condition_polars"
+```
 
-# Input
-df = pl.DataFrame({"price": [100, 200], "is_on_sale": [True, False]})
-
-# Extract value when condition is met
-df = df.with_columns(
-    pl.when(pl.col("is_on_sale"))
-      .then(pl.col("price"))
-      .otherwise(None)
-      .alias("sale_price")
-)
-
-# Multiple conditions
+Multiple conditions:
+```python
 df = df.with_columns(
     pl.when(pl.col("status") == "active")
       .then(pl.col("current_value"))
@@ -343,11 +300,12 @@ df = df.with_columns(
 
 ### DuckDB
 
-```sql
--- Simple condition with if()
-SELECT if(is_on_sale, price, NULL) AS sale_price FROM items
+```python
+--8<-- "scripts/test_processor_equivalents.py:extract_on_condition_duckdb"
+```
 
--- Multiple conditions with CASE
+Multiple conditions with CASE:
+```sql
 SELECT CASE
     WHEN status = 'active' THEN current_value
     WHEN status = 'pending' THEN estimated_value
@@ -382,17 +340,11 @@ ContainsBoolProcessor(column_name="description", result_column="has_keyword", pa
 ### Polars
 
 ```python
-import polars as pl
+--8<-- "scripts/test_processor_equivalents.py:contains_bool_polars"
+```
 
-# Input
-df = pl.DataFrame({"description": ["This is important", "Nothing here"]})
-
-# Simple contains check
-df = df.with_columns(
-    pl.col("description").str.contains("important").alias("has_keyword")
-)
-
-# Regex pattern
+Regex pattern:
+```python
 df = df.with_columns(
     pl.col("email").str.contains(r"@gmail\.com$").alias("is_gmail")
 )
@@ -400,10 +352,12 @@ df = df.with_columns(
 
 ### DuckDB
 
-```sql
--- Simple contains (dot notation - preferred)
-SELECT description.contains('important') AS has_keyword FROM items
+```python
+--8<-- "scripts/test_processor_equivalents.py:contains_bool_duckdb"
+```
 
+Additional patterns:
+```sql
 -- Case-insensitive with ILIKE
 SELECT description ILIKE '%important%' AS has_keyword FROM items
 
@@ -425,7 +379,7 @@ Add a column with a constant string value.
 
 ```python
 # Honeysuckle
-StringConstantDataframeProcessor(column_name="source", value="huntington")
+StringConstantDataframeProcessor(target_field="source", value="huntington")
 ```
 
 ### Example
@@ -438,17 +392,11 @@ StringConstantDataframeProcessor(column_name="source", value="huntington")
 ### Polars
 
 ```python
-import polars as pl
+--8<-- "scripts/test_processor_equivalents.py:string_constant_polars"
+```
 
-# Input
-df = pl.DataFrame({"id": [1, 2]})
-
-# Add constant column
-df = df.with_columns(
-    pl.lit("huntington").alias("source")
-)
-
-# Add multiple constants
+Add multiple constants:
+```python
 df = df.with_columns(
     pl.lit("huntington").alias("source"),
     pl.lit("2.0").alias("version"),
@@ -458,11 +406,12 @@ df = df.with_columns(
 
 ### DuckDB
 
-```sql
--- Add constant column
-SELECT *, 'huntington' AS source FROM items
+```python
+--8<-- "scripts/test_processor_equivalents.py:string_constant_duckdb"
+```
 
--- Add multiple constants
+Add multiple constants:
+```sql
 SELECT *,
     'huntington' AS source,
     '2.0' AS version,
@@ -501,34 +450,13 @@ AppendOnConditionProcessor(
 ### Polars
 
 ```python
-import polars as pl
-
-# Input
-df = pl.DataFrame({
-    "tags": [["art"], ["photo"]],
-    "category": ["new", "old"],
-    "is_featured": [True, False]
-})
-
-# Append category to tags when featured
-df = df.with_columns(
-    pl.when(pl.col("is_featured"))
-      .then(pl.col("tags").list.concat(pl.col("category").cast(pl.List(pl.String))))
-      .otherwise(pl.col("tags"))
-      .alias("tags")
-)
+--8<-- "scripts/test_processor_equivalents.py:append_on_condition_polars"
 ```
 
 ### DuckDB
 
-```sql
--- Append category to tags list when featured
-SELECT
-    CASE WHEN is_featured
-        THEN list_concat(tags, [category])
-        ELSE tags
-    END AS tags
-FROM items
+```python
+--8<-- "scripts/test_processor_equivalents.py:append_on_condition_duckdb"
 ```
 
 ---
@@ -544,13 +472,13 @@ Aggregate values into a list during group by.
 | **DuckDB** | [`list()`](https://duckdb.org/docs/sql/functions/aggregates#listarg) with `GROUP BY ALL` |
 
 ```python
-# Honeysuckle (used in group_by context)
-ImplodeProcessor(column_name="tag", result_column="tags")
+# Honeysuckle
+ImplodeProcessor(column_names=["tag"], index_column="artwork_id")
 ```
 
 ### Example
 
-| artwork_id | tag | | | artwork_id | tags |
+| artwork_id | tag | | | artwork_id | tag |
 |------------|-----|---|---|------------|------|
 | 1 | `"oil"` | → | | 1 | `["oil", "portrait"]` |
 | 1 | `"portrait"` | | | 2 | `["landscape"]` |
@@ -559,20 +487,11 @@ ImplodeProcessor(column_name="tag", result_column="tags")
 ### Polars
 
 ```python
-import polars as pl
+--8<-- "scripts/test_processor_equivalents.py:implode_polars"
+```
 
-# Input
-df = pl.DataFrame({
-    "artwork_id": [1, 1, 2],
-    "tag": ["oil", "portrait", "landscape"]
-})
-
-# Aggregate to list during group_by (automatic)
-df = df.group_by("artwork_id").agg(
-    pl.col("tag").alias("tags")  # Creates list automatically
-)
-
-# With ordering inside the list
+With ordering inside the list:
+```python
 df = df.group_by("artwork_id").agg(
     pl.col("filename").sort_by("sort_order").alias("media_files")
 )
@@ -580,13 +499,12 @@ df = df.group_by("artwork_id").agg(
 
 ### DuckDB
 
-```sql
--- Aggregate to list with GROUP BY ALL
-SELECT artwork_id, list(tag) AS tags
-FROM item_tags
-GROUP BY ALL
+```python
+--8<-- "scripts/test_processor_equivalents.py:implode_duckdb"
+```
 
--- With ordering inside the list
+With ordering inside the list:
+```sql
 SELECT artwork_id, list(filename ORDER BY sort_order) AS media_files
 FROM media
 GROUP BY ALL
@@ -616,45 +534,32 @@ ConcatProcessor(new_field="code", join_fields=["prefix", "id"], join_on="-")
 |-------|------|---|---|-----------|
 | `"John"` | `"Doe"` | → | | `"John Doe"` |
 | `"Jane"` | `"Smith"` | → | | `"Jane Smith"` |
+| `null` | `"Unknown"` | → | | `"None Unknown"` |
 
 ### Polars
 
 ```python
-import polars as pl
+--8<-- "scripts/test_processor_equivalents.py:concat_polars"
+```
 
-# Input
-df = pl.DataFrame({"first": ["John", "Jane"], "last": ["Doe", "Smith"]})
-
-# Concatenate with separator
+Additional patterns:
+```python
+# Best practice: skip nulls instead of stringifying them
 df = df.with_columns(
-    pl.concat_str(["first", "last"], separator=" ").alias("full_name")
-)
-
-# Concatenate without separator
-df = df.with_columns(
-    pl.concat_str(["prefix", "id"]).alias("code")
-)
-
-# Handle nulls (skip_null_columns equivalent)
-df = df.with_columns(
-    pl.concat_str(["first", "last"], separator=" ", ignore_nulls=True).alias("full_name")
+    pl.concat_str(["prefix", "id"], separator=" ", ignore_nulls=True).alias("code")
 )
 ```
 
 ### DuckDB
 
+```python
+--8<-- "scripts/test_processor_equivalents.py:concat_duckdb"
+```
+
+Additional patterns:
 ```sql
--- Concatenate with separator (using concat_ws)
+-- Best practice: skip nulls instead of stringifying them
 SELECT concat_ws(' ', first, last) AS full_name FROM items
-
--- Concatenate without separator
-SELECT concat(prefix, id) AS code FROM items
-
--- Using || operator
-SELECT first || ' ' || last AS full_name FROM items
-
--- With null handling (concat_ws ignores nulls)
-SELECT concat_ws(' ', first, middle, last) AS full_name FROM items
 ```
 
 ---
@@ -683,25 +588,17 @@ RenameProcessor(mapping={"old_name": "new_name", "title": "artwork_title"})
 ### Polars
 
 ```python
-import polars as pl
-
-# Input
-df = pl.DataFrame({"old_name": ["value"], "title": ["Art"]})
-
-# Rename columns with dict
-df = df.rename({"old_name": "new_name", "title": "artwork_title"})
-
-# Rename single column
-df = df.rename({"old_name": "new_name"})
+--8<-- "scripts/test_processor_equivalents.py:rename_polars"
 ```
 
 ### DuckDB
 
-```sql
--- Rename columns
-SELECT old_name AS new_name, title AS artwork_title FROM items
+```python
+--8<-- "scripts/test_processor_equivalents.py:rename_duckdb"
+```
 
--- Keep all columns, rename specific ones
+Keep all columns, rename specific ones:
+```sql
 SELECT * REPLACE (title AS artwork_title) FROM items
 ```
 
@@ -733,30 +630,13 @@ IsEmptyProcessor(column_name="email", result_column="has_email", invert=True)
 ### Polars
 
 ```python
-import polars as pl
-
-# Input
-df = pl.DataFrame({"email": [None, "a@b.com"]})
-
-# Check if null
-df = df.with_columns(
-    pl.col("email").is_null().alias("missing_email")
-)
-
-# Check if not null (invert=True)
-df = df.with_columns(
-    pl.col("email").is_not_null().alias("has_email")
-)
+--8<-- "scripts/test_processor_equivalents.py:is_empty_polars"
 ```
 
 ### DuckDB
 
-```sql
--- Check if null
-SELECT email IS NULL AS missing_email FROM items
-
--- Check if not null (invert=True)
-SELECT email IS NOT NULL AS has_email FROM items
+```python
+--8<-- "scripts/test_processor_equivalents.py:is_empty_duckdb"
 ```
 
 ---
@@ -773,7 +653,7 @@ Unnest/explode list columns into separate rows.
 
 ```python
 # Honeysuckle
-ExplodeColumnsProcessor(column_name="tags")
+ExplodeColumnsProcessor(column_names=["tags"])
 ```
 
 ### Example
@@ -786,25 +666,22 @@ ExplodeColumnsProcessor(column_name="tags")
 ### Polars
 
 ```python
-import polars as pl
+--8<-- "scripts/test_processor_equivalents.py:explode_polars"
+```
 
-# Input
-df = pl.DataFrame({"id": [1], "tags": [["a", "b"]]})
-
-# Explode single column
-df = df.explode("tags")
-
-# Explode multiple columns (must have same length lists)
+Explode multiple columns (must have same length lists):
+```python
 df = df.explode("tags", "tag_ids")
 ```
 
 ### DuckDB
 
-```sql
--- Explode/unnest column
-SELECT id, unnest(tags) AS tag FROM items
+```python
+--8<-- "scripts/test_processor_equivalents.py:explode_duckdb"
+```
 
--- Keep all other columns
+Keep all other columns:
+```sql
 SELECT *, unnest(tags) AS tag FROM items
 ```
 
@@ -846,35 +723,17 @@ ReplaceOnConditionProcessor(
 ### Polars
 
 ```python
-import polars as pl
-
-# Input
-df = pl.DataFrame({"status": ["", "active"], "price": [-10, 50]})
-
-# Replace empty strings
-df = df.with_columns(
-    pl.when(pl.col("status") == "")
-      .then(pl.lit("unknown"))
-      .otherwise(pl.col("status"))
-      .alias("status")
-)
-
-# Replace negative values (floor at 0)
-df = df.with_columns(
-    pl.max_horizontal(pl.col("price"), pl.lit(0)).alias("price")
-)
+--8<-- "scripts/test_processor_equivalents.py:replace_on_condition_polars"
 ```
 
 ### DuckDB
 
+```python
+--8<-- "scripts/test_processor_equivalents.py:replace_on_condition_duckdb"
+```
+
+Complex condition with CASE:
 ```sql
--- Replace empty strings
-SELECT if(status = '', 'unknown', status) AS status FROM items
-
--- Replace negative values (floor at 0)
-SELECT greatest(price, 0) AS price FROM items
-
--- Complex condition with CASE
 SELECT CASE WHEN price < 0 THEN 0 ELSE price END AS price FROM items
 ```
 
@@ -904,24 +763,17 @@ LowerStringProcessor(column_name="email")
 ### Polars
 
 ```python
-import polars as pl
-
-# Input
-df = pl.DataFrame({"email": ["John@Example.COM"]})
-
-# Convert to lowercase
-df = df.with_columns(
-    pl.col("email").str.to_lowercase()
-)
+--8<-- "scripts/test_processor_equivalents.py:lower_string_polars"
 ```
 
 ### DuckDB
 
-```sql
--- Convert to lowercase (dot notation - preferred)
-SELECT email.lower() AS email FROM items
+```python
+--8<-- "scripts/test_processor_equivalents.py:lower_string_duckdb"
+```
 
--- Traditional function syntax
+Traditional function syntax:
+```sql
 SELECT lower(email) AS email FROM items
 ```
 
@@ -951,23 +803,18 @@ KeepOnlyProcessor(column_names=["id", "title", "date"])
 ### Polars
 
 ```python
-import polars as pl
+--8<-- "scripts/test_processor_equivalents.py:keep_only_polars"
+```
 
-# Input
-df = pl.DataFrame({"id": [1], "title": ["Art"], "author": ["Jane"], "date": ["2024"]})
-
-# Keep only specified columns
-df = df.select(["id", "title", "date"])
-
-# Or using pl.col
+Using pl.col:
+```python
 df = df.select(pl.col("id", "title", "date"))
 ```
 
 ### DuckDB
 
-```sql
--- Keep only specified columns
-SELECT id, title, date FROM items
+```python
+--8<-- "scripts/test_processor_equivalents.py:keep_only_duckdb"
 ```
 
 ---
@@ -997,29 +844,13 @@ DropNullColumnsProcessor()  # No arguments
 ### Polars
 
 ```python
-import polars as pl
-
-# Input
-df = pl.DataFrame({"id": [1, 2], "empty_col": [None, None], "title": ["Art", "Photo"]})
-
-# Drop columns where all values are null
-df = df.select([
-    col for col in df.columns
-    if not df[col].is_null().all()
-])
-
-# Or more idiomatic
-null_cols = [col for col in df.columns if df[col].is_null().all()]
-df = df.drop(null_cols)
+--8<-- "scripts/test_processor_equivalents.py:drop_null_columns_polars"
 ```
 
 ### DuckDB
 
-```sql
--- DuckDB doesn't have built-in "drop all-null columns"
--- You'd need to check columns individually or use dynamic SQL
--- In practice, select only the columns you need:
-SELECT id, title FROM items
+```python
+--8<-- "scripts/test_processor_equivalents.py:drop_null_columns_duckdb"
 ```
 
 ---
@@ -1048,25 +879,22 @@ DropColumnsProcessor(column_names=["internal_id", "temp_field"])
 ### Polars
 
 ```python
-import polars as pl
+--8<-- "scripts/test_processor_equivalents.py:drop_columns_polars"
+```
 
-# Input
-df = pl.DataFrame({"id": [1], "internal_id": ["abc123"], "title": ["Art"]})
-
-# Drop specified columns
-df = df.drop(["internal_id", "temp_field"])
-
-# Drop single column
+Drop single column:
+```python
 df = df.drop("internal_id")
 ```
 
 ### DuckDB
 
-```sql
--- Drop columns using EXCLUDE (DuckDB-specific)
-SELECT * EXCLUDE (internal_id, temp_field) FROM items
+```python
+--8<-- "scripts/test_processor_equivalents.py:drop_columns_duckdb"
+```
 
--- Or explicitly list columns to keep
+Or explicitly list columns to keep:
+```sql
 SELECT id, title FROM items
 ```
 
@@ -1084,7 +912,7 @@ Copy values from one column to another (create new column).
 
 ```python
 # Honeysuckle
-CopyFieldDataframeProcessor(source_field="original_title", target_field="display_title")
+CopyFieldDataframeProcessor(target_field="original_title", new_field="display_title")
 ```
 
 ### Example
@@ -1096,17 +924,11 @@ CopyFieldDataframeProcessor(source_field="original_title", target_field="display
 ### Polars
 
 ```python
-import polars as pl
+--8<-- "scripts/test_processor_equivalents.py:copy_field_polars"
+```
 
-# Input
-df = pl.DataFrame({"original_title": ["Mona Lisa"]})
-
-# Copy column to new name
-df = df.with_columns(
-    pl.col("original_title").alias("display_title")
-)
-
-# Copy multiple columns at once
+Copy multiple columns:
+```python
 df = df.with_columns(
     pl.col("title").alias("display_title"),
     pl.col("date").alias("publication_date"),
@@ -1115,11 +937,12 @@ df = df.with_columns(
 
 ### DuckDB
 
-```sql
--- Copy column
-SELECT *, original_title AS display_title FROM items
+```python
+--8<-- "scripts/test_processor_equivalents.py:copy_field_duckdb"
+```
 
--- Copy multiple
+Copy multiple:
+```sql
 SELECT *, title AS display_title, date AS publication_date FROM items
 ```
 
@@ -1127,7 +950,7 @@ SELECT *, title AS display_title, date AS publication_date FROM items
 
 ## 20. ReplaceProcessor
 
-Replace string values in a column.
+Replace exact values in a column.
 
 | | |
 |---|---|
@@ -1137,35 +960,25 @@ Replace string values in a column.
 
 ```python
 # Honeysuckle
-ReplaceProcessor(column_name="text", old_value="&amp;", new_value="&")
-ReplaceProcessor(column_name="phone", old_value="-", new_value="")
+ReplaceProcessor(target_field="status", to_replace="", replacement="unknown")
+ReplaceProcessor(target_field="category", to_replace="N/A", replacement=None)
 ```
 
 ### Example
 
-| text | | | text |
-|------|---|---|------|
-| `"Tom &amp; Jerry"` | → | | `"Tom & Jerry"` |
+| status | | | status |
+|--------|---|---|--------|
+| `""` | → | | `"unknown"` |
 
 ### Polars
 
 ```python
-import polars as pl
+--8<-- "scripts/test_processor_equivalents.py:replace_polars"
+```
 
-# Input
-df = pl.DataFrame({"text": ["Tom &amp; Jerry"]})
-
-# Replace all occurrences
-df = df.with_columns(
-    pl.col("text").str.replace_all("&amp;", "&")
-)
-
-# Remove character
-df = df.with_columns(
-    pl.col("phone").str.replace_all("-", "")
-)
-
-# Regex replace
+Additional patterns:
+```python
+# Best practice: substring/regex replacement
 df = df.with_columns(
     pl.col("text").str.replace_all(r"\s+", " ")  # Collapse whitespace
 )
@@ -1173,14 +986,13 @@ df = df.with_columns(
 
 ### DuckDB
 
+```python
+--8<-- "scripts/test_processor_equivalents.py:replace_duckdb"
+```
+
+Additional patterns:
 ```sql
--- Replace all occurrences (dot notation - preferred)
-SELECT text.replace('&amp;', '&') AS text FROM items
-
--- Remove character
-SELECT phone.replace('-', '') AS phone FROM items
-
--- Regex replace
+-- Best practice: substring/regex replacement
 SELECT regexp_replace(text, '\s+', ' ', 'g') AS text FROM items
 ```
 
@@ -1210,37 +1022,31 @@ MergeProcessor(
 ### Example
 
 **sales:**
+
 | id | artist_id |
 |----|-----------|
 | 1 | 100 |
 
 **artists:**
+
 | id | artist_name |
 |----|-------------|
 | 100 | "Monet" |
 
 **Result:**
-| id | artist_id | artist_name |
-|----|-----------|-------------|
-| 1 | 100 | "Monet" |
+
+| id_x | artist_id | artist_name | id_y |
+|------|-----------|-------------|------|
+| 1 | 100 | "Monet" | 100 |
 
 ### Polars
 
 ```python
-import polars as pl
+--8<-- "scripts/test_processor_equivalents.py:merge_polars"
+```
 
-# Input
-sales = pl.DataFrame({"id": [1], "artist_id": [100]})
-artists = pl.DataFrame({"id": [100], "artist_name": ["Monet"]})
-
-# Left join
-df = sales.join(
-    artists.select(["id", "artist_name"]),
-    left_on="artist_id",
-    right_on="id",
-    how="left"
-)
-
+Additional patterns:
+```python
 # Inner join
 df = sales.join(artists, left_on="artist_id", right_on="id", how="inner")
 
@@ -1250,12 +1056,12 @@ df = sales.join(artists, left_on="artist_id", right_on="id", suffix="_artist")
 
 ### DuckDB
 
-```sql
--- Left join
-SELECT s.*, a.artist_name
-FROM sales s
-LEFT JOIN artists a ON s.artist_id = a.id
+```python
+--8<-- "scripts/test_processor_equivalents.py:merge_duckdb"
+```
 
+Additional patterns:
+```sql
 -- Inner join
 SELECT s.*, a.artist_name
 FROM sales s
@@ -1269,7 +1075,7 @@ SELECT * FROM sales JOIN artists USING (artist_id)
 
 ## 22. FillMissingTuplesProcessor
 
-Fill missing values in struct/tuple columns.
+Fill missing tuple/list values in multiple columns by inserting nulls to match the row's tuple length.
 
 | | |
 |---|---|
@@ -1279,41 +1085,31 @@ Fill missing values in struct/tuple columns.
 
 ```python
 # Honeysuckle
-FillMissingTuplesProcessor(column_name="dimensions", fill_value={"width": 0, "height": 0})
+FillMissingTuplesProcessor(columns=["names", "roles"])
 ```
 
 ### Example
 
-| dimensions | | | dimensions |
-|------------|---|---|------------|
-| `{width: null, height: 100}` | → | | `{width: 0, height: 100}` |
+| names | roles | | | names | roles |
+|-------|-------|---|---|-------|-------|
+| `("Alice", "Bob")` | `null` | → | | `("Alice", "Bob")` | `(null, null)` |
+| `null` | `("editor", "viewer")` | → | | `(null, null)` | `("editor", "viewer")` |
 
 ### Polars
 
 ```python
-import polars as pl
-
-# Rebuild struct with filled null fields
-df = df.with_columns(
-    pl.struct(
-        pl.col("dimensions").struct.field("width").fill_null(0).alias("width"),
-        pl.col("dimensions").struct.field("height").fill_null(0).alias("height"),
-    ).alias("dimensions")
-)
+--8<-- "scripts/test_processor_equivalents.py:fill_missing_tuples_polars"
 ```
 
 ### DuckDB
 
-```sql
--- Rebuild struct with coalesce on fields
-SELECT {
-    'width': coalesce(dimensions.width, 0),
-    'height': coalesce(dimensions.height, 0)
-} AS dimensions
-FROM items
+```python
+--8<-- "scripts/test_processor_equivalents.py:fill_missing_tuples_duckdb"
+```
 
--- Fill entire null struct
-SELECT coalesce(dimensions, {'width': 0, 'height': 0}) AS dimensions FROM items
+Fill entire null list:
+```sql
+SELECT coalesce(names, [NULL, NULL]) AS names FROM items
 ```
 
 ---
@@ -1343,17 +1139,11 @@ ConditionalBoolProcessor(expression="price > 1000 and status == 'active'", resul
 ### Polars
 
 ```python
-import polars as pl
+--8<-- "scripts/test_processor_equivalents.py:conditional_bool_polars"
+```
 
-# Input
-df = pl.DataFrame({"price": [1500, 500], "status": ["active", "active"]})
-
-# Evaluate expression
-df = df.with_columns(
-    ((pl.col("price") > 1000) & (pl.col("status") == "active")).alias("is_premium")
-)
-
-# Complex expressions
+Complex expressions:
+```python
 df = df.with_columns(
     (
         (pl.col("price") > 1000) |
@@ -1364,11 +1154,12 @@ df = df.with_columns(
 
 ### DuckDB
 
-```sql
--- Evaluate expression
-SELECT *, (price > 1000 AND status = 'active') AS is_premium FROM items
+```python
+--8<-- "scripts/test_processor_equivalents.py:conditional_bool_duckdb"
+```
 
--- Complex expressions
+Complex expressions:
+```sql
 SELECT *, (price > 1000 OR featured = true) AS is_highlight FROM items
 ```
 
@@ -1398,18 +1189,11 @@ CapitalizeProcessor(column_name="title")
 ### Polars
 
 ```python
-import polars as pl
+--8<-- "scripts/test_processor_equivalents.py:capitalize_polars"
+```
 
-# Input
-df = pl.DataFrame({"title": ["hello world"]})
-
-# Capitalize first char only (like Python's str.capitalize())
-df = df.with_columns(
-    (pl.col("title").str.slice(0, 1).str.to_uppercase() +
-     pl.col("title").str.slice(1)).alias("title")
-)
-
-# Title case (capitalize each word)
+Title case (capitalize each word):
+```python
 df = df.with_columns(
     pl.col("title").str.to_titlecase()
 )
@@ -1417,12 +1201,13 @@ df = df.with_columns(
 
 ### DuckDB
 
-```sql
--- Capitalize first char of each word (title case)
-SELECT initcap(title) AS title FROM items
+```python
+--8<-- "scripts/test_processor_equivalents.py:capitalize_duckdb"
+```
 
--- Capitalize only first char (like Python capitalize)
-SELECT upper(title[1]) || title[2:] AS title FROM items
+Title case (capitalize each word):
+```sql
+SELECT initcap(title) AS title FROM items
 ```
 
 ---
@@ -1452,22 +1237,11 @@ AppendStringProcessor(column="filename", value=".jpg")          # Append
 ### Polars
 
 ```python
-import polars as pl
+--8<-- "scripts/test_processor_equivalents.py:append_string_polars"
+```
 
-# Input
-df = pl.DataFrame({"id": ["123"], "filename": ["image"]})
-
-# Prepend string
-df = df.with_columns(
-    (pl.lit("ID-") + pl.col("id")).alias("id")
-)
-
-# Append string
-df = df.with_columns(
-    (pl.col("filename") + pl.lit(".jpg")).alias("filename")
-)
-
-# Using concat_str
+Using concat_str:
+```python
 df = df.with_columns(
     pl.concat_str([pl.lit("ID-"), pl.col("id")]).alias("id")
 )
@@ -1475,14 +1249,12 @@ df = df.with_columns(
 
 ### DuckDB
 
+```python
+--8<-- "scripts/test_processor_equivalents.py:append_string_duckdb"
+```
+
+Using concat:
 ```sql
--- Prepend string
-SELECT 'ID-' || id AS id FROM items
-
--- Append string
-SELECT filename || '.jpg' AS filename FROM items
-
--- Using concat
 SELECT concat('ID-', id) AS id FROM items
 ```
 
@@ -1512,17 +1284,11 @@ AddNumberProcessor(column_name="year", new_column="next_year", value=1)
 ### Polars
 
 ```python
-import polars as pl
+--8<-- "scripts/test_processor_equivalents.py:add_number_polars"
+```
 
-# Input
-df = pl.DataFrame({"year": [2024]})
-
-# Add value to new column
-df = df.with_columns(
-    (pl.col("year") + 1).alias("next_year")
-)
-
-# Add to same column
+Add to same column:
+```python
 df = df.with_columns(
     pl.col("price") + 10
 )
@@ -1530,11 +1296,12 @@ df = df.with_columns(
 
 ### DuckDB
 
-```sql
--- Add value to new column
-SELECT *, year + 1 AS next_year FROM items
+```python
+--8<-- "scripts/test_processor_equivalents.py:add_number_duckdb"
+```
 
--- Add to computed expression
+Add to computed expression:
+```sql
 SELECT *, price + tax AS total FROM items
 ```
 
@@ -1564,17 +1331,11 @@ SubtractNumberProcessor(column_name="year", new_column="prev_year", value=1)
 ### Polars
 
 ```python
-import polars as pl
+--8<-- "scripts/test_processor_equivalents.py:subtract_number_polars"
+```
 
-# Input
-df = pl.DataFrame({"year": [2024]})
-
-# Subtract value
-df = df.with_columns(
-    (pl.col("year") - 1).alias("prev_year")
-)
-
-# Calculate difference
+Calculate difference:
+```python
 df = df.with_columns(
     (pl.col("sale_price") - pl.col("cost")).alias("profit")
 )
@@ -1582,11 +1343,12 @@ df = df.with_columns(
 
 ### DuckDB
 
-```sql
--- Subtract value
-SELECT *, year - 1 AS prev_year FROM items
+```python
+--8<-- "scripts/test_processor_equivalents.py:subtract_number_duckdb"
+```
 
--- Calculate difference
+Calculate difference:
+```sql
 SELECT *, sale_price - cost AS profit FROM items
 ```
 
@@ -1616,17 +1378,11 @@ SplitStringProcessor(column_name="tags", delimiter=",")
 ### Polars
 
 ```python
-import polars as pl
+--8<-- "scripts/test_processor_equivalents.py:split_string_polars"
+```
 
-# Input
-df = pl.DataFrame({"tags": ["a,b,c"]})
-
-# Split string to list
-df = df.with_columns(
-    pl.col("tags").str.split(",")
-)
-
-# Split with default space delimiter
+Split with default space delimiter:
+```python
 df = df.with_columns(
     pl.col("full_name").str.split(" ")
 )
@@ -1634,11 +1390,12 @@ df = df.with_columns(
 
 ### DuckDB
 
-```sql
--- Split string to list
-SELECT string_split(tags, ',') AS tags FROM items
+```python
+--8<-- "scripts/test_processor_equivalents.py:split_string_duckdb"
+```
 
--- Split with default space
+Split with default space:
+```sql
 SELECT string_split(full_name, ' ') AS name_parts FROM items
 ```
 
@@ -1669,30 +1426,17 @@ AsTypeProcessor(column_name="price", new_type="float")
 ### Polars
 
 ```python
-import polars as pl
-
-# Input
-df = pl.DataFrame({"year": ["2024"], "price": ["99.99"]})
-
-# Cast types (strict=True raises on failure, strict=False returns null)
-df = df.with_columns(
-    pl.col("year").cast(pl.Int64),
-    pl.col("price").cast(pl.Float64),
-    pl.col("id").cast(pl.String),
-)
+--8<-- "scripts/test_processor_equivalents.py:as_type_polars"
 ```
 
 ### DuckDB
 
-```sql
--- Cast using :: shorthand (preferred)
-SELECT
-    year::INTEGER AS year,
-    price::DOUBLE AS price,
-    id::VARCHAR AS id
-FROM items
+```python
+--8<-- "scripts/test_processor_equivalents.py:as_type_duckdb"
+```
 
--- Alternative CAST syntax
+Alternative CAST syntax:
+```sql
 SELECT CAST(year AS INTEGER) AS year FROM items
 ```
 
@@ -1724,37 +1468,13 @@ DropRowsOnConditionProcessor(target_field="price", conditional_operator="<", con
 ### Polars
 
 ```python
-import polars as pl
-
-# Input
-df = pl.DataFrame({"status": ["active", "deleted"], "price": [100, 50]})
-
-# Keep rows where condition is NOT met (drop where status == "deleted")
-df = df.filter(pl.col("status") != "deleted")
-
-# Keep rows where price >= 0 (drop where price < 0)
-df = df.filter(pl.col("price") >= 0)
-
-# Multiple conditions
-df = df.filter(
-    (pl.col("status") != "deleted") &
-    (pl.col("price") >= 0)
-)
+--8<-- "scripts/test_processor_equivalents.py:drop_rows_polars"
 ```
 
 ### DuckDB
 
-```sql
--- Keep rows (drop where status = 'deleted')
-SELECT * FROM items WHERE status != 'deleted'
-
--- Keep rows where price >= 0
-SELECT * FROM items WHERE price >= 0
-
--- Multiple conditions
-SELECT * FROM items
-WHERE status != 'deleted'
-  AND price >= 0
+```python
+--8<-- "scripts/test_processor_equivalents.py:drop_rows_duckdb"
 ```
 
 ---
@@ -1794,27 +1514,11 @@ ColumnsToDictsProcessor(
 ### Polars
 
 ```python
-import polars as pl
+--8<-- "scripts/test_processor_equivalents.py:columns_to_dicts_polars"
+```
 
-# Input (single values)
-df = pl.DataFrame({
-    "width": [10, 15],
-    "height": [20, 30],
-    "depth": [5, 8]
-})
-
-# Create struct and wrap in list for nested JSON output
-df = df.with_columns(
-    pl.concat_list(
-        pl.struct(
-            pl.col("width").alias("w"),
-            pl.col("height").alias("h"),
-            pl.col("depth").alias("d"),
-        )
-    ).alias("dimensions")
-).drop(["width", "height", "depth"])
-
-# For multivalue columns (lists of same length)
+For multivalue columns (lists of same length):
+```python
 df = pl.DataFrame({
     "name": [["Alice", "Bob"]],
     "role": [["admin", "user"]]
@@ -1835,31 +1539,17 @@ df = (
 
 ### DuckDB
 
+```python
+--8<-- "scripts/test_processor_equivalents.py:columns_to_dicts_duckdb"
+```
+
+Multivalue: transform parallel lists into list of structs:
 ```sql
--- Single values: create list containing one struct
-SELECT [{'w': width, 'h': height, 'd': depth}] AS dimensions
-FROM items
-
--- With column rename
-SELECT [{'w': width, 'h': height, 'd': depth}] AS dimensions
-FROM (SELECT 10 AS width, 20 AS height, 5 AS depth)
-
--- Multivalue: transform parallel lists into list of structs
--- Using list comprehension with list_zip
 SELECT [
     {'name': name, 'role': role}
     FOR (name, role) IN list_zip(names, roles)
 ] AS people
 FROM items
-
--- Alternative using UNNEST with ORDINALITY and re-aggregation
-WITH exploded AS (
-    SELECT id, name, role, ordinality
-    FROM items, UNNEST(names, roles) WITH ORDINALITY AS t(name, role, ordinality)
-)
-SELECT id, list({'name': name, 'role': role} ORDER BY ordinality) AS people
-FROM exploded
-GROUP BY ALL
 ```
 
 ---
