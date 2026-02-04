@@ -419,18 +419,16 @@ def fill_empty_polars(df: pl.DataFrame) -> pl.DataFrame:
 # --8<-- [end:fill_empty_polars]
 
 
-# --8<-- [start:remove_nulls_polars]
 def remove_nulls_polars(df: pl.DataFrame) -> pl.DataFrame:
     """Remove null values from list column."""
+    # --8<-- [start:remove_nulls_polars]
     # Step 1: Remove nulls from list
     df = df.with_columns(pl.col("tags").list.eval(pl.element().drop_nulls()).alias("tags"))
     # Step 2: Convert empty lists to null
     return df.with_columns(
         pl.when(pl.col("tags").list.len() == 0).then(None).otherwise(pl.col("tags")).alias("tags")
     )
-
-
-# --8<-- [end:remove_nulls_polars]
+    # --8<-- [end:remove_nulls_polars]
 
 
 # --8<-- [start:strip_string_polars]
@@ -480,9 +478,9 @@ def string_constant_polars(df: pl.DataFrame) -> pl.DataFrame:
 # --8<-- [end:string_constant_polars]
 
 
-# --8<-- [start:append_on_condition_polars]
 def append_on_condition_polars(df: pl.DataFrame) -> pl.DataFrame:
     """Append category to tags when featured."""
+    # --8<-- [start:append_on_condition_polars]
     # Step 1: Wrap scalar in list
     df = df.with_columns(pl.concat_list(pl.col("category")).alias("category_list"))
     # Step 2: Conditionally append
@@ -492,9 +490,7 @@ def append_on_condition_polars(df: pl.DataFrame) -> pl.DataFrame:
         .otherwise(pl.col("tags"))
         .alias("tags")
     ).drop("category_list")
-
-
-# --8<-- [end:append_on_condition_polars]
+    # --8<-- [end:append_on_condition_polars]
 
 
 # --8<-- [start:implode_polars]
@@ -629,9 +625,9 @@ def replace_polars(df: pl.DataFrame) -> pl.DataFrame:
 # --8<-- [end:replace_polars]
 
 
-# --8<-- [start:merge_polars]
 def merge_polars(sales: pl.DataFrame, artists: pl.DataFrame) -> pl.DataFrame:
     """Left join sales with artists."""
+    # --8<-- [start:merge_polars]
     # Use suffix parameter instead of manual id_y workaround
     merged = sales.join(
         artists.select(["id", "artist_name"]),
@@ -641,9 +637,7 @@ def merge_polars(sales: pl.DataFrame, artists: pl.DataFrame) -> pl.DataFrame:
         suffix="_y",
     )
     return merged.rename({"id": "id_x"})
-
-
-# --8<-- [end:merge_polars]
+    # --8<-- [end:merge_polars]
 
 
 # --8<-- [start:fill_missing_tuples_polars]
@@ -675,9 +669,9 @@ def conditional_bool_polars(df: pl.DataFrame) -> pl.DataFrame:
 # --8<-- [end:conditional_bool_polars]
 
 
-# --8<-- [start:capitalize_polars]
 def capitalize_polars(df: pl.DataFrame) -> pl.DataFrame:
     """Capitalize first character of title."""
+    # --8<-- [start:capitalize_polars]
     # Step 1: Get first char and rest
     df = df.with_columns(
         pl.col("title").str.head(1).str.to_uppercase().alias("_first"),
@@ -687,9 +681,7 @@ def capitalize_polars(df: pl.DataFrame) -> pl.DataFrame:
     return df.with_columns((pl.col("_first") + pl.col("_rest")).alias("title")).drop(
         ["_first", "_rest"]
     )
-
-
-# --8<-- [end:capitalize_polars]
+    # --8<-- [end:capitalize_polars]
 
 
 # --8<-- [start:append_string_polars]
