@@ -58,10 +58,11 @@ EXPOSE 4000
 
 # Health check for code location gRPC server
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD uv run dagster api grpc-health-check -p 4000 || exit 1
+    CMD uv run --no-sync dagster api grpc-health-check -p 4000 || exit 1
 
 # Set DAGSTER_CURRENT_IMAGE for run launcher (set at build time or runtime)
 ENV DAGSTER_CURRENT_IMAGE=""
 
 # Default command runs the code location server
-CMD ["uv", "run", "dagster", "code-server", "start", "-h", "0.0.0.0", "-p", "4000", "-m", "honey_duck.defs"]
+# Use --no-sync to prevent downloading dev dependencies at runtime
+CMD ["uv", "run", "--no-sync", "dagster", "code-server", "start", "-h", "0.0.0.0", "-p", "4000", "-m", "honey_duck.defs"]

@@ -31,6 +31,7 @@ services:
     entrypoint:
       - uv
       - run
+      - --no-sync
       - dagster-webserver
       - -h
       - 0.0.0.0
@@ -71,6 +72,7 @@ services:
     entrypoint:
       - uv
       - run
+      - --no-sync
       - dagster-daemon
       - run
     environment:
@@ -114,7 +116,7 @@ services:
       - dagster-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "uv", "run", "dagster", "api", "grpc-health-check", "-p", "4000"]
+      test: ["CMD", "uv", "run", "--no-sync", "dagster", "api", "grpc-health-check", "-p", "4000"]
       interval: 30s
       timeout: 10s
       retries: 3
