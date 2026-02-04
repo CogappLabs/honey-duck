@@ -144,7 +144,7 @@ SELECT
     s.sale_id, s.artwork_id, s.sale_date, s.sale_price_usd, s.buyer_country,
     aw.title, aw.artist_id, aw.year AS artwork_year, aw.medium,
     aw.price_usd AS list_price_usd,
-    upper(trim(ar.name)) AS artist_name, ar.nationality,
+    ar.name.trim().upper() AS artist_name, ar.nationality,
     s.sale_price_usd - aw.price_usd AS price_diff,
     round((s.sale_price_usd - aw.price_usd) * 100.0 / nullif(aw.price_usd, 0), 1) AS pct_change
 FROM sales s
@@ -162,7 +162,7 @@ WITH sales_agg AS (
         min(sale_date) AS first_sale_date,
         max(sale_date) AS last_sale_date
     FROM sales s JOIN artworks aw USING (artwork_id)
-    GROUP BY artwork_id
+    GROUP BY ALL
 ),
 catalog AS (
     SELECT aw.artwork_id, aw.title, aw.year, aw.medium,
@@ -181,11 +181,11 @@ all_media AS (
         'width_px': width_px, 'height_px': height_px,
         'file_size_kb': file_size_kb, 'alt_text': alt_text
     }} ORDER BY sort_order) AS media
-    FROM media GROUP BY artwork_id
+    FROM media GROUP BY ALL
 )
 SELECT
     c.artwork_id, c.title, c.year, c.medium, c.list_price_usd,
-    upper(c.artist_name) AS artist_name, c.nationality,
+    c.artist_name.upper() AS artist_name, c.nationality,
     coalesce(s.sale_count, 0) AS sale_count,
     coalesce(s.total_sales_value, 0) AS total_sales_value,
     s.avg_sale_price, s.first_sale_date, s.last_sale_date,

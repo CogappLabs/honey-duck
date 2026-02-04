@@ -73,6 +73,8 @@ nav:
     - Frontend Dashboard: user-guide/frontend-dashboard.md
     - Performance Tuning: user-guide/performance.md
     - Troubleshooting: user-guide/troubleshooting.md
+  - Guides:
+    - Processor Equivalents: guides/processor-equivalents.md
   - Integrations:
     - Elasticsearch: integrations/elasticsearch.md
     - Soda Validation: integrations/soda-validation.md

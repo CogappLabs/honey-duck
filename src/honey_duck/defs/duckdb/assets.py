@@ -34,7 +34,12 @@ from ..shared.helpers import STANDARD_HARVEST_DEPS as HARVEST_DEPS
 
 
 def _sales_transform_sql(harvest_dir: str) -> str:
-    """Generate SQL for sales transform."""
+    """Generate SQL for sales transform.
+
+    Uses DuckDB friendly SQL features:
+    - Dot notation for string functions: ar.name.trim().upper()
+    - nullif() for safe division
+    """
     return f"""
 SELECT
     s.sale_id,
@@ -47,13 +52,10 @@ SELECT
     aw.year AS artwork_year,
     aw.medium,
     aw.price_usd AS list_price_usd,
-    UPPER(TRIM(ar.name)) AS artist_name,
+    ar.name.trim().upper() AS artist_name,
     ar.nationality,
     s.sale_price_usd - aw.price_usd AS price_diff,
-    CASE
-        WHEN aw.price_usd IS NULL OR aw.price_usd = 0 THEN NULL
-        ELSE ROUND((s.sale_price_usd - aw.price_usd) * 100.0 / aw.price_usd, 1)
-    END AS pct_change
+    round((s.sale_price_usd - aw.price_usd) * 100.0 / nullif(aw.price_usd, 0), 1) AS pct_change
 FROM read_parquet('{harvest_dir}/raw/sales_raw/**/*.parquet') s
 LEFT JOIN read_parquet('{harvest_dir}/raw/artworks_raw/**/*.parquet') aw
     ON s.artwork_id = aw.artwork_id
@@ -64,20 +66,27 @@ ORDER BY s.sale_date DESC, s.sale_id
 
 
 def _artworks_transform_sql(harvest_dir: str) -> str:
-    """Generate SQL for artworks transform."""
+    """Generate SQL for artworks transform.
+
+    Uses DuckDB friendly SQL features:
+    - GROUP BY ALL to infer grouped columns
+    - Dot notation for string functions: c.artist_name.upper()
+    - Boolean expression without CASE: s.sale_count > 0 AS has_sold
+    - list() with ORDER BY for ordered aggregation
+    """
     return f"""
 WITH sales_per_artwork AS (
     SELECT
         s.artwork_id,
-        COUNT(*) AS sale_count,
-        SUM(s.sale_price_usd) AS total_sales_value,
-        ROUND(AVG(s.sale_price_usd), 0) AS avg_sale_price,
-        MIN(s.sale_date) AS first_sale_date,
-        MAX(s.sale_date) AS last_sale_date
+        count(*) AS sale_count,
+        sum(s.sale_price_usd) AS total_sales_value,
+        round(avg(s.sale_price_usd), 0) AS avg_sale_price,
+        min(s.sale_date) AS first_sale_date,
+        max(s.sale_date) AS last_sale_date
     FROM read_parquet('{harvest_dir}/raw/sales_raw/**/*.parquet') s
     JOIN read_parquet('{harvest_dir}/raw/artworks_raw/**/*.parquet') aw
         ON s.artwork_id = aw.artwork_id
-    GROUP BY s.artwork_id
+    GROUP BY ALL
 ),
 catalog AS (
     SELECT
@@ -114,7 +123,7 @@ all_media AS (
             'alt_text': alt_text
         }} ORDER BY sort_order) AS media
     FROM read_parquet('{harvest_dir}/raw/media/**/*.parquet')
-    GROUP BY artwork_id
+    GROUP BY ALL
 )
 SELECT
     c.artwork_id,
@@ -122,29 +131,29 @@ SELECT
     c.year,
     c.medium,
     c.list_price_usd,
-    UPPER(c.artist_name) AS artist_name,
+    c.artist_name.upper() AS artist_name,
     c.nationality,
-    COALESCE(s.sale_count, 0) AS sale_count,
-    COALESCE(s.total_sales_value, 0) AS total_sales_value,
+    coalesce(s.sale_count, 0) AS sale_count,
+    coalesce(s.total_sales_value, 0) AS total_sales_value,
     s.avg_sale_price,
     s.first_sale_date,
     s.last_sale_date,
-    CASE WHEN s.sale_count > 0 THEN true ELSE false END AS has_sold,
+    s.sale_count > 0 AS has_sold,
     CASE
         WHEN c.list_price_usd < {PRICE_TIER_BUDGET_MAX_USD} THEN 'budget'
         WHEN c.list_price_usd < {PRICE_TIER_MID_MAX_USD} THEN 'mid'
         ELSE 'premium'
     END AS price_tier,
-    RANK() OVER (ORDER BY COALESCE(s.total_sales_value, 0) DESC) AS sales_rank,
+    rank() OVER (ORDER BY coalesce(s.total_sales_value, 0) DESC) AS sales_rank,
     pm.primary_image,
     pm.primary_image_alt,
-    COALESCE(len(am.media), 0) AS media_count,
+    coalesce(len(am.media), 0) AS media_count,
     am.media
 FROM catalog c
 LEFT JOIN sales_per_artwork s ON c.artwork_id = s.artwork_id
 LEFT JOIN primary_media pm ON c.artwork_id = pm.artwork_id
 LEFT JOIN all_media am ON c.artwork_id = am.artwork_id
-ORDER BY COALESCE(s.total_sales_value, 0) DESC, c.artwork_id
+ORDER BY coalesce(s.total_sales_value, 0) DESC, c.artwork_id
 """
 
 
