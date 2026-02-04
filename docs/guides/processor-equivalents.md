@@ -15,7 +15,7 @@ Common Honeysuckle processors and their native Polars/DuckDB equivalents.
 - **DuckDB**: [duckdb.org/docs](https://duckdb.org/docs/) | [Functions](https://duckdb.org/docs/sql/functions/overview) | [Friendly SQL](https://duckdb.org/docs/sql/dialect/friendly_sql)
 - **Honeysuckle**: [GitHub](https://github.com/Cogapp/honeysuckle) (private repo)
 
-## Top 30 Processors by Usage
+## Top 31 Processors by Usage
 
 Based on analysis of Huntington Extractor, Universal Yiddish Library, and Royal Society SITM codebases.
 
@@ -26,31 +26,32 @@ Based on analysis of Huntington Extractor, Universal Yiddish Library, and Royal 
 | 3 | `StripStringProcessor` | 44 | Strip whitespace |
 | 4 | `ExtractFirstProcessor` | 42 | Get first element from list |
 | 5 | `ExtractOnConditionProcessor` | 29 | Extract value conditionally |
-| 6 | `ContainsBoolProcessor` | 26 | Check if string contains pattern |
-| 7 | `StringConstantDataframeProcessor` | 23 | Add constant column |
-| 8 | `AppendOnConditionProcessor` | 18 | Append to list conditionally |
-| 9 | `ImplodeProcessor` | 15 | Aggregate values into lists |
-| 10 | `ConcatProcessor` | 15 | Concatenate columns |
-| 11 | `RenameProcessor` | 13 | Rename columns |
-| 12 | `IsEmptyProcessor` | 13 | Check if column is null |
-| 13 | `ExplodeColumnsProcessor` | 13 | Unnest lists to rows |
-| 14 | `ReplaceOnConditionProcessor` | 10 | Conditional value replacement |
-| 15 | `LowerStringProcessor` | 9 | Lowercase strings |
-| 16 | `KeepOnlyProcessor` | 9 | Keep only specified columns |
-| 17 | `DropNullColumnsProcessor` | 9 | Drop all-null columns |
-| 18 | `DropColumnsProcessor` | 9 | Drop specified columns |
-| 19 | `CopyFieldDataframeProcessor` | 9 | Copy column values |
-| 20 | `ReplaceProcessor` | 8 | String replacement |
-| 21 | `MergeProcessor` | 8 | Join dataframes |
-| 22 | `FillMissingTuplesProcessor` | 8 | Fill missing struct fields |
-| 23 | `ConditionalBoolProcessor` | 8 | Set boolean from expression |
-| 24 | `CapitalizeProcessor` | 4 | Capitalize first character |
-| 25 | `AppendStringProcessor` | 4 | Append/prepend string |
-| 26 | `AddNumberProcessor` | 4 | Add value to column |
-| 27 | `SubtractNumberProcessor` | 4 | Subtract value from column |
-| 28 | `SplitStringProcessor` | 3 | Split string to list |
-| 29 | `AsTypeProcessor` | — | Cast column types |
-| 30 | `DropRowsOnConditionProcessor` | — | Filter rows by condition |
+| 6 | `ColumnsToDictsProcessor` | 27 | Combine columns into nested dicts |
+| 7 | `ContainsBoolProcessor` | 26 | Check if string contains pattern |
+| 8 | `StringConstantDataframeProcessor` | 23 | Add constant column |
+| 9 | `AppendOnConditionProcessor` | 18 | Append to list conditionally |
+| 10 | `ImplodeProcessor` | 15 | Aggregate values into lists |
+| 11 | `ConcatProcessor` | 15 | Concatenate columns |
+| 12 | `RenameProcessor` | 13 | Rename columns |
+| 13 | `IsEmptyProcessor` | 13 | Check if column is null |
+| 14 | `ExplodeColumnsProcessor` | 13 | Unnest lists to rows |
+| 15 | `ReplaceOnConditionProcessor` | 10 | Conditional value replacement |
+| 16 | `LowerStringProcessor` | 9 | Lowercase strings |
+| 17 | `KeepOnlyProcessor` | 9 | Keep only specified columns |
+| 18 | `DropNullColumnsProcessor` | 9 | Drop all-null columns |
+| 19 | `DropColumnsProcessor` | 9 | Drop specified columns |
+| 20 | `CopyFieldDataframeProcessor` | 9 | Copy column values |
+| 21 | `ReplaceProcessor` | 8 | String replacement |
+| 22 | `MergeProcessor` | 8 | Join dataframes |
+| 23 | `FillMissingTuplesProcessor` | 8 | Fill missing struct fields |
+| 24 | `ConditionalBoolProcessor` | 8 | Set boolean from expression |
+| 25 | `CapitalizeProcessor` | 4 | Capitalize first character |
+| 26 | `AppendStringProcessor` | 4 | Append/prepend string |
+| 27 | `AddNumberProcessor` | 4 | Add value to column |
+| 28 | `SubtractNumberProcessor` | 4 | Subtract value from column |
+| 29 | `SplitStringProcessor` | 3 | Split string to list |
+| 30 | `AsTypeProcessor` | — | Cast column types |
+| 31 | `DropRowsOnConditionProcessor` | — | Filter rows by condition |
 
 ---
 
@@ -1758,6 +1759,111 @@ WHERE status != 'deleted'
 
 ---
 
+## 31. ColumnsToDictsProcessor
+
+Combine multiple columns into a single column containing a list of dictionaries (nested structs). Useful for creating nested JSON output. Handles both single-value and multivalue columns.
+
+| | |
+|---|---|
+| **Honeysuckle** | [`columns_to_dicts_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/post_validation_processors/columns_to_dicts_processor.py) |
+| **Polars** | [`pl.struct()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.struct.html) wrapped in [`pl.concat_list()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.concat_list.html) |
+| **DuckDB** | [Struct literals](https://duckdb.org/docs/sql/data_types/struct#creating-structs) in list |
+
+```python
+# Honeysuckle
+ColumnsToDictsProcessor(
+    new_field="dimensions",
+    column_names=["width", "height", "depth"],
+    new_column_names=["w", "h", "d"]  # Optional rename
+)
+```
+
+### Example (single values)
+
+| width | height | depth | | | dimensions |
+|-------|--------|-------|---|---|------------|
+| 10 | 20 | 5 | → | | `[{"w": 10, "h": 20, "d": 5}]` |
+| 15 | 30 | 8 | → | | `[{"w": 15, "h": 30, "d": 8}]` |
+
+### Example (multivalue - matching length lists)
+
+| name | role | | | people |
+|------|------|---|---|--------|
+| `["Alice", "Bob"]` | `["admin", "user"]` | → | | `[{"name": "Alice", "role": "admin"}, {"name": "Bob", "role": "user"}]` |
+
+### Polars
+
+```python
+import polars as pl
+
+# Input (single values)
+df = pl.DataFrame({
+    "width": [10, 15],
+    "height": [20, 30],
+    "depth": [5, 8]
+})
+
+# Create struct and wrap in list for nested JSON output
+df = df.with_columns(
+    pl.concat_list(
+        pl.struct(
+            pl.col("width").alias("w"),
+            pl.col("height").alias("h"),
+            pl.col("depth").alias("d"),
+        )
+    ).alias("dimensions")
+).drop(["width", "height", "depth"])
+
+# For multivalue columns (lists of same length)
+df = pl.DataFrame({
+    "name": [["Alice", "Bob"]],
+    "role": [["admin", "user"]]
+})
+
+# Explode, create struct, then group back
+df = (
+    df.with_row_index("_idx")
+    .explode(["name", "role"])
+    .with_columns(
+        pl.struct(["name", "role"]).alias("person")
+    )
+    .group_by("_idx")
+    .agg(pl.col("person").alias("people"))
+    .drop("_idx")
+)
+```
+
+### DuckDB
+
+```sql
+-- Single values: create list containing one struct
+SELECT [{'w': width, 'h': height, 'd': depth}] AS dimensions
+FROM items
+
+-- With column rename
+SELECT [{'w': width, 'h': height, 'd': depth}] AS dimensions
+FROM (SELECT 10 AS width, 20 AS height, 5 AS depth)
+
+-- Multivalue: transform parallel lists into list of structs
+-- Using list comprehension with list_zip
+SELECT [
+    {'name': name, 'role': role}
+    FOR (name, role) IN list_zip(names, roles)
+] AS people
+FROM items
+
+-- Alternative using UNNEST with ORDINALITY and re-aggregation
+WITH exploded AS (
+    SELECT id, name, role, ordinality
+    FROM items, UNNEST(names, roles) WITH ORDINALITY AS t(name, role, ordinality)
+)
+SELECT id, list({'name': name, 'role': role} ORDER BY ordinality) AS people
+FROM exploded
+GROUP BY ALL
+```
+
+---
+
 ## Quick Reference
 
 | Processor | Polars | DuckDB |
@@ -1792,3 +1898,4 @@ WHERE status != 'deleted'
 | `SplitStringProcessor` | `.str.split()` | `string_split()` |
 | `AsTypeProcessor` | `.cast()` | `::TYPE` |
 | `DropRowsOnConditionProcessor` | `.filter()` | `WHERE` |
+| `ColumnsToDictsProcessor` | `pl.concat_list(pl.struct())` | `[{...} FOR ... IN list_zip()]` |
