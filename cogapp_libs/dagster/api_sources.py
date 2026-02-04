@@ -4,7 +4,6 @@ This module provides DLT resources for harvesting data from various AI APIs
 in bulk for processing, analytics, and storage.
 
 Features:
-- Claude API: Message Batches for bulk LLM processing
 - Voyage AI: Batch embeddings for large text collections
 - Automatic retry logic and rate limiting
 - Progress tracking and error handling
@@ -13,17 +12,12 @@ Features:
 Example:
     ```python
     import dlt
-    from cogapp_libs.dagster.api_sources import claude_message_batches
+    from cogapp_libs.dagster.api_sources import voyage_embeddings_batch
 
     @dlt.source
     def my_source():
-        # Process 1000 prompts with Claude
-        prompts = [{"text": f"Analyze: {i}"} for i in range(1000)]
-        return claude_message_batches(
-            prompts=prompts,
-            model="claude-3-5-sonnet-20241022",
-            max_tokens=1024,
-        )
+        texts = [f"Analyze: {i}" for i in range(1000)]
+        return voyage_embeddings_batch(texts=texts, model="voyage-3")
     ```
 """
 
@@ -34,203 +28,6 @@ import time
 from typing import Any, Iterator
 
 import dlt
-
-
-@dlt.resource(
-    name="claude_messages",
-    write_disposition="append",
-    columns={
-        "batch_id": {"data_type": "text"},
-        "custom_id": {"data_type": "text"},
-        "prompt": {"data_type": "text"},
-        "response": {"data_type": "text"},
-        "model": {"data_type": "text"},
-        "input_tokens": {"data_type": "bigint"},
-        "output_tokens": {"data_type": "bigint"},
-        "created_at": {"data_type": "timestamp"},
-        "processing_time_ms": {"data_type": "double"},
-        "success": {"data_type": "bool"},
-        "error": {"data_type": "text"},
-    },
-)
-def claude_message_batches(
-    prompts: list[dict[str, Any]],
-    model: str = "claude-3-5-sonnet-20241022",
-    max_tokens: int = 1024,
-    api_key: str | None = None,
-    system_prompt: str | None = None,
-    temperature: float = 1.0,
-) -> Iterator[dict[str, Any]]:
-    """Harvest bulk Claude API responses using Message Batches API.
-
-    Processes large batches of prompts using Claude's Message Batches API for
-    cost-effective bulk processing. Results are yielded as they complete.
-
-    Args:
-        prompts: List of prompt dicts with keys:
-            - text (required): The prompt text
-            - custom_id (optional): Custom identifier for this prompt
-            - system (optional): System prompt override
-            - max_tokens (optional): Max tokens override
-        model: Claude model to use (default: claude-3-5-sonnet-20241022)
-        max_tokens: Maximum tokens in response (default: 1024)
-        api_key: Anthropic API key (defaults to ANTHROPIC_API_KEY env var)
-        system_prompt: Default system prompt for all messages
-        temperature: Sampling temperature (0.0-1.0)
-
-    Yields:
-        Dict with keys: batch_id, custom_id, prompt, response, model,
-        input_tokens, output_tokens, created_at, processing_time_ms,
-        success, error
-
-    Environment Variables:
-        ANTHROPIC_API_KEY: Anthropic API key (required if not passed)
-
-    Example:
-        ```python
-        prompts = [
-            {"text": "What is 2+2?", "custom_id": "math_1"},
-            {"text": "What is the capital of France?", "custom_id": "geo_1"},
-        ]
-        yield from claude_message_batches(
-            prompts=prompts,
-            model="claude-3-5-haiku-20241022",  # Cost-effective for simple tasks
-            max_tokens=100,
-        )
-        ```
-
-    Notes:
-        - Message Batches API is more cost-effective (50% discount)
-        - Results may take minutes to hours depending on batch size
-        - Polls for completion every 60 seconds
-        - Automatically retries on rate limits
-    """
-    try:
-        from anthropic import Anthropic
-    except ImportError:
-        raise ImportError("anthropic package not found. Install with: pip install anthropic")
-
-    api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise ValueError(
-            "Anthropic API key required. Set ANTHROPIC_API_KEY environment variable "
-            "or pass api_key parameter."
-        )
-
-    client = Anthropic(api_key=api_key)
-
-    # Build batch requests
-    batch_requests = []
-    for idx, prompt_data in enumerate(prompts):
-        custom_id = prompt_data.get("custom_id", f"request_{idx}")
-        prompt_text = prompt_data["text"]
-        msg_system = prompt_data.get("system", system_prompt)
-        msg_max_tokens = prompt_data.get("max_tokens", max_tokens)
-
-        # Build message request
-        request = {
-            "custom_id": custom_id,
-            "params": {
-                "model": model,
-                "max_tokens": msg_max_tokens,
-                "messages": [{"role": "user", "content": prompt_text}],
-            },
-        }
-
-        if msg_system:
-            request["params"]["system"] = msg_system
-
-        if temperature != 1.0:
-            request["params"]["temperature"] = temperature
-
-        batch_requests.append(request)
-
-    # Create message batch
-    print(f"Creating message batch with {len(batch_requests)} requests...")
-    message_batch = client.messages.batches.create(requests=batch_requests)
-    batch_id = message_batch.id
-
-    print(f"Batch {batch_id} created. Polling for completion...")
-
-    # Poll for completion
-    while True:
-        batch = client.messages.batches.retrieve(batch_id)
-
-        # Check status
-        if batch.processing_status == "ended":
-            print(f"Batch {batch_id} completed!")
-            break
-        elif batch.processing_status in ["canceling", "canceled"]:
-            print(f"Batch {batch_id} was canceled.")
-            return
-        elif batch.processing_status == "failed":
-            print(f"Batch {batch_id} failed: {batch}")
-            return
-
-        # Still processing
-        print(
-            f"Batch {batch_id} status: {batch.processing_status} "
-            f"(processed: {batch.request_counts.processing}/{batch.request_counts.total})"
-        )
-        time.sleep(60)  # Poll every 60 seconds
-
-    # Retrieve results
-    print(f"Retrieving results for batch {batch_id}...")
-
-    results_response = client.messages.batches.results(batch_id)
-
-    # Stream results as JSONL
-    for result_line in results_response.text.strip().split("\n"):
-        if not result_line:
-            continue
-
-        import json
-
-        result = json.loads(result_line)
-
-        # Extract data
-        custom_id = result["custom_id"]
-        result_type = result["result"]["type"]
-
-        # Find original prompt
-        original_prompt = next(
-            (p["text"] for p in prompts if p.get("custom_id", "") == custom_id),
-            None,
-        )
-
-        if result_type == "succeeded":
-            message = result["result"]["message"]
-            response_text = message["content"][0]["text"]
-
-            yield {
-                "batch_id": batch_id,
-                "custom_id": custom_id,
-                "prompt": original_prompt,
-                "response": response_text,
-                "model": message["model"],
-                "input_tokens": message["usage"]["input_tokens"],
-                "output_tokens": message["usage"]["output_tokens"],
-                "created_at": message.get("created_at"),
-                "processing_time_ms": None,  # Not provided by API
-                "success": True,
-                "error": None,
-            }
-        else:
-            # Error
-            error = result["result"].get("error", {})
-            yield {
-                "batch_id": batch_id,
-                "custom_id": custom_id,
-                "prompt": original_prompt,
-                "response": None,
-                "model": model,
-                "input_tokens": 0,
-                "output_tokens": 0,
-                "created_at": None,
-                "processing_time_ms": None,
-                "success": False,
-                "error": error.get("message", "Unknown error"),
-            }
 
 
 @dlt.resource(
@@ -385,6 +182,5 @@ def voyage_embeddings_batch(
 
 
 __all__ = [
-    "claude_message_batches",
     "voyage_embeddings_batch",
 ]

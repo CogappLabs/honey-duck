@@ -497,45 +497,6 @@ pipeline = create_duckdb_pipeline(
 
 ## API Sources
 
-### `claude_message_batches()`
-
-DLT resource for bulk Claude API processing (50% cost reduction).
-
-```python
-from cogapp_libs.dagster import claude_message_batches
-import dlt
-
-@dlt.source
-def analyze_documents():
-    prompts = [
-        {"text": "Summarize: doc1...", "custom_id": "doc_1"},
-        {"text": "Summarize: doc2...", "custom_id": "doc_2"},
-    ]
-
-    return claude_message_batches(
-        prompts=prompts,
-        model="claude-3-5-sonnet-20241022",
-        max_tokens=1024,
-    )
-```
-
-**Parameters**:
-- `prompts` (list[dict]): Prompt dicts with 'text' and optional 'custom_id'
-- `model` (str): Claude model name
-- `max_tokens` (int): Max response tokens
-- `api_key` (str | None): API key (defaults to ANTHROPIC_API_KEY env var)
-- `system_prompt` (str | None): Default system prompt
-- `temperature` (float): Sampling temperature (0.0-1.0)
-
-**Yields**: Dicts with keys:
-- `batch_id`, `custom_id`, `prompt`, `response`
-- `model`, `input_tokens`, `output_tokens`
-- `created_at`, `success`, `error`
-
-**See**: [API Bulk Harvesting Guide](API_BULK_HARVESTING.md)
-
----
-
 ### `voyage_embeddings_batch()`
 
 DLT resource for bulk embedding generation with Voyage AI.
@@ -810,9 +771,6 @@ def complete_example(context: dg.AssetExecutionContext) -> pl.DataFrame:
 ### Required for API Sources
 
 ```bash
-# Claude API
-export ANTHROPIC_API_KEY="sk-ant-..."
-
 # Voyage AI
 export VOYAGE_API_KEY="pa-..."
 

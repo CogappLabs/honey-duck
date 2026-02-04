@@ -101,7 +101,6 @@ try:
     import dlt as _dlt  # noqa: F401
 
     from cogapp_libs.dagster.api_sources import (
-        claude_message_batches,
         voyage_embeddings_batch,
     )
     from cogapp_libs.dagster.dlt_helpers import (
@@ -116,7 +115,6 @@ except ImportError:
     create_duckdb_pipeline = None  # type: ignore[assignment]
     create_parquet_pipeline = None  # type: ignore[assignment]
     setup_harvest_parquet_views = None  # type: ignore[assignment]
-    claude_message_batches = None  # type: ignore[assignment]
     voyage_embeddings_batch = None  # type: ignore[assignment]
 
 __all__ = [
@@ -182,7 +180,6 @@ __all__ = [
     "create_duckdb_pipeline",
     "setup_harvest_parquet_views",
     # API sources (optional, requires dlt)
-    "claude_message_batches",
     "voyage_embeddings_batch",
     # XML parsing
     "parse_xml_file",

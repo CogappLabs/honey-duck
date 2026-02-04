@@ -107,7 +107,7 @@ def sales_pipeline_multi(
             pl.col("year").alias("artwork_year"),
             "medium",
             pl.col("price_usd").alias("list_price_usd"),
-            pl.col("name").alias("artist_name"),
+            pl.col("name").str.strip_chars().str.to_uppercase().alias("artist_name"),
             "nationality",
         )
         .collect()
@@ -215,7 +215,7 @@ def artworks_pipeline_multi(
             "year",
             "medium",
             pl.col("price_usd").alias("list_price_usd"),
-            pl.col("name").alias("artist_name"),
+            pl.col("name").str.strip_chars().str.to_uppercase().alias("artist_name"),
             "nationality",
         )
         .collect()
