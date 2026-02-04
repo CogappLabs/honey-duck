@@ -70,7 +70,7 @@ Fill empty values with values from a different column or a constant.
 
 | | |
 |---|---|
-| **Honeysuckle** | [`fill_empty_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/processors/fill_empty_processor.py) |
+| **Honeysuckle** | [`fill_empty_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/FillEmptyProcessor.py) |
 | **Polars** | [`fill_null()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.fill_null.html) |
 | **DuckDB** | [`coalesce()`](https://duckdb.org/docs/sql/functions/utility#coalesce) / [`ifnull()`](https://duckdb.org/docs/sql/functions/utility#ifnullexpr-other) |
 
@@ -123,7 +123,7 @@ Remove null values from list/array columns.
 
 | | |
 |---|---|
-| **Honeysuckle** | [`remove_multivalue_nulls_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/processors/remove_multivalue_nulls_processor.py) |
+| **Honeysuckle** | [`remove_multivalue_nulls_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/RemoveMultivalueNullsProcessor.py) |
 | **Polars** | [`list.eval()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.list.eval.html) with [`drop_nulls()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.drop_nulls.html), [`list.len()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.list.len.html) |
 | **DuckDB** | [`list_filter()`](https://duckdb.org/docs/sql/functions/list#list_filterlist-lambda) with lambda, [`nullif()`](https://duckdb.org/docs/sql/functions/utility#nullifexpr-value-to-null) |
 
@@ -170,7 +170,7 @@ Strip whitespace (or specific characters) from strings.
 
 | | |
 |---|---|
-| **Honeysuckle** | [`strip_string_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/processors/strip_string_processor.py) |
+| **Honeysuckle** | [`strip_string_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/StripStringProcessor.py) |
 | **Polars** | [`str.strip_chars()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.str.strip_chars.html) |
 | **DuckDB** | [`.trim()`](https://duckdb.org/docs/sql/functions/text#trimstring-characters) (dot notation) |
 
@@ -229,7 +229,7 @@ Extract first value from multivalue column.
 
 | | |
 |---|---|
-| **Honeysuckle** | [`extract_first_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/processors/extract_first_processor.py) |
+| **Honeysuckle** | [`extract_first_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/ExtractFirstProcessor.py) |
 | **Polars** | [`list.first()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.list.first.html) |
 | **DuckDB** | [`list[1]`](https://duckdb.org/docs/sql/functions/list#listindex) (1-indexed) or [`list_extract()`](https://duckdb.org/docs/sql/functions/list#list_extractlist-index) |
 
@@ -271,7 +271,7 @@ Extract value from one column to another based on a condition.
 
 | | |
 |---|---|
-| **Honeysuckle** | [`extract_on_condition_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/processors/extract_on_condition_processor.py) |
+| **Honeysuckle** | [`extract_on_condition_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/ExtractOnConditionProcessor.py) |
 | **Polars** | [`when().then().otherwise()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.when.html) |
 | **DuckDB** | [`CASE WHEN`](https://duckdb.org/docs/sql/expressions/case) or [`if()`](https://duckdb.org/docs/sql/functions/utility#ifcond-a-b) |
 
@@ -334,7 +334,7 @@ Check if a string contains a pattern and set boolean result.
 
 | | |
 |---|---|
-| **Honeysuckle** | [`contains_bool_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/processors/contains_bool_processor.py) |
+| **Honeysuckle** | [`contains_bool_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/ContainsBoolProcessor.py) |
 | **Polars** | [`str.contains()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.str.contains.html) |
 | **DuckDB** | [`.contains()`](https://duckdb.org/docs/sql/functions/text#containsstring-search_string) (dot notation) or [`LIKE`/`ILIKE`](https://duckdb.org/docs/sql/functions/pattern_matching) |
 
@@ -386,7 +386,7 @@ Add a column with a constant string value.
 
 | | |
 |---|---|
-| **Honeysuckle** | [`string_constant_dataframe_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/processors/string_constant_dataframe_processor.py) |
+| **Honeysuckle** | [`string_constant_dataframe_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/StringConstantDataframeProcessor.py) |
 | **Polars** | [`pl.lit()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.lit.html) |
 | **DuckDB** | Literal value in SELECT |
 
@@ -440,7 +440,7 @@ Append columns to a list/tuple based on a condition (uses pandas query syntax).
 
 | | |
 |---|---|
-| **Honeysuckle** | [`append_on_condition_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/processors/append_on_condition_processor.py) |
+| **Honeysuckle** | [`append_on_condition_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/AppendOnConditionProcessor.py) |
 | **Polars** | [`when().then()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.when.html) with [`list.concat()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.list.concat.html), [`concat_list()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.concat_list.html) |
 | **DuckDB** | [`list_concat()`](https://duckdb.org/docs/sql/functions/list#list_concatlist1-list2) with `CASE WHEN` |
 
@@ -482,7 +482,7 @@ Aggregate values into a list during group by.
 
 | | |
 |---|---|
-| **Honeysuckle** | [`implode_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/processors/implode_processor.py) |
+| **Honeysuckle** | [`implode_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/ImplodeProcessor.py) |
 | **Polars** | Automatic in [`group_by().agg()`](https://docs.pola.rs/api/python/stable/reference/dataframe/api/polars.DataFrame.group_by.html) |
 | **DuckDB** | [`list()`](https://duckdb.org/docs/sql/functions/aggregates#listarg) with `GROUP BY ALL` |
 
@@ -533,7 +533,7 @@ Concatenate multiple columns into a single string.
 
 | | |
 |---|---|
-| **Honeysuckle** | [`concat_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/processors/concat_processor.py) |
+| **Honeysuckle** | [`concat_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/ConcatProcessor.py) |
 | **Polars** | [`pl.concat_str()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.concat_str.html) |
 | **DuckDB** | [`concat()`](https://duckdb.org/docs/sql/functions/text#concatstring-) or `||` operator |
 
@@ -589,7 +589,7 @@ Rename columns in a dataframe.
 
 | | |
 |---|---|
-| **Honeysuckle** | [`rename_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/processors/rename_processor.py) |
+| **Honeysuckle** | [`rename_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/RenameProcessor.py) |
 | **Polars** | [`rename()`](https://docs.pola.rs/api/python/stable/reference/dataframe/api/polars.DataFrame.rename.html) |
 | **DuckDB** | `AS` in SELECT |
 
@@ -629,7 +629,7 @@ Check if column values are null and set boolean result.
 
 | | |
 |---|---|
-| **Honeysuckle** | [`is_empty_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/processors/is_empty_processor.py) |
+| **Honeysuckle** | [`is_empty_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/IsEmptyProcessor.py) |
 | **Polars** | [`is_null()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.is_null.html) / [`is_not_null()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.is_not_null.html) |
 | **DuckDB** | `IS NULL` / `IS NOT NULL` |
 
@@ -669,7 +669,7 @@ Unnest/explode list columns into separate rows.
 
 | | |
 |---|---|
-| **Honeysuckle** | [`explode_columns_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/processors/explode_columns_processor.py) |
+| **Honeysuckle** | [`explode_columns_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/ExplodeColumnsProcessor.py) |
 | **Polars** | [`explode()`](https://docs.pola.rs/api/python/stable/reference/dataframe/api/polars.DataFrame.explode.html) |
 | **DuckDB** | [`unnest()`](https://duckdb.org/docs/sql/functions/list#unnestlist) |
 
@@ -715,7 +715,7 @@ Replace values based on a condition (==, !=, <, >, <=, >=).
 
 | | |
 |---|---|
-| **Honeysuckle** | [`replace_on_condition_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/processors/replace_on_condition_processor.py) |
+| **Honeysuckle** | [`replace_on_condition_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/ReplaceOnConditionProcessor.py) |
 | **Polars** | [`when().then().otherwise()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.when.html) |
 | **DuckDB** | [`CASE WHEN`](https://duckdb.org/docs/sql/expressions/case) / [`greatest()`](https://duckdb.org/docs/sql/functions/utility#greatestx1-x2-) / [`least()`](https://duckdb.org/docs/sql/functions/utility#leastx1-x2-) |
 
@@ -773,7 +773,7 @@ Convert strings to lowercase.
 
 | | |
 |---|---|
-| **Honeysuckle** | [`lower_string_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/processors/lower_string_processor.py) |
+| **Honeysuckle** | [`lower_string_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/LowerStringProcessor.py) |
 | **Polars** | [`str.to_lowercase()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.str.to_lowercase.html) |
 | **DuckDB** | [`.lower()`](https://duckdb.org/docs/sql/functions/text#lowerstring) (dot notation) |
 
@@ -813,7 +813,7 @@ Keep only specified columns, drop all others.
 
 | | |
 |---|---|
-| **Honeysuckle** | [`keep_only_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/processors/keep_only_processor.py) |
+| **Honeysuckle** | [`keep_only_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/KeepOnlyProcessor.py) |
 | **Polars** | [`select()`](https://docs.pola.rs/api/python/stable/reference/dataframe/api/polars.DataFrame.select.html) |
 | **DuckDB** | Column list in SELECT |
 
@@ -853,7 +853,7 @@ Drop columns where ALL values are null.
 
 | | |
 |---|---|
-| **Honeysuckle** | [`drop_null_columns_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/processors/drop_null_columns_processor.py) |
+| **Honeysuckle** | [`drop_null_columns_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/DropNullColumnsProcessor.py) |
 | **Polars** | Filter columns using [`all()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.all.html) |
 | **DuckDB** | Dynamic SQL (columns with all nulls) |
 
@@ -890,7 +890,7 @@ Drop specified columns from the dataframe.
 
 | | |
 |---|---|
-| **Honeysuckle** | [`drop_columns_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/processors/drop_columns_processor.py) |
+| **Honeysuckle** | [`drop_columns_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/DropColumnsProcessor.py) |
 | **Polars** | [`drop()`](https://docs.pola.rs/api/python/stable/reference/dataframe/api/polars.DataFrame.drop.html) |
 | **DuckDB** | [`EXCLUDE`](https://duckdb.org/docs/sql/expressions/star#exclude-clause) |
 
@@ -935,7 +935,7 @@ Copy values from one column to another (create new column).
 
 | | |
 |---|---|
-| **Honeysuckle** | [`copy_field_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/processors/copy_field_processor.py) |
+| **Honeysuckle** | [`copy_field_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/CopyFieldProcessor.py) |
 | **Polars** | [`alias()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.alias.html) |
 | **DuckDB** | `SELECT col AS new_col` |
 
@@ -983,7 +983,7 @@ Replace exact values in a column.
 
 | | |
 |---|---|
-| **Honeysuckle** | [`replace_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/processors/replace_processor.py) |
+| **Honeysuckle** | [`replace_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/ReplaceProcessor.py) |
 | **Polars** | [`when().then().otherwise()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.when.html) for exact value replacement |
 | **DuckDB** | `CASE WHEN` for exact value replacement |
 
@@ -1036,7 +1036,7 @@ Join/merge two dataframes together.
 
 | | |
 |---|---|
-| **Honeysuckle** | [`merge_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/processors/merge_processor.py) |
+| **Honeysuckle** | [`merge_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/MergeProcessor.py) |
 | **Polars** | [`join()`](https://docs.pola.rs/api/python/stable/reference/dataframe/api/polars.DataFrame.join.html) |
 | **DuckDB** | [`JOIN`](https://duckdb.org/docs/sql/query_syntax/from#joins) |
 
@@ -1113,7 +1113,7 @@ Fill missing tuple/list values in multiple columns by inserting nulls to match t
 
 | | |
 |---|---|
-| **Honeysuckle** | [`fill_missing_tuples_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/processors/fill_missing_tuples_processor.py) |
+| **Honeysuckle** | [`fill_missing_tuples_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/FillMissingTuplesProcessor.py) |
 | **Polars** | [`struct.field()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.struct.field.html) with [`fill_null()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.fill_null.html) |
 | **DuckDB** | [Struct access](https://duckdb.org/docs/sql/data_types/struct#retrieving-from-structs) with `coalesce()` |
 
@@ -1158,7 +1158,7 @@ Evaluate a pandas query expression and set boolean result.
 
 | | |
 |---|---|
-| **Honeysuckle** | [`conditional_bool_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/processors/conditional_bool_processor.py) |
+| **Honeysuckle** | [`conditional_bool_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/ConditionalBoolProcessor.py) |
 | **Polars** | Boolean expressions |
 | **DuckDB** | Boolean expressions |
 
@@ -1211,7 +1211,7 @@ Capitalize the first character of strings.
 
 | | |
 |---|---|
-| **Honeysuckle** | [`capitalize_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/processors/capitalize_processor.py) |
+| **Honeysuckle** | [`capitalize_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/CapitalizeProcessor.py) |
 | **Polars** | [`str.head()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.str.head.html) + [`str.to_uppercase()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.str.to_uppercase.html), or [`str.to_titlecase()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.str.to_titlecase.html) |
 | **DuckDB** | [`initcap()`](https://duckdb.org/docs/sql/functions/text#initcapstring) |
 
@@ -1265,7 +1265,7 @@ Append or prepend a string to column values.
 
 | | |
 |---|---|
-| **Honeysuckle** | [`append_string_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/processors/append_string_processor.py) |
+| **Honeysuckle** | [`append_string_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/AppendStringProcessor.py) |
 | **Polars** | [`+` operator](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.__add__.html) or [`pl.concat_str()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.concat_str.html) |
 | **DuckDB** | `||` operator or [`concat()`](https://duckdb.org/docs/sql/functions/text#concatstring-) |
 
@@ -1316,7 +1316,7 @@ Add a numeric value to column values.
 
 | | |
 |---|---|
-| **Honeysuckle** | [`add_number_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/processors/add_number_processor.py) |
+| **Honeysuckle** | [`add_number_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/AddNumberProcessor.py) |
 | **Polars** | [`+` operator](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.__add__.html) |
 | **DuckDB** | `+` operator |
 
@@ -1363,7 +1363,7 @@ Subtract a numeric value from column values.
 
 | | |
 |---|---|
-| **Honeysuckle** | [`subtract_number_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/processors/subtract_number_processor.py) |
+| **Honeysuckle** | [`subtract_number_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/SubtractNumberProcessor.py) |
 | **Polars** | [`-` operator](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.__sub__.html) |
 | **DuckDB** | `-` operator |
 
@@ -1410,7 +1410,7 @@ Split string into a list based on delimiter.
 
 | | |
 |---|---|
-| **Honeysuckle** | [`split_string_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/processors/split_string_processor.py) |
+| **Honeysuckle** | [`split_string_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/SplitStringProcessor.py) |
 | **Polars** | [`str.split()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.str.split.html) |
 | **DuckDB** | [`string_split()`](https://duckdb.org/docs/sql/functions/text#string_splitstring-separator) |
 
@@ -1457,7 +1457,7 @@ Cast column to a different data type.
 
 | | |
 |---|---|
-| **Honeysuckle** | [`as_type_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/processors/as_type_processor.py) |
+| **Honeysuckle** | [`as_type_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/AsTypeProcessor.py) |
 | **Polars** | [`cast()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.cast.html) |
 | **DuckDB** | [`::TYPE`](https://duckdb.org/docs/sql/expressions/cast) or [`CAST()`](https://duckdb.org/docs/sql/expressions/cast) |
 
@@ -1501,7 +1501,7 @@ Filter/drop rows based on a condition.
 
 | | |
 |---|---|
-| **Honeysuckle** | [`drop_rows_on_condition_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/processors/drop_rows_on_condition_processor.py) |
+| **Honeysuckle** | [`drop_rows_on_condition_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/DropRowsOnConditionProcessor.py) |
 | **Polars** | [`filter()`](https://docs.pola.rs/api/python/stable/reference/dataframe/api/polars.DataFrame.filter.html) |
 | **DuckDB** | [`WHERE`](https://duckdb.org/docs/sql/query_syntax/where) clause |
 
@@ -1538,7 +1538,7 @@ Combine multiple columns into a single column containing a list of dictionaries 
 
 | | |
 |---|---|
-| **Honeysuckle** | [`columns_to_dicts_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/post_validation_processors/columns_to_dicts_processor.py) |
+| **Honeysuckle** | [`columns_to_dicts_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/ColumnsToDictsProcessor.py) |
 | **Polars** | [`pl.struct()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.struct.html) wrapped in [`pl.concat_list()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.concat_list.html) |
 | **DuckDB** | [Struct literals](https://duckdb.org/docs/sql/data_types/struct#creating-structs) in list |
 
