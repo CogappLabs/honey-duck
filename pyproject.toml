@@ -90,7 +90,7 @@ code_location_target_module = "honey_duck.defs.definitions"
 dev = [
     "pytest>=8.0",
     "ruff",
-    "ty>=0.0.14",
+    "ty==0.0.14",
     "lefthook",
 ]
 docs = [
