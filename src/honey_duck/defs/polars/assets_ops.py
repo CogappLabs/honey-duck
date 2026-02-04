@@ -260,7 +260,7 @@ def prepare_media_data(context: dg.OpExecutionContext) -> pl.DataFrame:
         )
     )
 
-    result = primary_media.join(all_media, on="artwork_id", how="outer").collect()
+    result = primary_media.join(all_media, on="artwork_id", how="full").collect()
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
     context.log.info(

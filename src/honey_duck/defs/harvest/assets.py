@@ -17,6 +17,7 @@ from cogapp_libs.dagster.lineage import add_lineage_examples_to_dlt_results
 
 if TYPE_CHECKING:
     from dlt.extract.resource import DltResource
+    from dagster_dlt import DltResourceTranslatorData
 
 from ..shared.resources import DatabaseResource, PathsResource
 from .sources import create_harvest_pipeline, create_honey_duck_source
@@ -25,8 +26,15 @@ from .sources import create_harvest_pipeline, create_honey_duck_source
 class HoneyDuckDltTranslator(DagsterDltTranslator):
     """Map dlt resources to Dagster asset keys."""
 
-    def get_asset_key(self, resource: "DltResource") -> dg.AssetKey:
-        return dg.AssetKey(f"dlt_harvest_{resource.name}")
+    def get_asset_key(self, resource: "DltResource | DltResourceTranslatorData") -> dg.AssetKey:
+        resource_name = getattr(resource, "name", None)
+        if resource_name is None and hasattr(resource, "resource"):
+            resource_name = getattr(resource.resource, "name", None)
+        return dg.AssetKey(f"dlt_harvest_{resource_name}")
+
+    def get_asset_spec(self, data: "DltResourceTranslatorData") -> dg.AssetSpec:
+        key = self.get_asset_key(data)
+        return dg.AssetSpec(key=key, kinds={"dlt", "parquet"}, group_name="harvest")
 
 
 HARVEST_ASSET_SPECS = [

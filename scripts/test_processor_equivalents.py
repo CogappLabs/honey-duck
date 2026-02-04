@@ -170,7 +170,7 @@ else:
 
 
 @dataclass
-class TestResult:
+class ProcessorTestResult:
     """Result of a single processor test."""
 
     name: str
@@ -1166,7 +1166,7 @@ def run_test(
     honeysuckle_fn: Callable[[pd.DataFrame], pd.DataFrame] | None = None,
     extra_data: dict[str, dict] | None = None,
     verbose: bool = False,
-) -> TestResult:
+) -> ProcessorTestResult:
     """Run a single processor test."""
     try:
         # Prepare data
@@ -1200,7 +1200,7 @@ def run_test(
             if honeysuckle_result is not None:
                 print(f"\nHoneysuckle output:\n{honeysuckle_result}")
 
-        return TestResult(
+        return ProcessorTestResult(
             name=name,
             passed=True,
             polars_output=polars_result,
@@ -1209,7 +1209,7 @@ def run_test(
         )
 
     except Exception as e:
-        return TestResult(name=name, passed=False, error=str(e))
+        return ProcessorTestResult(name=name, passed=False, error=str(e))
 
 
 def get_all_tests() -> list[tuple[str, dict, Callable, Callable, Callable | None, dict | None]]:
