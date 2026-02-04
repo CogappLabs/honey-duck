@@ -153,9 +153,38 @@ checks:
 Here's the full DuckDB+Soda pipeline pattern used in honey-duck:
 
 ```python
+import time
 import dagster as dg
 from dagster_duckdb import DuckDBResource
-from cogapp_libs.dagster.lineage import get_example_row
+from cogapp_libs.dagster.lineage import (
+    build_lineage,
+    collect_parquet_metadata,
+    register_harvest_views,
+)
+
+# Define column lineage using the DSL
+SALES_RAW = dg.AssetKey("dlt_harvest_sales_raw")
+ARTWORKS_RAW = dg.AssetKey("dlt_harvest_artworks_raw")
+
+SALES_TRANSFORM_LINEAGE = build_lineage(
+    passthrough={
+        "sale_id": SALES_RAW,
+        "artwork_id": SALES_RAW,
+        "title": ARTWORKS_RAW,
+    },
+    rename={
+        "artwork_year": (ARTWORKS_RAW, "year"),
+        "list_price_usd": (ARTWORKS_RAW, "price_usd"),
+    },
+    computed={
+        "price_diff": [(SALES_RAW, "sale_price_usd"), (ARTWORKS_RAW, "price_usd")],
+    },
+)
+
+STATS_SQL = """
+SELECT count(*) AS record_count, sum(sale_price_usd) AS total_value
+FROM '{path}'
+"""
 
 @dg.asset(
     kinds={"duckdb", "sql", "soda"},
@@ -169,23 +198,24 @@ def sales_transform_soda(
     paths: PathsResource,
 ) -> str:
     """Transform sales data with column lineage."""
+    start = time.perf_counter()
     output_path = Path(paths.transforms_dir) / "sales.parquet"
 
     with duckdb.get_connection() as conn:
-        # Register source views
-        conn.execute(f"CREATE VIEW sales AS SELECT * FROM '{paths.harvest_dir}/raw/sales/**/*.parquet'")
+        # Register source views (single line replaces manual CREATE VIEW statements)
+        register_harvest_views(conn, paths.harvest_dir, ["sales", "artworks", "artists"])
 
         # Transform and write directly to parquet
         conn.sql(TRANSFORM_SQL).write_parquet(str(output_path), compression="zstd")
 
-        # Get example row for lineage display
-        examples = get_example_row(conn, str(output_path), "sale_id", 2)
-
-    context.add_output_metadata({
-        "dagster/column_lineage": _sales_lineage(),
-        "lineage_examples": examples,
-        "record_count": row_count,
-    })
+        # Collect all metadata in one call
+        collect_parquet_metadata(
+            context, conn, str(output_path),
+            lineage=SALES_TRANSFORM_LINEAGE,
+            stats_sql=STATS_SQL.format(path=output_path),
+            example_id=("sale_id", 2),
+            elapsed_ms=(time.perf_counter() - start) * 1000,
+        )
 
     return str(output_path)  # Return path, not DataFrame
 ```
@@ -212,26 +242,40 @@ Benefits:
 
 ## Column Lineage
 
-The pipeline tracks column-level data flow:
+The pipeline tracks column-level data flow using the lineage DSL helpers:
 
 ```python
-from dagster import TableColumnLineage, TableColumnDep
+from cogapp_libs.dagster.lineage import build_lineage, passthrough_lineage
+import dagster as dg
 
-def _sales_lineage():
-    return TableColumnLineage(
-        deps_by_column={
-            # Direct pass-through
-            "sale_id": [TableColumnDep("dlt_harvest_sales_raw", "sale_id")],
-            # Computed columns
-            "price_diff": [
-                TableColumnDep("dlt_harvest_sales_raw", "sale_price_usd"),
-                TableColumnDep("dlt_harvest_artworks_raw", "price_usd"),
-            ],
-            # Joined columns
-            "artist_name": [TableColumnDep("dlt_harvest_artists_raw", "name")],
-        }
-    )
+SALES_RAW = dg.AssetKey("dlt_harvest_sales_raw")
+ARTWORKS_RAW = dg.AssetKey("dlt_harvest_artworks_raw")
+ARTISTS_RAW = dg.AssetKey("dlt_harvest_artists_raw")
+SALES_TRANSFORM = dg.AssetKey("sales_transform_soda")
+
+# Transform asset: joins multiple sources
+SALES_TRANSFORM_LINEAGE = build_lineage(
+    passthrough={
+        "sale_id": SALES_RAW,
+        "title": ARTWORKS_RAW,
+    },
+    rename={
+        "artist_name": (ARTISTS_RAW, "name"),
+    },
+    computed={
+        "price_diff": [(SALES_RAW, "sale_price_usd"), (ARTWORKS_RAW, "price_usd")],
+    },
+)
+
+# Output asset: columns pass through from single source
+SALES_OUTPUT_LINEAGE = passthrough_lineage(
+    source=SALES_TRANSFORM,
+    columns=["sale_id", "title", "artist_name", "pct_change"],
+    renames={"price_difference": "price_diff"},  # output_col: source_col
+)
 ```
+
+The DSL is more compact than manual `TableColumnLineage` construction and groups columns by their lineage type (passthrough, rename, computed).
 
 ### Example Values
 

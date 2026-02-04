@@ -17,7 +17,13 @@ from pathlib import Path
 import dagster as dg
 from dagster_duckdb import DuckDBResource
 
-from cogapp_libs.dagster.lineage import get_example_row
+from cogapp_libs.dagster.lineage import (
+    build_lineage,
+    collect_json_output_metadata,
+    collect_parquet_metadata,
+    passthrough_lineage,
+    register_harvest_views,
+)
 
 from ..shared.constants import (
     MIN_SALE_VALUE_USD,
@@ -38,71 +44,69 @@ MEDIA_RAW = dg.AssetKey("dlt_harvest_media")
 SALES_TRANSFORM = dg.AssetKey("sales_transform_soda")
 ARTWORKS_TRANSFORM = dg.AssetKey("artworks_transform_soda")
 
-
-def _dep(asset_key, col):
-    """Shorthand for TableColumnDep."""
-    return dg.TableColumnDep(asset_key=asset_key, column_name=col)
-
-
 # -----------------------------------------------------------------------------
-# Column Lineage Definitions
+# Column Lineage Definitions (using DSL helpers)
 # -----------------------------------------------------------------------------
 
+SALES_TRANSFORM_LINEAGE = build_lineage(
+    passthrough={
+        "sale_id": SALES_RAW,
+        "artwork_id": SALES_RAW,
+        "sale_date": SALES_RAW,
+        "sale_price_usd": SALES_RAW,
+        "buyer_country": SALES_RAW,
+        "title": ARTWORKS_RAW,
+        "artist_id": ARTWORKS_RAW,
+        "medium": ARTWORKS_RAW,
+        "artist_name": ARTISTS_RAW,
+        "nationality": ARTISTS_RAW,
+    },
+    rename={
+        "artwork_year": (ARTWORKS_RAW, "year"),
+        "list_price_usd": (ARTWORKS_RAW, "price_usd"),
+    },
+    computed={
+        "price_diff": [(SALES_RAW, "sale_price_usd"), (ARTWORKS_RAW, "price_usd")],
+        "pct_change": [(SALES_RAW, "sale_price_usd"), (ARTWORKS_RAW, "price_usd")],
+    },
+)
 
-def _sales_transform_lineage():
-    return dg.TableColumnLineage(
-        deps_by_column={
-            "sale_id": [_dep(SALES_RAW, "sale_id")],
-            "artwork_id": [_dep(SALES_RAW, "artwork_id")],
-            "sale_date": [_dep(SALES_RAW, "sale_date")],
-            "sale_price_usd": [_dep(SALES_RAW, "sale_price_usd")],
-            "buyer_country": [_dep(SALES_RAW, "buyer_country")],
-            "title": [_dep(ARTWORKS_RAW, "title")],
-            "artist_id": [_dep(ARTWORKS_RAW, "artist_id")],
-            "artwork_year": [_dep(ARTWORKS_RAW, "year")],
-            "medium": [_dep(ARTWORKS_RAW, "medium")],
-            "list_price_usd": [_dep(ARTWORKS_RAW, "price_usd")],
-            "artist_name": [_dep(ARTISTS_RAW, "name")],
-            "nationality": [_dep(ARTISTS_RAW, "nationality")],
-            "price_diff": [_dep(SALES_RAW, "sale_price_usd"), _dep(ARTWORKS_RAW, "price_usd")],
-            "pct_change": [_dep(SALES_RAW, "sale_price_usd"), _dep(ARTWORKS_RAW, "price_usd")],
-        }
-    )
+ARTWORKS_TRANSFORM_LINEAGE = build_lineage(
+    passthrough={
+        "artwork_id": ARTWORKS_RAW,
+        "title": ARTWORKS_RAW,
+        "year": ARTWORKS_RAW,
+        "medium": ARTWORKS_RAW,
+        "nationality": ARTISTS_RAW,
+    },
+    rename={
+        "list_price_usd": (ARTWORKS_RAW, "price_usd"),
+        "artist_name": (ARTISTS_RAW, "name"),
+        "primary_image": (MEDIA_RAW, "filename"),
+        "primary_image_alt": (MEDIA_RAW, "alt_text"),
+    },
+    computed={
+        "sale_count": [(SALES_RAW, "sale_id")],
+        "total_sales_value": [(SALES_RAW, "sale_price_usd")],
+        "avg_sale_price": [(SALES_RAW, "sale_price_usd")],
+        "first_sale_date": [(SALES_RAW, "sale_date")],
+        "last_sale_date": [(SALES_RAW, "sale_date")],
+        "has_sold": [(SALES_RAW, "sale_id")],
+        "price_tier": [(ARTWORKS_RAW, "price_usd")],
+        "sales_rank": [(SALES_RAW, "sale_price_usd")],
+        "media_count": [(MEDIA_RAW, "artwork_id")],
+        "media": [
+            (MEDIA_RAW, "sort_order"),
+            (MEDIA_RAW, "filename"),
+            (MEDIA_RAW, "media_type"),
+            (MEDIA_RAW, "file_format"),
+        ],
+    },
+)
 
-
-def _artworks_transform_lineage():
-    return dg.TableColumnLineage(
-        deps_by_column={
-            "artwork_id": [_dep(ARTWORKS_RAW, "artwork_id")],
-            "title": [_dep(ARTWORKS_RAW, "title")],
-            "year": [_dep(ARTWORKS_RAW, "year")],
-            "medium": [_dep(ARTWORKS_RAW, "medium")],
-            "list_price_usd": [_dep(ARTWORKS_RAW, "price_usd")],
-            "artist_name": [_dep(ARTISTS_RAW, "name")],
-            "nationality": [_dep(ARTISTS_RAW, "nationality")],
-            "sale_count": [_dep(SALES_RAW, "sale_id")],
-            "total_sales_value": [_dep(SALES_RAW, "sale_price_usd")],
-            "avg_sale_price": [_dep(SALES_RAW, "sale_price_usd")],
-            "first_sale_date": [_dep(SALES_RAW, "sale_date")],
-            "last_sale_date": [_dep(SALES_RAW, "sale_date")],
-            "has_sold": [_dep(SALES_RAW, "sale_id")],
-            "price_tier": [_dep(ARTWORKS_RAW, "price_usd")],
-            "sales_rank": [_dep(SALES_RAW, "sale_price_usd")],
-            "primary_image": [_dep(MEDIA_RAW, "filename")],
-            "primary_image_alt": [_dep(MEDIA_RAW, "alt_text")],
-            "media_count": [_dep(MEDIA_RAW, "artwork_id")],
-            "media": [
-                _dep(MEDIA_RAW, "sort_order"),
-                _dep(MEDIA_RAW, "filename"),
-                _dep(MEDIA_RAW, "media_type"),
-                _dep(MEDIA_RAW, "file_format"),
-            ],
-        }
-    )
-
-
-def _sales_output_lineage():
-    passthrough = [
+SALES_OUTPUT_LINEAGE = passthrough_lineage(
+    source=SALES_TRANSFORM,
+    columns=[
         "sale_id",
         "artwork_id",
         "sale_date",
@@ -116,14 +120,13 @@ def _sales_output_lineage():
         "artist_name",
         "nationality",
         "pct_change",
-    ]
-    deps = {col: [_dep(SALES_TRANSFORM, col)] for col in passthrough}
-    deps["price_difference"] = [_dep(SALES_TRANSFORM, "price_diff")]
-    return dg.TableColumnLineage(deps_by_column=deps)
+    ],
+    renames={"price_difference": "price_diff"},
+)
 
-
-def _artworks_output_lineage():
-    cols = [
+ARTWORKS_OUTPUT_LINEAGE = passthrough_lineage(
+    source=ARTWORKS_TRANSFORM,
+    columns=[
         "artwork_id",
         "title",
         "year",
@@ -143,11 +146,8 @@ def _artworks_output_lineage():
         "primary_image_alt",
         "media_count",
         "media",
-    ]
-    return dg.TableColumnLineage(
-        deps_by_column={col: [_dep(ARTWORKS_TRANSFORM, col)] for col in cols}
-    )
-
+    ],
+)
 
 # -----------------------------------------------------------------------------
 # SQL Queries
@@ -219,6 +219,26 @@ LEFT JOIN all_media am USING (artwork_id)
 ORDER BY coalesce(s.total_sales_value, 0) DESC, c.artwork_id
 """
 
+# Stats SQL for metadata collection
+SALES_TRANSFORM_STATS_SQL = """
+SELECT
+    count(*) AS record_count,
+    count(DISTINCT artwork_id) AS unique_artworks,
+    sum(sale_price_usd) AS total_sales_value,
+    min(sale_date) || ' to ' || max(sale_date) AS date_range
+FROM '{path}'
+"""
+
+ARTWORKS_TRANSFORM_STATS_SQL = """
+SELECT
+    count(*) AS record_count,
+    sum(CASE WHEN has_sold THEN 1 ELSE 0 END) AS artworks_sold,
+    sum(CASE WHEN NOT has_sold THEN 1 ELSE 0 END) AS artworks_unsold,
+    sum(CASE WHEN media_count > 0 THEN 1 ELSE 0 END) AS artworks_with_media,
+    sum(list_price_usd) AS total_catalog_value
+FROM '{path}'
+"""
+
 
 # -----------------------------------------------------------------------------
 # Assets
@@ -243,47 +263,28 @@ def sales_transform_soda(
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     with duckdb.get_connection() as conn:
-        # Register source views
-        conn.execute(
-            f"CREATE OR REPLACE VIEW sales AS SELECT * FROM '{paths.harvest_dir}/raw/sales_raw/**/*.parquet'"
-        )
-        conn.execute(
-            f"CREATE OR REPLACE VIEW artworks AS SELECT * FROM '{paths.harvest_dir}/raw/artworks_raw/**/*.parquet'"
-        )
-        conn.execute(
-            f"CREATE OR REPLACE VIEW artists AS SELECT * FROM '{paths.harvest_dir}/raw/artists_raw/**/*.parquet'"
-        )
-
-        # Transform and write
+        register_harvest_views(conn, paths.harvest_dir, ["sales", "artworks", "artists"])
         conn.sql(SALES_TRANSFORM_SQL).write_parquet(str(output_path), compression="zstd")
 
-        # Get stats
-        row_count, unique_artworks, total_value, min_date, max_date = conn.sql(f"""
-            SELECT count(*), count(DISTINCT artwork_id), sum(sale_price_usd), min(sale_date), max(sale_date)
-            FROM '{output_path}'
-        """).fetchone()
+        collect_parquet_metadata(
+            context,
+            conn,
+            str(output_path),
+            lineage=SALES_TRANSFORM_LINEAGE,
+            stats_sql=SALES_TRANSFORM_STATS_SQL.format(path=output_path),
+            example_id=("sale_id", 2),
+            elapsed_ms=(time.perf_counter() - start) * 1000,
+        )
 
-        # Example row for lineage (Day Dream, sale_id=2)
-        examples = get_example_row(conn, str(output_path), "sale_id", 2)
-
-    elapsed = (time.perf_counter() - start) * 1000
-    context.add_output_metadata(
-        {
-            "dagster/column_lineage": _sales_transform_lineage(),
-            "lineage_examples": examples,
-            "record_count": row_count,
-            "unique_artworks": unique_artworks,
-            "total_sales_value": float(total_value or 0),
-            "date_range": f"{min_date} to {max_date}",
-            "processing_time_ms": round(elapsed, 2),
-        }
-    )
-    context.log.info(f"Transformed {row_count} sales in {elapsed:.1f}ms")
+    context.log.info(f"Transformed sales in {(time.perf_counter() - start) * 1000:.1f}ms")
     return str(output_path)
 
 
 @dg.asset(
     kinds={"duckdb", "sql", "json", "soda"},
+    # Explicit ordering: sales_output depends on artworks_output to ensure
+    # deterministic execution order for consistent JSON output hashes.
+    # Without this, parallel execution can produce different file orderings.
     deps=["artworks_output_soda"],
     group_name="output_soda",
     freshness_policy=dg.FreshnessPolicy.time_window(fail_window=timedelta(hours=24)),
@@ -295,7 +296,13 @@ def sales_output_soda(
     sales_transform_soda: str,
     output_paths: OutputPathsResource,
 ) -> str:
-    """Filter high-value sales and output to JSON."""
+    """Filter high-value sales and output to JSON.
+
+    Returns:
+        Path to source parquet (not JSON output). JSON is a side-effect
+        written directly. ParquetPathIOManager stores this path for
+        downstream consumers.
+    """
     start = time.perf_counter()
     output_path = output_paths.sales_soda
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
@@ -318,24 +325,26 @@ def sales_output_soda(
             WHERE sale_price_usd >= {MIN_SALE_VALUE_USD}
         """).fetchone()
 
-        # Example row with renamed column
-        examples = get_example_row(conn, sales_transform_soda, "sale_id", 2)
-        examples["price_difference"] = examples.pop("price_diff", None)
+        collect_json_output_metadata(
+            context,
+            conn,
+            input_path=sales_transform_soda,
+            output_path=output_path,
+            lineage=SALES_OUTPUT_LINEAGE,
+            example_id=("sale_id", 2),
+            example_renames={"price_difference": "price_diff"},
+            extra_metadata={
+                "record_count": filtered_count,
+                "filtered_from": total,
+                "filter_threshold": f"${MIN_SALE_VALUE_USD:,}",
+                "total_value": float(filtered_value or 0),
+            },
+            elapsed_ms=(time.perf_counter() - start) * 1000,
+        )
 
-    elapsed = (time.perf_counter() - start) * 1000
-    context.add_output_metadata(
-        {
-            "dagster/column_lineage": _sales_output_lineage(),
-            "lineage_examples": examples,
-            "record_count": filtered_count,
-            "filtered_from": total,
-            "filter_threshold": f"${MIN_SALE_VALUE_USD:,}",
-            "total_value": float(filtered_value or 0),
-            "json_output": dg.MetadataValue.path(output_path),
-            "processing_time_ms": round(elapsed, 2),
-        }
+    context.log.info(
+        f"Output {filtered_count} high-value sales in {(time.perf_counter() - start) * 1000:.1f}ms"
     )
-    context.log.info(f"Output {filtered_count} high-value sales in {elapsed:.1f}ms")
     return sales_transform_soda
 
 
@@ -357,50 +366,20 @@ def artworks_transform_soda(
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     with duckdb.get_connection() as conn:
-        # Register source views
-        conn.execute(
-            f"CREATE OR REPLACE VIEW sales AS SELECT * FROM '{paths.harvest_dir}/raw/sales_raw/**/*.parquet'"
-        )
-        conn.execute(
-            f"CREATE OR REPLACE VIEW artworks AS SELECT * FROM '{paths.harvest_dir}/raw/artworks_raw/**/*.parquet'"
-        )
-        conn.execute(
-            f"CREATE OR REPLACE VIEW artists AS SELECT * FROM '{paths.harvest_dir}/raw/artists_raw/**/*.parquet'"
-        )
-        conn.execute(
-            f"CREATE OR REPLACE VIEW media AS SELECT * FROM '{paths.harvest_dir}/raw/media/**/*.parquet'"
-        )
-
-        # Transform and write
+        register_harvest_views(conn, paths.harvest_dir, ["sales", "artworks", "artists", "media"])
         conn.sql(ARTWORKS_TRANSFORM_SQL).write_parquet(str(output_path), compression="zstd")
 
-        # Get stats
-        row_count, sold, unsold, with_media, catalog_value = conn.sql(f"""
-            SELECT count(*),
-                sum(CASE WHEN has_sold THEN 1 ELSE 0 END),
-                sum(CASE WHEN NOT has_sold THEN 1 ELSE 0 END),
-                sum(CASE WHEN media_count > 0 THEN 1 ELSE 0 END),
-                sum(list_price_usd)
-            FROM '{output_path}'
-        """).fetchone()
+        collect_parquet_metadata(
+            context,
+            conn,
+            str(output_path),
+            lineage=ARTWORKS_TRANSFORM_LINEAGE,
+            stats_sql=ARTWORKS_TRANSFORM_STATS_SQL.format(path=output_path),
+            example_id=("artwork_id", 2),
+            elapsed_ms=(time.perf_counter() - start) * 1000,
+        )
 
-        # Example row (Day Dream, artwork_id=2)
-        examples = get_example_row(conn, str(output_path), "artwork_id", 2)
-
-    elapsed = (time.perf_counter() - start) * 1000
-    context.add_output_metadata(
-        {
-            "dagster/column_lineage": _artworks_transform_lineage(),
-            "lineage_examples": examples,
-            "record_count": row_count,
-            "artworks_sold": sold,
-            "artworks_unsold": unsold,
-            "artworks_with_media": with_media,
-            "total_catalog_value": float(catalog_value or 0),
-            "processing_time_ms": round(elapsed, 2),
-        }
-    )
-    context.log.info(f"Transformed {row_count} artworks in {elapsed:.1f}ms")
+    context.log.info(f"Transformed artworks in {(time.perf_counter() - start) * 1000:.1f}ms")
     return str(output_path)
 
 
@@ -432,19 +411,21 @@ def artworks_output_soda(
         tier_dist = {row[0]: row[1] for row in tier_rows}
         record_count = sum(tier_dist.values())
 
-        # Example row (Day Dream, artwork_id=2)
-        examples = get_example_row(conn, artworks_transform_soda, "artwork_id", 2)
+        collect_json_output_metadata(
+            context,
+            conn,
+            input_path=artworks_transform_soda,
+            output_path=output_path,
+            lineage=ARTWORKS_OUTPUT_LINEAGE,
+            example_id=("artwork_id", 2),
+            extra_metadata={
+                "record_count": record_count,
+                "price_tier_distribution": tier_dist,
+            },
+            elapsed_ms=(time.perf_counter() - start) * 1000,
+        )
 
-    elapsed = (time.perf_counter() - start) * 1000
-    context.add_output_metadata(
-        {
-            "dagster/column_lineage": _artworks_output_lineage(),
-            "lineage_examples": examples,
-            "record_count": record_count,
-            "price_tier_distribution": tier_dist,
-            "json_output": dg.MetadataValue.path(output_path),
-            "processing_time_ms": round(elapsed, 2),
-        }
+    context.log.info(
+        f"Output {record_count} artworks in {(time.perf_counter() - start) * 1000:.1f}ms"
     )
-    context.log.info(f"Output {record_count} artworks in {elapsed:.1f}ms")
     return artworks_transform_soda

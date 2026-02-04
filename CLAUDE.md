@@ -351,68 +351,88 @@ Each asset emits two metadata entries:
 - `dagster/column_lineage` - Dagster's native column lineage format (shows in UI catalog)
 - `lineage_examples` - JSON dict mapping column names to formatted example values
 
-```python
-from dagster import TableColumnLineage, TableColumnDep
-from cogapp_libs.dagster.lineage import get_example_row
+### Defining Column Lineage (DSL)
 
-# get_example_row fetches one row and formats values for display
-# ($86.3M, $1.5K, etc.)
-examples = get_example_row(conn, path, id_field="sale_id", id_value=2)
-```
-
-### Defining Column Lineage
-
-Define a function that returns `TableColumnLineage` with dependencies:
+Use `build_lineage()` for transform assets that join multiple sources:
 
 ```python
-def _sales_transform_lineage():
-    return TableColumnLineage(
-        deps_by_column={
-            # Direct pass-through columns
-            "sale_id": [TableColumnDep("dlt_harvest_sales_raw", "sale_id")],
-            # Computed columns with multiple dependencies
-            "price_difference": [
-                TableColumnDep("dlt_harvest_sales_raw", "sale_price"),
-                TableColumnDep("dlt_harvest_artworks_raw", "estimated_value"),
-            ],
-            # Joined columns
-            "artist_name": [TableColumnDep("dlt_harvest_artists_raw", "name")],
-        }
-    )
+from cogapp_libs.dagster.lineage import build_lineage, passthrough_lineage
+import dagster as dg
+
+SALES_RAW = dg.AssetKey("dlt_harvest_sales_raw")
+ARTWORKS_RAW = dg.AssetKey("dlt_harvest_artworks_raw")
+ARTISTS_RAW = dg.AssetKey("dlt_harvest_artists_raw")
+
+# Transform: joins multiple sources
+SALES_TRANSFORM_LINEAGE = build_lineage(
+    passthrough={
+        "sale_id": SALES_RAW,
+        "artwork_id": SALES_RAW,
+        "title": ARTWORKS_RAW,
+    },
+    rename={
+        "artwork_year": (ARTWORKS_RAW, "year"),
+        "list_price_usd": (ARTWORKS_RAW, "price_usd"),
+    },
+    computed={
+        "price_diff": [(SALES_RAW, "sale_price_usd"), (ARTWORKS_RAW, "price_usd")],
+    },
+)
+
+# Output: columns pass through from single source
+SALES_OUTPUT_LINEAGE = passthrough_lineage(
+    source=dg.AssetKey("sales_transform_soda"),
+    columns=["sale_id", "title", "artist_name", "pct_change"],
+    renames={"price_difference": "price_diff"},
+)
 ```
 
 ### Usage in Assets
 
-```python
-from cogapp_libs.dagster.lineage import get_example_row
+Use helper functions for streamlined metadata collection:
 
-@dg.asset(kinds={"duckdb", "parquet"}, group_name="soda")
-def sales_transform_soda(context, duckdb, paths, output_paths):
+```python
+from cogapp_libs.dagster.lineage import (
+    collect_parquet_metadata,
+    collect_json_output_metadata,
+    register_harvest_views,
+)
+
+@dg.asset(kinds={"duckdb", "parquet"}, group_name="soda", io_manager_key="parquet_path_io_manager")
+def sales_transform_soda(context, duckdb, paths, output_paths) -> str:
+    start = time.perf_counter()
+    output_path = Path(output_paths.transforms_soda_dir) / "sales.parquet"
+
     with duckdb.get_connection() as conn:
-        # Transform and write parquet...
-        conn.sql(SALES_TRANSFORM_SQL).write_parquet(str(output_path))
+        # Single-line view registration
+        register_harvest_views(conn, paths.harvest_dir, ["sales", "artworks", "artists"])
+        conn.sql(SALES_TRANSFORM_SQL).write_parquet(str(output_path), compression="zstd")
 
-        # Get example row for lineage display
-        examples = get_example_row(conn, str(output_path), "sale_id", 2)
+        # Collect all metadata in one call
+        collect_parquet_metadata(
+            context, conn, str(output_path),
+            lineage=SALES_TRANSFORM_LINEAGE,
+            stats_sql=f"SELECT count(*) AS record_count FROM '{output_path}'",
+            example_id=("sale_id", 2),
+            elapsed_ms=(time.perf_counter() - start) * 1000,
+        )
 
-    context.add_output_metadata({
-        "dagster/column_lineage": _sales_transform_lineage(),
-        "lineage_examples": examples,
-        "record_count": row_count,
-    })
     return str(output_path)
-```
 
-### Tracking Column Renames
-
-When a column is renamed, update the examples dict:
-
-```python
-# In transform: price_diff computed from sale_price - estimated_value
-# In output: renamed to price_difference
-
-examples = get_example_row(conn, path, "sale_id", 2)
-examples["price_difference"] = examples.pop("price_diff", None)
+@dg.asset(io_manager_key="parquet_path_io_manager")
+def sales_output_soda(context, duckdb, sales_transform_soda: str, output_paths) -> str:
+    with duckdb.get_connection() as conn:
+        # ... write JSON output ...
+        collect_json_output_metadata(
+            context, conn,
+            input_path=sales_transform_soda,
+            output_path=output_paths.sales_soda,
+            lineage=SALES_OUTPUT_LINEAGE,
+            example_id=("sale_id", 2),
+            example_renames={"price_difference": "price_diff"},
+            extra_metadata={"record_count": count},
+        )
+    return sales_transform_soda
 ```
 
 ### Value Formatting

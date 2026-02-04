@@ -43,9 +43,15 @@ from cogapp_libs.dagster.io_managers import (
     OpenSearchIOManager,
 )
 from cogapp_libs.dagster.lineage import (
+    HARVEST_VIEWS,
     add_lineage_examples_to_dlt_results,
+    build_lineage,
+    collect_json_output_metadata,
+    collect_parquet_metadata,
     format_value,
     get_example_row,
+    passthrough_lineage,
+    register_harvest_views,
 )
 
 # Components (for YAML-based configuration)
@@ -141,6 +147,12 @@ __all__ = [
     "altair_to_metadata",
     "table_preview_to_metadata",
     # Lineage helpers
+    "build_lineage",
+    "passthrough_lineage",
+    "HARVEST_VIEWS",
+    "register_harvest_views",
+    "collect_parquet_metadata",
+    "collect_json_output_metadata",
     "format_value",
     "get_example_row",
     "add_lineage_examples_to_dlt_results",
