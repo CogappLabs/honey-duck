@@ -440,6 +440,9 @@ FROM items
 
 Append columns to a list/tuple based on a condition (uses pandas query syntax).
 
+!!! warning "Inefficient Implementation"
+    Honeysuckle uses `for i in range(len(data.index))` row-by-row iteration. The Polars/DuckDB equivalents are vectorized and significantly faster.
+
 | | |
 |---|---|
 | **Honeysuckle** | [`append_on_condition_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/AppendOnConditionProcessor.py) |
@@ -532,6 +535,9 @@ GROUP BY ALL
 ## 10. ConcatProcessor
 
 Concatenate multiple columns into a single string.
+
+!!! warning "Inefficient Implementation"
+    Honeysuckle uses `itertuples()` row-by-row iteration. The Polars/DuckDB equivalents are vectorized and significantly faster.
 
 | | |
 |---|---|
@@ -1114,6 +1120,9 @@ SELECT * FROM sales JOIN artists USING (artist_id)
 ## 22. FillMissingTuplesProcessor
 
 Fill missing tuple/list values in multiple columns by inserting nulls to match the row's tuple length.
+
+!!! warning "Inefficient Implementation"
+    Honeysuckle uses `itertuples()` row-by-row iteration with nested loops. The Polars/DuckDB equivalents are vectorized and significantly faster.
 
 | | |
 |---|---|
