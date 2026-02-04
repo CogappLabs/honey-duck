@@ -42,6 +42,12 @@ from cogapp_libs.dagster.io_managers import (
     JSONIOManager,
     OpenSearchIOManager,
 )
+from cogapp_libs.dagster.duckdb import (
+    DuckDBContext,
+    DuckDBExecutor,
+    duckdb_output_asset,
+    duckdb_transform_asset,
+)
 from cogapp_libs.dagster.lineage import (
     HARVEST_VIEWS,
     add_lineage_examples_to_dlt_results,
@@ -146,6 +152,11 @@ __all__ = [
     # Visualization helpers
     "altair_to_metadata",
     "table_preview_to_metadata",
+    # DuckDB asset factories
+    "duckdb_transform_asset",
+    "duckdb_output_asset",
+    "DuckDBExecutor",
+    "DuckDBContext",
     # Lineage helpers
     "build_lineage",
     "passthrough_lineage",
