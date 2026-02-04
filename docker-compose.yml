@@ -1,6 +1,4 @@
 # Production Docker Compose for honey-duck Dagster deployment
-version: '3.8'
-
 services:
   # PostgreSQL database for Dagster metadata storage
   dagster-postgres:
@@ -75,6 +73,8 @@ services:
       - --no-sync
       - dagster-daemon
       - run
+      - -w
+      - /app/workspace.yaml
     environment:
       DAGSTER_POSTGRES_USER: dagster
       DAGSTER_POSTGRES_PASSWORD: dagster

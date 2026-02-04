@@ -48,11 +48,13 @@ scheduler:
   class: DagsterDaemonScheduler
 
 # Run monitoring
+# Note: max_resume_run_attempts must be 0 with DefaultRunLauncher
+# (it doesn't support resuming runs)
 run_monitoring:
   enabled: true
   start_timeout_seconds: 180
   cancel_timeout_seconds: 180
-  max_resume_run_attempts: 3
+  max_resume_run_attempts: 0
 
 # Telemetry (optional - disable for privacy)
 telemetry:
