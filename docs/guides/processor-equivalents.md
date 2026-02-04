@@ -24,7 +24,7 @@ Common Honeysuckle processors and their native Polars/DuckDB equivalents.
 - **DuckDB**: [duckdb.org/docs](https://duckdb.org/docs/) | [Functions](https://duckdb.org/docs/sql/functions/overview) | [Friendly SQL](https://duckdb.org/docs/sql/dialect/friendly_sql)
 - **Honeysuckle**: [GitHub](https://github.com/Cogapp/honeysuckle) (private repo)
 
-## Top 31 Processors by Usage
+## Top 35 Processors by Usage
 
 Based on analysis of Huntington Extractor, Universal Yiddish Library, and Royal Society SITM codebases.
 
@@ -61,6 +61,10 @@ Based on analysis of Huntington Extractor, Universal Yiddish Library, and Royal 
 | 29 | `SplitStringProcessor` | 3 | Split string to list |
 | 30 | `AsTypeProcessor` | — | Cast column types |
 | 31 | `DropRowsOnConditionProcessor` | — | Filter rows by condition |
+| 32 | `AppendProcessor` | — | Append multiple columns to list |
+| 33 | `EnsureTuplesProcessor` | — | Convert scalars to lists |
+| 34 | `ExtractCharacterDataframeProcessor` | — | Extract pattern from string |
+| 35 | `SumColumnValuesProcessor` | — | Sum values by group |
 
 ---
 
@@ -172,7 +176,7 @@ Strip whitespace (or specific characters) from strings.
 |---|---|
 | **Honeysuckle** | [`strip_string_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/StripStringProcessor.py) |
 | **Polars** | [`str.strip_chars()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.str.strip_chars.html) |
-| **DuckDB** | [`.trim()`](https://duckdb.org/docs/sql/functions/text#trimstring-characters) (dot notation) |
+| **DuckDB** | [`regexp_replace()`](https://duckdb.org/docs/sql/functions/regular_expressions#regexp_replacestring-pattern-replacement) for full whitespace; [`.trim()`](https://duckdb.org/docs/sql/functions/text#trimstring-characters) for spaces only |
 
 ```python
 # Honeysuckle
@@ -1631,13 +1635,184 @@ FROM items
 
 ---
 
+## 32. AppendProcessor
+
+Append values from multiple columns into a single list column.
+
+!!! warning "Inefficient Implementation"
+    Honeysuckle uses `itertuples()` and row-by-row iteration. The Polars/DuckDB equivalents are vectorized and significantly faster.
+
+| | |
+|---|---|
+| **Honeysuckle** | [`AppendProcessor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/AppendProcessor.py) |
+| **Polars** | [`concat_list()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.concat_list.html) |
+| **DuckDB** | [`list_concat()`](https://duckdb.org/docs/sql/functions/list#list_concatlist1-list2) |
+
+```python
+# Honeysuckle
+AppendProcessor(
+    initial_column="tags",
+    append_columns=["category", "source"]
+)
+```
+
+### Example
+
+| tags | category | source | | | tags (after) |
+|------|----------|--------|---|---|--------------|
+| `("a", "b")` | `"new"` | `"web"` | → | | `["a", "b", "new", "web"]` |
+
+### Polars
+
+```python
+--8<-- "scripts/test_processor_equivalents.py:append_polars"
+```
+
+### DuckDB
+
+```sql
+--8<-- "scripts/test_processor_equivalents.py:append_sql"
+```
+
+---
+
+## 33. EnsureTuplesProcessor
+
+Convert scalar values to single-element lists (tuples in Honeysuckle terminology).
+
+!!! warning "Inefficient Implementation"
+    Honeysuckle uses `itertuples()` and `iat[]` for row-by-row updates. The Polars/DuckDB equivalents are vectorized.
+
+| | |
+|---|---|
+| **Honeysuckle** | [`EnsureTuplesProcessor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/EnsureTuplesProcessor.py) |
+| **Polars** | [`concat_list()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.concat_list.html) |
+| **DuckDB** | Array literal `[value]` |
+
+```python
+# Honeysuckle
+EnsureTuplesProcessor(columns=["names", "roles"])
+```
+
+### Example
+
+| names | roles | | | names | roles |
+|-------|-------|---|---|-------|-------|
+| `"Alice"` | `"admin"` | → | | `["Alice"]` | `["admin"]` |
+| `"Bob"` | `"user"` | → | | `["Bob"]` | `["user"]` |
+
+### Polars
+
+```python
+--8<-- "scripts/test_processor_equivalents.py:ensure_tuples_polars"
+```
+
+### DuckDB
+
+```sql
+--8<-- "scripts/test_processor_equivalents.py:ensure_tuples_sql"
+```
+
+---
+
+## 34. ExtractCharacterDataframeProcessor
+
+Extract a pattern from a string column using regex.
+
+!!! warning "Inefficient Implementation"
+    Honeysuckle uses `.apply()` with a lambda function for row-by-row regex extraction. The Polars/DuckDB equivalents are vectorized.
+
+| | |
+|---|---|
+| **Honeysuckle** | [`ExtractCharacterDataframeProcessor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/ExtractCharacterDataframeProcessor.py) |
+| **Polars** | [`str.extract()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.str.extract.html) |
+| **DuckDB** | [`regexp_extract()`](https://duckdb.org/docs/sql/functions/regular_expressions#regexp_extractstring-pattern-group--0) |
+
+```python
+# Honeysuckle
+ExtractCharacterDataframeProcessor(
+    target_field="text",
+    pattern=r"-(\d+)-",
+    new_field="number"
+)
+```
+
+### Example
+
+| text | | | number |
+|------|---|---|--------|
+| `"Item-123-A"` | → | | `"123"` |
+| `"Product-456-B"` | → | | `"456"` |
+
+### Polars
+
+```python
+--8<-- "scripts/test_processor_equivalents.py:extract_character_polars"
+```
+
+### DuckDB
+
+```sql
+--8<-- "scripts/test_processor_equivalents.py:extract_character_sql"
+```
+
+---
+
+## 35. SumColumnValuesProcessor
+
+Sum column values grouped by another column and join back to the original dataframe.
+
+!!! warning "Inefficient Implementation"
+    Honeysuckle uses `itertuples()` and row-by-row value setting via `loc[]`. The Polars/DuckDB equivalents use vectorized aggregation and joins.
+
+| | |
+|---|---|
+| **Honeysuckle** | [`SumColumnValuesProcessor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/SumColumnValuesProcessor.py) |
+| **Polars** | [`group_by().agg()`](https://docs.pola.rs/api/python/stable/reference/dataframe/api/polars.DataFrame.group_by.html) + [`join()`](https://docs.pola.rs/api/python/stable/reference/dataframe/api/polars.DataFrame.join.html) |
+| **DuckDB** | Subquery with `GROUP BY` + `JOIN` |
+
+```python
+# Honeysuckle
+SumColumnValuesProcessor(
+    column_to_sum="amount",
+    result_column="total",
+    result_label_column="category",
+    sum_counts=True,
+    group_sum_counts_by="category"
+)
+```
+
+### Example
+
+| category | amount | | | category | amount | total |
+|----------|--------|---|---|----------|--------|-------|
+| `"A"` | 10 | → | | `"A"` | 10 | 90 |
+| `"B"` | 20 | → | | `"B"` | 20 | 60 |
+| `"A"` | 30 | → | | `"A"` | 30 | 90 |
+| `"B"` | 40 | → | | `"B"` | 40 | 60 |
+| `"A"` | 50 | → | | `"A"` | 50 | 90 |
+
+### Polars
+
+```python
+--8<-- "scripts/test_processor_equivalents.py:sum_column_values_polars"
+```
+
+### DuckDB
+
+```sql
+--8<-- "scripts/test_processor_equivalents.py:sum_column_values_sql"
+```
+
+---
+
 ## Quick Reference
 
 | Processor | Polars | DuckDB |
 |-----------|--------|--------|
 | `FillEmptyProcessor` | `.fill_null()` | `coalesce()` / `ifnull()` |
 | `RemoveMultivalueNullsProcessor` | `.list.eval()` + `.list.len()` | `list_filter()` + `nullif()` |
-| `StripStringProcessor` | `.str.strip_chars()` | `.trim()` |
+| `StripStringProcessor` | `.str.strip_chars()` | `regexp_replace()` |
 | `ExtractFirstProcessor` | `.list.first()` | `col[1]` |
 | `ExtractOnConditionProcessor` | `pl.when().then().otherwise()` | `if()` / `CASE WHEN` |
 | `ContainsBoolProcessor` | `.str.contains()` | `.contains()` |
@@ -1666,3 +1841,7 @@ FROM items
 | `AsTypeProcessor` | `.cast()` | `::TYPE` |
 | `DropRowsOnConditionProcessor` | `.filter()` | `WHERE` |
 | `ColumnsToDictsProcessor` | `pl.concat_list(pl.struct())` | `[{...} FOR ... IN list_zip()]` |
+| `AppendProcessor` | `pl.concat_list()` | `list_concat()` |
+| `EnsureTuplesProcessor` | `pl.concat_list()` | `[value]` |
+| `ExtractCharacterDataframeProcessor` | `.str.extract()` | `regexp_extract()` |
+| `SumColumnValuesProcessor` | `.group_by().agg()` + `.join()` | `GROUP BY` + `JOIN` |

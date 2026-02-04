@@ -24,7 +24,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
+from collections import Counter
+
 import duckdb
+import numpy as np
 import pandas as pd
 import polars as pl
 
@@ -155,6 +158,16 @@ if HONEYSUCKLE_PATH.exists():
             )
             from honeysuckle.components.post_validation_processors.columns_to_dicts_processor import (
                 ColumnsToDictsProcessor,
+            )
+            from honeysuckle.components.processors.append_processor import AppendProcessor
+            from honeysuckle.components.processors.ensure_tuples_processor import (
+                EnsureTuplesProcessor,
+            )
+            from honeysuckle.components.processors.extract_character_dataframe_processor import (
+                ExtractCharacterDataframeProcessor,
+            )
+            from honeysuckle.components.processors.sum_column_values_processor import (
+                SumColumnValuesProcessor,
             )
         except ImportError as e:
             print(f"Warning: Could not import some Honeysuckle processors: {e}")
@@ -401,6 +414,35 @@ COLUMNS_TO_DICTS_DATA = {
 }
 # --8<-- [end:columns_to_dicts_data]
 
+# --8<-- [start:append_data]
+APPEND_DATA = {
+    "tags": [("a", "b"), ("x",)],
+    "category": ["new", "old"],
+    "source": ["web", "api"],
+}
+# --8<-- [end:append_data]
+
+# --8<-- [start:ensure_tuples_data]
+# Test with all scalars - EnsureTuplesProcessor converts scalars to single-element lists
+ENSURE_TUPLES_DATA = {
+    "names": ["Alice", "Bob"],
+    "roles": ["admin", "user"],
+}
+# --8<-- [end:ensure_tuples_data]
+
+# --8<-- [start:extract_character_data]
+EXTRACT_CHARACTER_DATA = {
+    "text": ["Item-123-A", "Product-456-B", "Code-789-C"],
+}
+# --8<-- [end:extract_character_data]
+
+# --8<-- [start:sum_column_values_data]
+SUM_COLUMN_VALUES_DATA = {
+    "category": ["A", "B", "A", "B", "A"],
+    "amount": [10, 20, 30, 40, 50],
+}
+# --8<-- [end:sum_column_values_data]
+
 
 # ---------------------------------------------------------------------------
 # Polars Equivalents
@@ -628,13 +670,12 @@ def replace_polars(df: pl.DataFrame) -> pl.DataFrame:
 def merge_polars(sales: pl.DataFrame, artists: pl.DataFrame) -> pl.DataFrame:
     """Left join sales with artists."""
     # --8<-- [start:merge_polars]
-    # Use suffix parameter instead of manual id_y workaround
+    # Polars drops right_on column; keep it explicitly as id_y
     merged = sales.join(
-        artists.select(["id", "artist_name"]),
+        artists.select(["id", "artist_name"]).with_columns(pl.col("id").alias("id_y")),
         left_on="artist_id",
         right_on="id",
         how="left",
-        suffix="_y",
     )
     return merged.rename({"id": "id_x"})
     # --8<-- [end:merge_polars]
@@ -761,6 +802,40 @@ def columns_to_dicts_polars(df: pl.DataFrame) -> pl.DataFrame:
 # --8<-- [end:columns_to_dicts_polars]
 
 
+def append_polars(df: pl.DataFrame) -> pl.DataFrame:
+    """Append multiple columns into a list."""
+    # --8<-- [start:append_polars]
+    # Append category and source to tags list (modifies tags in-place)
+    return df.with_columns(pl.concat_list(["tags", "category", "source"]).alias("tags"))
+    # --8<-- [end:append_polars]
+
+
+def ensure_tuples_polars(df: pl.DataFrame) -> pl.DataFrame:
+    """Ensure columns are lists (Polars equivalent of tuples)."""
+    # --8<-- [start:ensure_tuples_polars]
+    # Wrap scalar values in single-element lists
+    return df.with_columns(
+        pl.concat_list(pl.col("names")).alias("names"),
+        pl.concat_list(pl.col("roles")).alias("roles"),
+    )
+    # --8<-- [end:ensure_tuples_polars]
+
+
+def extract_character_polars(df: pl.DataFrame) -> pl.DataFrame:
+    """Extract pattern from string using regex."""
+    # --8<-- [start:extract_character_polars]
+    return df.with_columns(pl.col("text").str.extract(r"-(\d+)-", group_index=1).alias("number"))
+    # --8<-- [end:extract_character_polars]
+
+
+def sum_column_values_polars(df: pl.DataFrame) -> pl.DataFrame:
+    """Sum values grouped by category and join back."""
+    # --8<-- [start:sum_column_values_polars]
+    sums = df.group_by("category").agg(pl.col("amount").sum().alias("total"))
+    return df.join(sums, on="category", how="left")
+    # --8<-- [end:sum_column_values_polars]
+
+
 # ---------------------------------------------------------------------------
 # DuckDB SQL Queries (source of truth for documentation)
 # ---------------------------------------------------------------------------
@@ -784,7 +859,8 @@ FROM 'source.parquet'
 
 STRIP_STRING_SQL = """
 -- --8<-- [start:strip_string_sql]
-SELECT name, name.trim() AS name_clean
+-- trim() only removes spaces; use regexp_replace for all whitespace
+SELECT name, regexp_replace(name, '^\\s+|\\s+$', '', 'g') AS name_clean
 -- --8<-- [end:strip_string_sql]
 FROM 'source.parquet'
 """
@@ -1011,6 +1087,38 @@ SELECT [{'w': width, 'h': height, 'd': depth}] AS dimensions
 FROM 'source.parquet'
 """
 
+APPEND_SQL = """
+-- --8<-- [start:append_sql]
+-- Append category and source to tags list (modifies tags in-place)
+SELECT list_concat(list_concat(tags, [category]), [source]) AS tags, category, source
+-- --8<-- [end:append_sql]
+FROM 'source.parquet'
+"""
+
+ENSURE_TUPLES_SQL = """
+-- --8<-- [start:ensure_tuples_sql]
+-- Wrap scalar values in single-element lists
+SELECT [names] AS names, [roles] AS roles
+-- --8<-- [end:ensure_tuples_sql]
+FROM 'source.parquet'
+"""
+
+EXTRACT_CHARACTER_SQL = r"""
+-- --8<-- [start:extract_character_sql]
+SELECT text, regexp_extract(text, '-(\d+)-', 1) AS number
+-- --8<-- [end:extract_character_sql]
+FROM 'source.parquet'
+"""
+
+SUM_COLUMN_VALUES_SQL = """
+-- --8<-- [start:sum_column_values_sql]
+SELECT s.*, totals.total
+FROM 'source.parquet' s
+JOIN (SELECT category, sum(amount) AS total FROM 'source.parquet' GROUP BY category) totals
+USING (category)
+-- --8<-- [end:sum_column_values_sql]
+"""
+
 
 # ---------------------------------------------------------------------------
 # DuckDB Execution Functions (for testing)
@@ -1151,6 +1259,122 @@ def columns_to_dicts_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) 
     return _run_sql(conn, COLUMNS_TO_DICTS_SQL, parquet_path)
 
 
+def append_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> pl.DataFrame:
+    return _run_sql(conn, APPEND_SQL, parquet_path)
+
+
+def ensure_tuples_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> pl.DataFrame:
+    return _run_sql(conn, ENSURE_TUPLES_SQL, parquet_path)
+
+
+def extract_character_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> pl.DataFrame:
+    return _run_sql(conn, EXTRACT_CHARACTER_SQL, parquet_path)
+
+
+def sum_column_values_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> pl.DataFrame:
+    return _run_sql(conn, SUM_COLUMN_VALUES_SQL, parquet_path)
+
+
+# ---------------------------------------------------------------------------
+# Output Comparison Helpers
+# ---------------------------------------------------------------------------
+
+
+def _normalize_value(value: Any) -> Any:
+    """Normalize a value for comparison (handle NaN, lists, tuples, dicts)."""
+    # Handle NaN/None
+    try:
+        if isinstance(value, (float, np.floating)) and np.isnan(value):
+            return None
+    except (TypeError, ValueError):
+        pass
+    try:
+        if value != value:  # NaN check
+            return None
+    except (TypeError, ValueError):
+        pass
+    try:
+        if pd.isna(value):
+            return None
+    except (TypeError, ValueError):
+        pass
+
+    # Normalize collections to tuples for hashability
+    if isinstance(value, np.ndarray):
+        return tuple(_normalize_value(x) for x in value.tolist())
+    if isinstance(value, list):
+        return tuple(_normalize_value(x) for x in value)
+    if isinstance(value, tuple):
+        return tuple(_normalize_value(x) for x in value)
+    if isinstance(value, dict):
+        return tuple(sorted((k, _normalize_value(v)) for k, v in value.items()))
+    return value
+
+
+def _to_pandas(df: pl.DataFrame | pd.DataFrame | None) -> pd.DataFrame | None:
+    """Convert DataFrame to pandas for comparison."""
+    if df is None:
+        return None
+    if isinstance(df, pl.DataFrame):
+        return df.to_pandas()
+    return df
+
+
+def _rows_multiset(df: pd.DataFrame | None) -> Counter:
+    """Convert DataFrame rows to a multiset (Counter) for order-insensitive comparison."""
+    if df is None:
+        return Counter()
+    cols = list(df.columns)
+    rows = [
+        tuple(_normalize_value(value) for value in row)
+        for row in df[cols].itertuples(index=False, name=None)
+    ]
+    return Counter(rows)
+
+
+def _compare_outputs(
+    reference: pd.DataFrame | None,
+    other: pd.DataFrame | None,
+    other_name: str,
+) -> list[str]:
+    """Compare two DataFrames, return list of differences."""
+    errors = []
+    if reference is None or other is None:
+        return errors
+
+    ref_cols = list(reference.columns)
+    other_cols = list(other.columns)
+
+    # Check for missing/extra columns
+    missing = [c for c in ref_cols if c not in other_cols]
+    extra = [c for c in other_cols if c not in ref_cols]
+    if missing:
+        errors.append(f"{other_name} missing columns: {missing}")
+    if extra:
+        errors.append(f"{other_name} extra columns: {extra}")
+
+    # Compare rows on common columns
+    common = [c for c in ref_cols if c in other_cols]
+    if not common:
+        errors.append(f"{other_name} shares no columns with reference")
+        return errors
+
+    ref_rows = _rows_multiset(reference[common])
+    other_rows = _rows_multiset(other[common])
+
+    if ref_rows != other_rows:
+        diff_ref = ref_rows - other_rows
+        diff_other = other_rows - ref_rows
+        sample_ref = list(diff_ref.elements())[:2]
+        sample_other = list(diff_other.elements())[:2]
+        errors.append(
+            f"{other_name} row mismatch on {common}: "
+            f"ref-only={sample_ref}, {other_name}-only={sample_other}"
+        )
+
+    return errors
+
+
 # ---------------------------------------------------------------------------
 # Test Runner
 # ---------------------------------------------------------------------------
@@ -1212,6 +1436,32 @@ def run_test(
             print(f"\nDuckDB output:\n{duckdb_result}")
             if honeysuckle_result is not None:
                 print(f"\nHoneysuckle output:\n{honeysuckle_result}")
+
+        # Compare outputs for equivalence
+        comparison_errors: list[str] = []
+
+        # Convert to pandas for comparison
+        polars_pd = _to_pandas(polars_result)
+        duckdb_pd = _to_pandas(duckdb_result)
+        hs_pd = honeysuckle_result  # Already pandas
+
+        # Use Honeysuckle as reference if available, else use Polars
+        if hs_pd is not None:
+            comparison_errors.extend(_compare_outputs(hs_pd, polars_pd, "Polars"))
+            comparison_errors.extend(_compare_outputs(hs_pd, duckdb_pd, "DuckDB"))
+        else:
+            # No HS available, compare Polars vs DuckDB
+            comparison_errors.extend(_compare_outputs(polars_pd, duckdb_pd, "DuckDB"))
+
+        if comparison_errors:
+            return ProcessorTestResult(
+                name=name,
+                passed=False,
+                polars_output=polars_result,
+                duckdb_output=duckdb_result,
+                honeysuckle_output=honeysuckle_result,
+                error="; ".join(comparison_errors),
+            )
 
         return ProcessorTestResult(
             name=name,
@@ -1807,6 +2057,91 @@ def get_all_tests() -> list[tuple[str, dict, Callable, Callable, Callable | None
             columns_to_dicts_polars,
             columns_to_dicts_duckdb,
             columns_to_dicts_hs,
+            None,
+        )
+    )
+
+    # 32. AppendProcessor
+    if HONEYSUCKLE_AVAILABLE:
+
+        def append_hs(df):
+            return AppendProcessor(
+                initial_column="tags",
+                append_columns=["category", "source"],
+            ).process(df)
+    else:
+        append_hs = None
+    tests.append(
+        (
+            "AppendProcessor",
+            APPEND_DATA,
+            append_polars,
+            append_duckdb,
+            append_hs,
+            None,
+        )
+    )
+
+    # 33. EnsureTuplesProcessor
+    if HONEYSUCKLE_AVAILABLE:
+
+        def ensure_tuples_hs(df):
+            return EnsureTuplesProcessor(columns=["names", "roles"]).process(df)
+    else:
+        ensure_tuples_hs = None
+    tests.append(
+        (
+            "EnsureTuplesProcessor",
+            ENSURE_TUPLES_DATA,
+            ensure_tuples_polars,
+            ensure_tuples_duckdb,
+            ensure_tuples_hs,
+            None,
+        )
+    )
+
+    # 34. ExtractCharacterDataframeProcessor
+    if HONEYSUCKLE_AVAILABLE:
+
+        def extract_character_hs(df):
+            return ExtractCharacterDataframeProcessor(
+                target_field="text",
+                pattern=r"-(\d+)-",
+                new_field="number",
+            ).process(df)
+    else:
+        extract_character_hs = None
+    tests.append(
+        (
+            "ExtractCharacterDataframeProcessor",
+            EXTRACT_CHARACTER_DATA,
+            extract_character_polars,
+            extract_character_duckdb,
+            extract_character_hs,
+            None,
+        )
+    )
+
+    # 35. SumColumnValuesProcessor
+    if HONEYSUCKLE_AVAILABLE:
+
+        def sum_column_values_hs(df):
+            return SumColumnValuesProcessor(
+                column_to_sum="amount",
+                result_column="total",
+                result_label_column="category",
+                sum_counts=True,
+                group_sum_counts_by="category",
+            ).process(df)
+    else:
+        sum_column_values_hs = None
+    tests.append(
+        (
+            "SumColumnValuesProcessor",
+            SUM_COLUMN_VALUES_DATA,
+            sum_column_values_polars,
+            sum_column_values_duckdb,
+            sum_column_values_hs,
             None,
         )
     )
