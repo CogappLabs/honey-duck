@@ -19,6 +19,7 @@ import argparse
 import os
 import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
@@ -421,9 +422,11 @@ def fill_empty_polars(df: pl.DataFrame) -> pl.DataFrame:
 # --8<-- [start:remove_nulls_polars]
 def remove_nulls_polars(df: pl.DataFrame) -> pl.DataFrame:
     """Remove null values from list column."""
-    cleaned = pl.col("tags").list.eval(pl.element().drop_nulls())
+    # Step 1: Remove nulls from list
+    df = df.with_columns(pl.col("tags").list.eval(pl.element().drop_nulls()).alias("tags"))
+    # Step 2: Convert empty lists to null
     return df.with_columns(
-        pl.when(cleaned.list.len() == 0).then(pl.lit(None)).otherwise(cleaned).alias("tags")
+        pl.when(pl.col("tags").list.len() == 0).then(None).otherwise(pl.col("tags")).alias("tags")
     )
 
 
@@ -480,12 +483,15 @@ def string_constant_polars(df: pl.DataFrame) -> pl.DataFrame:
 # --8<-- [start:append_on_condition_polars]
 def append_on_condition_polars(df: pl.DataFrame) -> pl.DataFrame:
     """Append category to tags when featured."""
+    # Step 1: Wrap scalar in list
+    df = df.with_columns(pl.concat_list(pl.col("category")).alias("category_list"))
+    # Step 2: Conditionally append
     return df.with_columns(
         pl.when(pl.col("is_featured"))
-        .then(pl.col("tags").list.concat(pl.col("category").cast(pl.List(pl.String))))
+        .then(pl.col("tags").list.concat(pl.col("category_list")))
         .otherwise(pl.col("tags"))
         .alias("tags")
-    )
+    ).drop("category_list")
 
 
 # --8<-- [end:append_on_condition_polars]
@@ -626,11 +632,13 @@ def replace_polars(df: pl.DataFrame) -> pl.DataFrame:
 # --8<-- [start:merge_polars]
 def merge_polars(sales: pl.DataFrame, artists: pl.DataFrame) -> pl.DataFrame:
     """Left join sales with artists."""
+    # Use suffix parameter instead of manual id_y workaround
     merged = sales.join(
-        artists.with_columns(pl.col("id").alias("id_y")).select(["id", "id_y", "artist_name"]),
+        artists.select(["id", "artist_name"]),
         left_on="artist_id",
         right_on="id",
         how="left",
+        suffix="_y",
     )
     return merged.rename({"id": "id_x"})
 
@@ -670,11 +678,14 @@ def conditional_bool_polars(df: pl.DataFrame) -> pl.DataFrame:
 # --8<-- [start:capitalize_polars]
 def capitalize_polars(df: pl.DataFrame) -> pl.DataFrame:
     """Capitalize first character of title."""
-    return df.with_columns(
-        (
-            pl.col("title").str.slice(0, 1).str.to_uppercase()
-            + pl.col("title").str.slice(1).str.to_lowercase()
-        ).alias("title")
+    # Step 1: Get first char and rest
+    df = df.with_columns(
+        pl.col("title").str.head(1).str.to_uppercase().alias("_first"),
+        pl.col("title").str.slice(1).str.to_lowercase().alias("_rest"),
+    )
+    # Step 2: Combine and clean up
+    return df.with_columns((pl.col("_first") + pl.col("_rest")).alias("title")).drop(
+        ["_first", "_rest"]
     )
 
 
@@ -759,398 +770,393 @@ def columns_to_dicts_polars(df: pl.DataFrame) -> pl.DataFrame:
 
 
 # ---------------------------------------------------------------------------
-# DuckDB Equivalents
+# DuckDB SQL Queries (source of truth for documentation)
+# ---------------------------------------------------------------------------
+
+FILL_EMPTY_SQL = """
+-- --8<-- [start:fill_empty_sql]
+SELECT
+    coalesce(title, alt_title) AS title,
+    alt_title,
+    ifnull(price, 0) AS price
+-- --8<-- [end:fill_empty_sql]
+FROM 'source.parquet'
+"""
+
+REMOVE_NULLS_SQL = """
+-- --8<-- [start:remove_nulls_sql]
+SELECT nullif(list_filter(tags, x -> x IS NOT NULL), []) AS tags
+-- --8<-- [end:remove_nulls_sql]
+FROM 'source.parquet'
+"""
+
+STRIP_STRING_SQL = """
+-- --8<-- [start:strip_string_sql]
+SELECT name, name.trim() AS name_clean
+-- --8<-- [end:strip_string_sql]
+FROM 'source.parquet'
+"""
+
+EXTRACT_FIRST_SQL = """
+-- --8<-- [start:extract_first_sql]
+SELECT authors, authors[1] AS primary_author
+-- --8<-- [end:extract_first_sql]
+FROM 'source.parquet'
+"""
+
+EXTRACT_ON_CONDITION_SQL = """
+-- --8<-- [start:extract_on_condition_sql]
+SELECT price, is_on_sale, if(is_on_sale, price, NULL) AS sale_price
+-- --8<-- [end:extract_on_condition_sql]
+FROM 'source.parquet'
+"""
+
+CONTAINS_BOOL_SQL = """
+-- --8<-- [start:contains_bool_sql]
+SELECT description, description.contains('important') AS has_keyword
+-- --8<-- [end:contains_bool_sql]
+FROM 'source.parquet'
+"""
+
+STRING_CONSTANT_SQL = """
+-- --8<-- [start:string_constant_sql]
+SELECT *, 'huntington' AS source
+-- --8<-- [end:string_constant_sql]
+FROM 'source.parquet'
+"""
+
+APPEND_ON_CONDITION_SQL = """
+-- --8<-- [start:append_on_condition_sql]
+SELECT
+    CASE WHEN is_featured
+        THEN list_concat(tags, [category])
+        ELSE tags
+    END AS tags,
+    category,
+    is_featured
+-- --8<-- [end:append_on_condition_sql]
+FROM 'source.parquet'
+"""
+
+# Implode needs FROM for GROUP BY context
+IMPLODE_SQL = """
+-- --8<-- [start:implode_sql]
+SELECT artwork_id, list(tag) AS tag
+FROM 'source.parquet'
+GROUP BY ALL
+ORDER BY artwork_id
+-- --8<-- [end:implode_sql]
+"""
+
+CONCAT_SQL = """
+-- --8<-- [start:concat_sql]
+SELECT
+    first,
+    last,
+    concat(coalesce(first::VARCHAR, 'None'), ' ', coalesce(last::VARCHAR, 'None')) AS full_name
+-- --8<-- [end:concat_sql]
+FROM 'source.parquet'
+"""
+
+RENAME_SQL = """
+-- --8<-- [start:rename_sql]
+SELECT old_name AS new_name, title AS artwork_title
+-- --8<-- [end:rename_sql]
+FROM 'source.parquet'
+"""
+
+IS_EMPTY_SQL = """
+-- --8<-- [start:is_empty_sql]
+SELECT
+    email,
+    email IS NULL AS missing_email,
+    email IS NOT NULL AS has_email
+-- --8<-- [end:is_empty_sql]
+FROM 'source.parquet'
+"""
+
+EXPLODE_SQL = """
+-- --8<-- [start:explode_sql]
+SELECT id, unnest(tags) AS tags
+-- --8<-- [end:explode_sql]
+FROM 'source.parquet'
+"""
+
+REPLACE_ON_CONDITION_SQL = """
+-- --8<-- [start:replace_on_condition_sql]
+SELECT
+    if(status = '', 'unknown', status) AS status,
+    greatest(price, 0) AS price
+-- --8<-- [end:replace_on_condition_sql]
+FROM 'source.parquet'
+"""
+
+LOWER_STRING_SQL = """
+-- --8<-- [start:lower_string_sql]
+SELECT email.lower() AS email
+-- --8<-- [end:lower_string_sql]
+FROM 'source.parquet'
+"""
+
+KEEP_ONLY_SQL = """
+-- --8<-- [start:keep_only_sql]
+SELECT id, title
+-- --8<-- [end:keep_only_sql]
+FROM 'source.parquet'
+"""
+
+DROP_NULL_COLUMNS_SQL = """
+-- --8<-- [start:drop_null_columns_sql]
+-- Must enumerate non-null columns manually
+SELECT id, title
+-- --8<-- [end:drop_null_columns_sql]
+FROM 'source.parquet'
+"""
+
+DROP_COLUMNS_SQL = """
+-- --8<-- [start:drop_columns_sql]
+SELECT * EXCLUDE (internal_id)
+-- --8<-- [end:drop_columns_sql]
+FROM 'source.parquet'
+"""
+
+COPY_FIELD_SQL = """
+-- --8<-- [start:copy_field_sql]
+SELECT *, original_title AS display_title
+-- --8<-- [end:copy_field_sql]
+FROM 'source.parquet'
+"""
+
+REPLACE_SQL = """
+-- --8<-- [start:replace_sql]
+SELECT CASE WHEN status = '' THEN 'unknown' ELSE status END AS status
+-- --8<-- [end:replace_sql]
+FROM 'source.parquet'
+"""
+
+# Merge needs FROM for JOIN syntax
+MERGE_SQL = """
+-- --8<-- [start:merge_sql]
+SELECT s.id AS id_x, s.artist_id, a.artist_name, a.id AS id_y
+FROM 'sales.parquet' s
+LEFT JOIN 'artists.parquet' a ON s.artist_id = a.id
+-- --8<-- [end:merge_sql]
+"""
+
+FILL_MISSING_TUPLES_SQL = """
+-- --8<-- [start:fill_missing_tuples_sql]
+SELECT
+    coalesce(names, [NULL, NULL]) AS names,
+    coalesce(roles, [NULL, NULL]) AS roles
+-- --8<-- [end:fill_missing_tuples_sql]
+FROM 'source.parquet'
+"""
+
+CONDITIONAL_BOOL_SQL = """
+-- --8<-- [start:conditional_bool_sql]
+SELECT *, (price > 1000 AND status = 'active') AS is_premium
+-- --8<-- [end:conditional_bool_sql]
+FROM 'source.parquet'
+"""
+
+CAPITALIZE_SQL = """
+-- --8<-- [start:capitalize_sql]
+SELECT upper(title[1]) || lower(title[2:]) AS title
+-- --8<-- [end:capitalize_sql]
+FROM 'source.parquet'
+"""
+
+APPEND_STRING_SQL = """
+-- --8<-- [start:append_string_sql]
+SELECT
+    'ID-' || id AS id,
+    filename || '.jpg' AS filename
+-- --8<-- [end:append_string_sql]
+FROM 'source.parquet'
+"""
+
+ADD_NUMBER_SQL = """
+-- --8<-- [start:add_number_sql]
+SELECT year, year + 1 AS next_year
+-- --8<-- [end:add_number_sql]
+FROM 'source.parquet'
+"""
+
+SUBTRACT_NUMBER_SQL = """
+-- --8<-- [start:subtract_number_sql]
+SELECT year, year - 1 AS prev_year
+-- --8<-- [end:subtract_number_sql]
+FROM 'source.parquet'
+"""
+
+SPLIT_STRING_SQL = """
+-- --8<-- [start:split_string_sql]
+SELECT tags.split(',') AS tags
+-- --8<-- [end:split_string_sql]
+FROM 'source.parquet'
+"""
+
+AS_TYPE_SQL = """
+-- --8<-- [start:as_type_sql]
+SELECT year::INTEGER AS year, price::DOUBLE AS price
+-- --8<-- [end:as_type_sql]
+FROM 'source.parquet'
+"""
+
+# Drop rows needs FROM for WHERE clause context
+DROP_ROWS_SQL = """
+-- --8<-- [start:drop_rows_sql]
+SELECT *
+FROM 'source.parquet'
+WHERE status != 'deleted' AND price >= 0
+-- --8<-- [end:drop_rows_sql]
+"""
+
+COLUMNS_TO_DICTS_SQL = """
+-- --8<-- [start:columns_to_dicts_sql]
+SELECT [{'w': width, 'h': height, 'd': depth}] AS dimensions
+-- --8<-- [end:columns_to_dicts_sql]
+FROM 'source.parquet'
+"""
+
+
+# ---------------------------------------------------------------------------
+# DuckDB Execution Functions (for testing)
 # ---------------------------------------------------------------------------
 
 
-# --8<-- [start:fill_empty_duckdb]
-def fill_empty_duckdb(conn: duckdb.DuckDBPyConnection) -> pl.DataFrame:
-    """Fill nulls using coalesce/ifnull."""
-    return conn.sql("""
-        SELECT
-            coalesce(title, alt_title) AS title,
-            alt_title,
-            ifnull(price, 0) AS price
-        FROM df
-    """).pl()
+def _run_sql(conn: duckdb.DuckDBPyConnection, sql: str, parquet_path: str) -> pl.DataFrame:
+    """Execute SQL with parquet path substitution."""
+    return conn.sql(sql.replace("'source.parquet'", f"'{parquet_path}'")).pl()
 
 
-# --8<-- [end:fill_empty_duckdb]
+def fill_empty_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> pl.DataFrame:
+    return _run_sql(conn, FILL_EMPTY_SQL, parquet_path)
 
 
-# --8<-- [start:remove_nulls_duckdb]
-def remove_nulls_duckdb(conn: duckdb.DuckDBPyConnection) -> pl.DataFrame:
-    """Remove nulls from list using list_filter."""
-    return conn.sql("""
-        SELECT
-            nullif(list_filter(tags, x -> x IS NOT NULL), []) AS tags
-        FROM df
-    """).pl()
+def remove_nulls_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> pl.DataFrame:
+    return _run_sql(conn, REMOVE_NULLS_SQL, parquet_path)
 
 
-# --8<-- [end:remove_nulls_duckdb]
+def strip_string_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> pl.DataFrame:
+    return _run_sql(conn, STRIP_STRING_SQL, parquet_path)
 
 
-# --8<-- [start:strip_string_duckdb]
-def strip_string_duckdb(conn: duckdb.DuckDBPyConnection) -> pl.DataFrame:
-    """Strip whitespace using trim."""
-    return conn.sql("""
-        SELECT name, regexp_replace(name, '^\\s+|\\s+$', '', 'g') AS name_clean
-        FROM df
-    """).pl()
+def extract_first_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> pl.DataFrame:
+    return _run_sql(conn, EXTRACT_FIRST_SQL, parquet_path)
 
 
-# --8<-- [end:strip_string_duckdb]
+def extract_on_condition_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> pl.DataFrame:
+    return _run_sql(conn, EXTRACT_ON_CONDITION_SQL, parquet_path)
 
 
-# --8<-- [start:extract_first_duckdb]
-def extract_first_duckdb(conn: duckdb.DuckDBPyConnection) -> pl.DataFrame:
-    """Extract first element using array indexing."""
-    return conn.sql("""
-        SELECT authors, authors[1] AS primary_author
-        FROM df
-    """).pl()
+def contains_bool_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> pl.DataFrame:
+    return _run_sql(conn, CONTAINS_BOOL_SQL, parquet_path)
 
 
-# --8<-- [end:extract_first_duckdb]
+def string_constant_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> pl.DataFrame:
+    return _run_sql(conn, STRING_CONSTANT_SQL, parquet_path)
 
 
-# --8<-- [start:extract_on_condition_duckdb]
-def extract_on_condition_duckdb(conn: duckdb.DuckDBPyConnection) -> pl.DataFrame:
-    """Extract conditionally using if()."""
-    return conn.sql("""
-        SELECT price, is_on_sale, if(is_on_sale, price, NULL) AS sale_price
-        FROM df
-    """).pl()
+def append_on_condition_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> pl.DataFrame:
+    return _run_sql(conn, APPEND_ON_CONDITION_SQL, parquet_path)
 
 
-# --8<-- [end:extract_on_condition_duckdb]
+def implode_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> pl.DataFrame:
+    return _run_sql(conn, IMPLODE_SQL, parquet_path)
 
 
-# --8<-- [start:contains_bool_duckdb]
-def contains_bool_duckdb(conn: duckdb.DuckDBPyConnection) -> pl.DataFrame:
-    """Check contains using .contains()."""
-    return conn.sql("""
-        SELECT description, description.contains('important') AS has_keyword
-        FROM df
-    """).pl()
+def concat_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> pl.DataFrame:
+    return _run_sql(conn, CONCAT_SQL, parquet_path)
 
 
-# --8<-- [end:contains_bool_duckdb]
+def rename_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> pl.DataFrame:
+    return _run_sql(conn, RENAME_SQL, parquet_path)
 
 
-# --8<-- [start:string_constant_duckdb]
-def string_constant_duckdb(conn: duckdb.DuckDBPyConnection) -> pl.DataFrame:
-    """Add constant column."""
-    return conn.sql("""
-        SELECT *, 'huntington' AS source
-        FROM df
-    """).pl()
+def is_empty_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> pl.DataFrame:
+    return _run_sql(conn, IS_EMPTY_SQL, parquet_path)
 
 
-# --8<-- [end:string_constant_duckdb]
+def explode_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> pl.DataFrame:
+    return _run_sql(conn, EXPLODE_SQL, parquet_path)
 
 
-# --8<-- [start:append_on_condition_duckdb]
-def append_on_condition_duckdb(conn: duckdb.DuckDBPyConnection) -> pl.DataFrame:
-    """Append category to tags list when featured."""
-    return conn.sql("""
-        SELECT
-            CASE WHEN is_featured
-                THEN list_concat(tags, [category])
-                ELSE tags
-            END AS tags,
-            category,
-            is_featured
-        FROM df
-    """).pl()
+def replace_on_condition_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> pl.DataFrame:
+    return _run_sql(conn, REPLACE_ON_CONDITION_SQL, parquet_path)
 
 
-# --8<-- [end:append_on_condition_duckdb]
+def lower_string_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> pl.DataFrame:
+    return _run_sql(conn, LOWER_STRING_SQL, parquet_path)
 
 
-# --8<-- [start:implode_duckdb]
-def implode_duckdb(conn: duckdb.DuckDBPyConnection) -> pl.DataFrame:
-    """Aggregate to list using list() and GROUP BY ALL."""
-    return conn.sql("""
-        SELECT artwork_id, list(tag) AS tag
-        FROM df
-        GROUP BY ALL
-        ORDER BY artwork_id
-    """).pl()
+def keep_only_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> pl.DataFrame:
+    return _run_sql(conn, KEEP_ONLY_SQL, parquet_path)
 
 
-# --8<-- [end:implode_duckdb]
+def drop_null_columns_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> pl.DataFrame:
+    return _run_sql(conn, DROP_NULL_COLUMNS_SQL, parquet_path)
 
 
-# --8<-- [start:concat_duckdb]
-def concat_duckdb(conn: duckdb.DuckDBPyConnection) -> pl.DataFrame:
-    """Concatenate with concat_ws (handles nulls)."""
-    return conn.sql("""
-        SELECT
-            first,
-            last,
-            concat(coalesce(first::VARCHAR, 'None'), ' ', coalesce(last::VARCHAR, 'None')) AS full_name
-        FROM df
-    """).pl()
+def drop_columns_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> pl.DataFrame:
+    return _run_sql(conn, DROP_COLUMNS_SQL, parquet_path)
 
 
-# --8<-- [end:concat_duckdb]
+def copy_field_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> pl.DataFrame:
+    return _run_sql(conn, COPY_FIELD_SQL, parquet_path)
 
 
-# --8<-- [start:rename_duckdb]
-def rename_duckdb(conn: duckdb.DuckDBPyConnection) -> pl.DataFrame:
-    """Rename columns using AS."""
-    return conn.sql("""
-        SELECT old_name AS new_name, title AS artwork_title
-        FROM df
-    """).pl()
+def replace_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> pl.DataFrame:
+    return _run_sql(conn, REPLACE_SQL, parquet_path)
 
 
-# --8<-- [end:rename_duckdb]
+def merge_duckdb(
+    conn: duckdb.DuckDBPyConnection, sales_path: str, artists_path: str
+) -> pl.DataFrame:
+    sql = MERGE_SQL.replace("'sales.parquet'", f"'{sales_path}'").replace(
+        "'artists.parquet'", f"'{artists_path}'"
+    )
+    return conn.sql(sql).pl()
 
 
-# --8<-- [start:is_empty_duckdb]
-def is_empty_duckdb(conn: duckdb.DuckDBPyConnection) -> pl.DataFrame:
-    """Check null using IS NULL / IS NOT NULL."""
-    return conn.sql("""
-        SELECT
-            email,
-            email IS NULL AS missing_email,
-            email IS NOT NULL AS has_email
-        FROM df
-    """).pl()
+def fill_missing_tuples_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> pl.DataFrame:
+    return _run_sql(conn, FILL_MISSING_TUPLES_SQL, parquet_path)
 
 
-# --8<-- [end:is_empty_duckdb]
+def conditional_bool_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> pl.DataFrame:
+    return _run_sql(conn, CONDITIONAL_BOOL_SQL, parquet_path)
 
 
-# --8<-- [start:explode_duckdb]
-def explode_duckdb(conn: duckdb.DuckDBPyConnection) -> pl.DataFrame:
-    """Explode using unnest."""
-    return conn.sql("""
-        SELECT id, unnest(tags) AS tags
-        FROM df
-    """).pl()
+def capitalize_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> pl.DataFrame:
+    return _run_sql(conn, CAPITALIZE_SQL, parquet_path)
 
 
-# --8<-- [end:explode_duckdb]
+def append_string_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> pl.DataFrame:
+    return _run_sql(conn, APPEND_STRING_SQL, parquet_path)
 
 
-# --8<-- [start:replace_on_condition_duckdb]
-def replace_on_condition_duckdb(conn: duckdb.DuckDBPyConnection) -> pl.DataFrame:
-    """Replace conditionally using if() and greatest()."""
-    return conn.sql("""
-        SELECT
-            if(status = '', 'unknown', status) AS status,
-            greatest(price, 0) AS price
-        FROM df
-    """).pl()
+def add_number_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> pl.DataFrame:
+    return _run_sql(conn, ADD_NUMBER_SQL, parquet_path)
 
 
-# --8<-- [end:replace_on_condition_duckdb]
+def subtract_number_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> pl.DataFrame:
+    return _run_sql(conn, SUBTRACT_NUMBER_SQL, parquet_path)
 
 
-# --8<-- [start:lower_string_duckdb]
-def lower_string_duckdb(conn: duckdb.DuckDBPyConnection) -> pl.DataFrame:
-    """Lowercase using .lower()."""
-    return conn.sql("""
-        SELECT email.lower() AS email
-        FROM df
-    """).pl()
+def split_string_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> pl.DataFrame:
+    return _run_sql(conn, SPLIT_STRING_SQL, parquet_path)
 
 
-# --8<-- [end:lower_string_duckdb]
+def as_type_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> pl.DataFrame:
+    return _run_sql(conn, AS_TYPE_SQL, parquet_path)
 
 
-# --8<-- [start:keep_only_duckdb]
-def keep_only_duckdb(conn: duckdb.DuckDBPyConnection) -> pl.DataFrame:
-    """Keep only specified columns."""
-    return conn.sql("""
-        SELECT id, title FROM df
-    """).pl()
+def drop_rows_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> pl.DataFrame:
+    return _run_sql(conn, DROP_ROWS_SQL, parquet_path)
 
 
-# --8<-- [end:keep_only_duckdb]
-
-
-# --8<-- [start:drop_null_columns_duckdb]
-def drop_null_columns_duckdb(conn: duckdb.DuckDBPyConnection) -> pl.DataFrame:
-    """Select non-null columns (manual in DuckDB)."""
-    return conn.sql("""
-        SELECT id, title FROM df
-    """).pl()
-
-
-# --8<-- [end:drop_null_columns_duckdb]
-
-
-# --8<-- [start:drop_columns_duckdb]
-def drop_columns_duckdb(conn: duckdb.DuckDBPyConnection) -> pl.DataFrame:
-    """Drop columns using EXCLUDE."""
-    return conn.sql("""
-        SELECT * EXCLUDE (internal_id) FROM df
-    """).pl()
-
-
-# --8<-- [end:drop_columns_duckdb]
-
-
-# --8<-- [start:copy_field_duckdb]
-def copy_field_duckdb(conn: duckdb.DuckDBPyConnection) -> pl.DataFrame:
-    """Copy column using AS."""
-    return conn.sql("""
-        SELECT *, original_title AS display_title FROM df
-    """).pl()
-
-
-# --8<-- [end:copy_field_duckdb]
-
-
-# --8<-- [start:replace_duckdb]
-def replace_duckdb(conn: duckdb.DuckDBPyConnection) -> pl.DataFrame:
-    """Replace exact value using CASE."""
-    return conn.sql("""
-        SELECT
-            CASE WHEN status = '' THEN 'unknown' ELSE status END AS status
-        FROM df
-    """).pl()
-
-
-# --8<-- [end:replace_duckdb]
-
-
-# --8<-- [start:merge_duckdb]
-def merge_duckdb(conn: duckdb.DuckDBPyConnection) -> pl.DataFrame:
-    """Left join using JOIN."""
-    return conn.sql("""
-        SELECT s.id AS id_x, s.artist_id, a.artist_name, a.id AS id_y
-        FROM sales s
-        LEFT JOIN artists a ON s.artist_id = a.id
-    """).pl()
-
-
-# --8<-- [end:merge_duckdb]
-
-
-# --8<-- [start:fill_missing_tuples_duckdb]
-def fill_missing_tuples_duckdb(conn: duckdb.DuckDBPyConnection) -> pl.DataFrame:
-    """Fill missing tuple columns using list literals."""
-    return conn.sql("""
-        SELECT
-            coalesce(names, [NULL, NULL]) AS names,
-            coalesce(roles, [NULL, NULL]) AS roles
-        FROM df
-    """).pl()
-
-
-# --8<-- [end:fill_missing_tuples_duckdb]
-
-
-# --8<-- [start:conditional_bool_duckdb]
-def conditional_bool_duckdb(conn: duckdb.DuckDBPyConnection) -> pl.DataFrame:
-    """Evaluate boolean expression."""
-    return conn.sql("""
-        SELECT *, (price > 1000 AND status = 'active') AS is_premium
-        FROM df
-    """).pl()
-
-
-# --8<-- [end:conditional_bool_duckdb]
-
-
-# --8<-- [start:capitalize_duckdb]
-def capitalize_duckdb(conn: duckdb.DuckDBPyConnection) -> pl.DataFrame:
-    """Capitalize first char (Python-style, not title case)."""
-    return conn.sql("""
-        SELECT upper(title[1]) || lower(title[2:]) AS title
-        FROM df
-    """).pl()
-
-
-# --8<-- [end:capitalize_duckdb]
-
-
-# --8<-- [start:append_string_duckdb]
-def append_string_duckdb(conn: duckdb.DuckDBPyConnection) -> pl.DataFrame:
-    """Prepend/append using || operator."""
-    return conn.sql("""
-        SELECT
-            'ID-' || id AS id,
-            filename || '.jpg' AS filename
-        FROM df
-    """).pl()
-
-
-# --8<-- [end:append_string_duckdb]
-
-
-# --8<-- [start:add_number_duckdb]
-def add_number_duckdb(conn: duckdb.DuckDBPyConnection) -> pl.DataFrame:
-    """Add using + operator."""
-    return conn.sql("""
-        SELECT year, year + 1 AS next_year FROM df
-    """).pl()
-
-
-# --8<-- [end:add_number_duckdb]
-
-
-# --8<-- [start:subtract_number_duckdb]
-def subtract_number_duckdb(conn: duckdb.DuckDBPyConnection) -> pl.DataFrame:
-    """Subtract using - operator."""
-    return conn.sql("""
-        SELECT year, year - 1 AS prev_year FROM df
-    """).pl()
-
-
-# --8<-- [end:subtract_number_duckdb]
-
-
-# --8<-- [start:split_string_duckdb]
-def split_string_duckdb(conn: duckdb.DuckDBPyConnection) -> pl.DataFrame:
-    """Split using string_split."""
-    return conn.sql("""
-        SELECT string_split(tags, ',') AS tags FROM df
-    """).pl()
-
-
-# --8<-- [end:split_string_duckdb]
-
-
-# --8<-- [start:as_type_duckdb]
-def as_type_duckdb(conn: duckdb.DuckDBPyConnection) -> pl.DataFrame:
-    """Cast using :: shorthand."""
-    return conn.sql("""
-        SELECT year::INTEGER AS year, price::DOUBLE AS price FROM df
-    """).pl()
-
-
-# --8<-- [end:as_type_duckdb]
-
-
-# --8<-- [start:drop_rows_duckdb]
-def drop_rows_duckdb(conn: duckdb.DuckDBPyConnection) -> pl.DataFrame:
-    """Filter using WHERE."""
-    return conn.sql("""
-        SELECT * FROM df
-        WHERE status != 'deleted' AND price >= 0
-    """).pl()
-
-
-# --8<-- [end:drop_rows_duckdb]
-
-
-# --8<-- [start:columns_to_dicts_duckdb]
-def columns_to_dicts_duckdb(conn: duckdb.DuckDBPyConnection) -> pl.DataFrame:
-    """Create list of structs."""
-    return conn.sql("""
-        SELECT [{'w': width, 'h': height, 'd': depth}] AS dimensions
-        FROM df
-    """).pl()
-
-
-# --8<-- [end:columns_to_dicts_duckdb]
+def columns_to_dicts_duckdb(conn: duckdb.DuckDBPyConnection, parquet_path: str) -> pl.DataFrame:
+    return _run_sql(conn, COLUMNS_TO_DICTS_SQL, parquet_path)
 
 
 # ---------------------------------------------------------------------------
@@ -1162,7 +1168,7 @@ def run_test(
     name: str,
     data: dict[str, list],
     polars_fn: Callable[[pl.DataFrame], pl.DataFrame],
-    duckdb_fn: Callable[[duckdb.DuckDBPyConnection], pl.DataFrame],
+    duckdb_fn: Callable,  # Takes (conn, parquet_path) or (conn, path1, path2)
     honeysuckle_fn: Callable[[pd.DataFrame], pd.DataFrame] | None = None,
     extra_data: dict[str, dict] | None = None,
     verbose: bool = False,
@@ -1176,14 +1182,29 @@ def run_test(
         # Run Polars
         polars_result = polars_fn(df_polars)
 
-        # Run DuckDB
-        conn = duckdb.connect()
-        conn.register("df", df_polars)
-        if extra_data:
-            for table_name, table_data in extra_data.items():
-                conn.register(table_name, pl.DataFrame(table_data))
-        duckdb_result = duckdb_fn(conn)
-        conn.close()
+        # Run DuckDB (from parquet files)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            parquet_path = Path(tmpdir) / "source.parquet"
+            df_polars.write_parquet(parquet_path)
+
+            conn = duckdb.connect()
+
+            # Handle extra data (for MergeProcessor)
+            if extra_data:
+                extra_paths = {}
+                for table_name, table_data in extra_data.items():
+                    extra_path = Path(tmpdir) / f"{table_name}.parquet"
+                    pl.DataFrame(table_data).write_parquet(extra_path)
+                    extra_paths[table_name] = str(extra_path)
+                # For merge test, pass both paths
+                if "sales" in extra_paths and "artists" in extra_paths:
+                    duckdb_result = duckdb_fn(conn, extra_paths["sales"], extra_paths["artists"])
+                else:
+                    duckdb_result = duckdb_fn(conn, str(parquet_path))
+            else:
+                duckdb_result = duckdb_fn(conn, str(parquet_path))
+
+            conn.close()
 
         # Run Honeysuckle if available
         honeysuckle_result = None

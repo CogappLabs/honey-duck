@@ -86,12 +86,14 @@ FillEmptyProcessor(column_name="name", column_fill="display_name", constant_fill
 ### Polars
 
 ```python
---8<-- "scripts/test_processor_equivalents.py:fill_empty_polars"
+df = df.with_columns(
+    pl.col("title").fill_null(pl.col("alt_title")),
+    pl.col("price").fill_null(0),
+)
 ```
 
-Additional pattern - chained fallback:
+Chained fallback:
 ```python
-# Fill from column first, then constant for remaining nulls
 df = df.with_columns(
     pl.col("name").fill_null(pl.col("display_name")).fill_null("Unknown")
 )
@@ -99,8 +101,8 @@ df = df.with_columns(
 
 ### DuckDB
 
-```python
---8<-- "scripts/test_processor_equivalents.py:fill_empty_duckdb"
+```sql
+--8<-- "scripts/test_processor_equivalents.py:fill_empty_sql"
 ```
 
 Chained coalesce:
@@ -117,8 +119,8 @@ Remove null values from list/array columns.
 | | |
 |---|---|
 | **Honeysuckle** | [`remove_multivalue_nulls_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/processors/remove_multivalue_nulls_processor.py) |
-| **Polars** | [`list.eval()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.list.eval.html) with [`drop_nulls()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.drop_nulls.html) |
-| **DuckDB** | [`list_filter()`](https://duckdb.org/docs/sql/functions/list#list_filterlist-lambda) with lambda |
+| **Polars** | [`list.eval()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.list.eval.html) with [`drop_nulls()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.drop_nulls.html), [`list.len()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.list.len.html) |
+| **DuckDB** | [`list_filter()`](https://duckdb.org/docs/sql/functions/list#list_filterlist-lambda) with lambda, [`nullif()`](https://duckdb.org/docs/sql/functions/utility#nullifexpr-value-to-null) |
 
 ```python
 # Honeysuckle
@@ -140,14 +142,18 @@ RemoveMultivalueNullsProcessor(column="tags")
 
 ### DuckDB
 
-```python
---8<-- "scripts/test_processor_equivalents.py:remove_nulls_duckdb"
+```sql
+--8<-- "scripts/test_processor_equivalents.py:remove_nulls_sql"
 ```
+
+How it works:
+
+- [`list_filter(tags, x -> x IS NOT NULL)`](https://duckdb.org/docs/sql/functions/list#list_filterlist-lambda) — Lambda filters nulls from list
+- [`nullif(..., [])`](https://duckdb.org/docs/sql/functions/utility#nullifexpr-value-to-null) — Converts empty list `[]` to `NULL`
 
 Alternative list comprehension:
 ```sql
-SELECT
-    nullif([x FOR x IN tags IF x IS NOT NULL], []) AS tags
+SELECT nullif([x FOR x IN tags IF x IS NOT NULL], []) AS tags
 FROM items
 ```
 
@@ -179,7 +185,7 @@ StripStringProcessor(column_name="code", new_column="code", strip_string="-")
 ### Polars
 
 ```python
---8<-- "scripts/test_processor_equivalents.py:strip_string_polars"
+df = df.with_columns(pl.col("name").str.strip_chars().alias("name_clean"))
 ```
 
 Additional patterns:
@@ -196,8 +202,8 @@ df = df.with_columns(
 
 ### DuckDB
 
-```python
---8<-- "scripts/test_processor_equivalents.py:strip_string_duckdb"
+```sql
+--8<-- "scripts/test_processor_equivalents.py:strip_string_sql"
 ```
 
 Additional patterns:
@@ -238,13 +244,13 @@ ExtractFirstProcessor(column_name="tags")  # Overwrites same column
 ### Polars
 
 ```python
---8<-- "scripts/test_processor_equivalents.py:extract_first_polars"
+df = df.with_columns(pl.col("authors").list.first().alias("primary_author"))
 ```
 
 ### DuckDB
 
-```python
---8<-- "scripts/test_processor_equivalents.py:extract_first_duckdb"
+```sql
+--8<-- "scripts/test_processor_equivalents.py:extract_first_sql"
 ```
 
 Replace in-place:
@@ -283,7 +289,9 @@ ExtractOnConditionProcessor(
 ### Polars
 
 ```python
---8<-- "scripts/test_processor_equivalents.py:extract_on_condition_polars"
+df = df.with_columns(
+    pl.when(pl.col("is_on_sale")).then(pl.col("price")).otherwise(None).alias("sale_price")
+)
 ```
 
 Multiple conditions:
@@ -300,8 +308,8 @@ df = df.with_columns(
 
 ### DuckDB
 
-```python
---8<-- "scripts/test_processor_equivalents.py:extract_on_condition_duckdb"
+```sql
+--8<-- "scripts/test_processor_equivalents.py:extract_on_condition_sql"
 ```
 
 Multiple conditions with CASE:
@@ -340,7 +348,7 @@ ContainsBoolProcessor(column_name="description", result_column="has_keyword", pa
 ### Polars
 
 ```python
---8<-- "scripts/test_processor_equivalents.py:contains_bool_polars"
+df = df.with_columns(pl.col("description").str.contains("important").alias("has_keyword"))
 ```
 
 Regex pattern:
@@ -352,8 +360,8 @@ df = df.with_columns(
 
 ### DuckDB
 
-```python
---8<-- "scripts/test_processor_equivalents.py:contains_bool_duckdb"
+```sql
+--8<-- "scripts/test_processor_equivalents.py:contains_bool_sql"
 ```
 
 Additional patterns:
@@ -392,7 +400,7 @@ StringConstantDataframeProcessor(target_field="source", value="huntington")
 ### Polars
 
 ```python
---8<-- "scripts/test_processor_equivalents.py:string_constant_polars"
+df = df.with_columns(pl.lit("huntington").alias("source"))
 ```
 
 Add multiple constants:
@@ -406,8 +414,8 @@ df = df.with_columns(
 
 ### DuckDB
 
-```python
---8<-- "scripts/test_processor_equivalents.py:string_constant_duckdb"
+```sql
+--8<-- "scripts/test_processor_equivalents.py:string_constant_sql"
 ```
 
 Add multiple constants:
@@ -428,7 +436,7 @@ Append columns to a list/tuple based on a condition (uses pandas query syntax).
 | | |
 |---|---|
 | **Honeysuckle** | [`append_on_condition_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/processors/append_on_condition_processor.py) |
-| **Polars** | [`when().then()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.when.html) with [`list.concat()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.list.concat.html) |
+| **Polars** | [`when().then()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.when.html) with [`list.concat()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.list.concat.html), [`concat_list()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.concat_list.html) |
 | **DuckDB** | [`list_concat()`](https://duckdb.org/docs/sql/functions/list#list_concatlist1-list2) with `CASE WHEN` |
 
 ```python
@@ -453,10 +461,12 @@ AppendOnConditionProcessor(
 --8<-- "scripts/test_processor_equivalents.py:append_on_condition_polars"
 ```
 
+Why the intermediate step? The [`list.concat()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.list.concat.html) method requires both operands to be lists. Using [`concat_list()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.concat_list.html) wraps the scalar in a list cleanly.
+
 ### DuckDB
 
-```python
---8<-- "scripts/test_processor_equivalents.py:append_on_condition_duckdb"
+```sql
+--8<-- "scripts/test_processor_equivalents.py:append_on_condition_sql"
 ```
 
 ---
@@ -487,7 +497,7 @@ ImplodeProcessor(column_names=["tag"], index_column="artwork_id")
 ### Polars
 
 ```python
---8<-- "scripts/test_processor_equivalents.py:implode_polars"
+df = df.group_by("artwork_id").agg(pl.col("tag").alias("tag")).sort("artwork_id")
 ```
 
 With ordering inside the list:
@@ -499,8 +509,8 @@ df = df.group_by("artwork_id").agg(
 
 ### DuckDB
 
-```python
---8<-- "scripts/test_processor_equivalents.py:implode_duckdb"
+```sql
+--8<-- "scripts/test_processor_equivalents.py:implode_sql"
 ```
 
 With ordering inside the list:
@@ -539,12 +549,17 @@ ConcatProcessor(new_field="code", join_fields=["prefix", "id"], join_on="-")
 ### Polars
 
 ```python
---8<-- "scripts/test_processor_equivalents.py:concat_polars"
+df = df.with_columns(
+    pl.concat_str(
+        [pl.col("first").fill_null("None"), pl.col("last").fill_null("None")],
+        separator=" ",
+        ignore_nulls=False,
+    ).alias("full_name")
+)
 ```
 
-Additional patterns:
+Best practice - skip nulls instead of stringifying them:
 ```python
-# Best practice: skip nulls instead of stringifying them
 df = df.with_columns(
     pl.concat_str(["prefix", "id"], separator=" ", ignore_nulls=True).alias("code")
 )
@@ -552,13 +567,12 @@ df = df.with_columns(
 
 ### DuckDB
 
-```python
---8<-- "scripts/test_processor_equivalents.py:concat_duckdb"
+```sql
+--8<-- "scripts/test_processor_equivalents.py:concat_sql"
 ```
 
-Additional patterns:
+Best practice - skip nulls:
 ```sql
--- Best practice: skip nulls instead of stringifying them
 SELECT concat_ws(' ', first, last) AS full_name FROM items
 ```
 
@@ -588,13 +602,13 @@ RenameProcessor(mapping={"old_name": "new_name", "title": "artwork_title"})
 ### Polars
 
 ```python
---8<-- "scripts/test_processor_equivalents.py:rename_polars"
+df = df.rename({"old_name": "new_name", "title": "artwork_title"})
 ```
 
 ### DuckDB
 
-```python
---8<-- "scripts/test_processor_equivalents.py:rename_duckdb"
+```sql
+--8<-- "scripts/test_processor_equivalents.py:rename_sql"
 ```
 
 Keep all columns, rename specific ones:
@@ -630,13 +644,16 @@ IsEmptyProcessor(column_name="email", result_column="has_email", invert=True)
 ### Polars
 
 ```python
---8<-- "scripts/test_processor_equivalents.py:is_empty_polars"
+df = df.with_columns(
+    pl.col("email").is_null().alias("missing_email"),
+    pl.col("email").is_not_null().alias("has_email"),
+)
 ```
 
 ### DuckDB
 
-```python
---8<-- "scripts/test_processor_equivalents.py:is_empty_duckdb"
+```sql
+--8<-- "scripts/test_processor_equivalents.py:is_empty_sql"
 ```
 
 ---
@@ -666,7 +683,7 @@ ExplodeColumnsProcessor(column_names=["tags"])
 ### Polars
 
 ```python
---8<-- "scripts/test_processor_equivalents.py:explode_polars"
+df = df.explode("tags")
 ```
 
 Explode multiple columns (must have same length lists):
@@ -676,8 +693,8 @@ df = df.explode("tags", "tag_ids")
 
 ### DuckDB
 
-```python
---8<-- "scripts/test_processor_equivalents.py:explode_duckdb"
+```sql
+--8<-- "scripts/test_processor_equivalents.py:explode_sql"
 ```
 
 Keep all other columns:
@@ -723,13 +740,19 @@ ReplaceOnConditionProcessor(
 ### Polars
 
 ```python
---8<-- "scripts/test_processor_equivalents.py:replace_on_condition_polars"
+df = df.with_columns(
+    pl.when(pl.col("status") == "")
+    .then(pl.lit("unknown"))
+    .otherwise(pl.col("status"))
+    .alias("status"),
+    pl.max_horizontal(pl.col("price"), pl.lit(0)).alias("price"),
+)
 ```
 
 ### DuckDB
 
-```python
---8<-- "scripts/test_processor_equivalents.py:replace_on_condition_duckdb"
+```sql
+--8<-- "scripts/test_processor_equivalents.py:replace_on_condition_sql"
 ```
 
 Complex condition with CASE:
@@ -763,13 +786,13 @@ LowerStringProcessor(column_name="email")
 ### Polars
 
 ```python
---8<-- "scripts/test_processor_equivalents.py:lower_string_polars"
+df = df.with_columns(pl.col("email").str.to_lowercase())
 ```
 
 ### DuckDB
 
-```python
---8<-- "scripts/test_processor_equivalents.py:lower_string_duckdb"
+```sql
+--8<-- "scripts/test_processor_equivalents.py:lower_string_sql"
 ```
 
 Traditional function syntax:
@@ -791,30 +814,30 @@ Keep only specified columns, drop all others.
 
 ```python
 # Honeysuckle
-KeepOnlyProcessor(column_names=["id", "title", "date"])
+KeepOnlyProcessor(column_names=["id", "title"])
 ```
 
 ### Example
 
-| id | title | author | date | | | id | title | date |
-|----|-------|--------|------|---|---|----|-------|------|
-| 1 | "Art" | "Jane" | "2024" | → | | 1 | "Art" | "2024" |
+| id | title | author | internal_code | | | id | title |
+|----|-------|--------|---------------|---|---|----|-------|
+| 1 | "Art" | "Jane" | "X1" | → | | 1 | "Art" |
 
 ### Polars
 
 ```python
---8<-- "scripts/test_processor_equivalents.py:keep_only_polars"
+df = df.select(["id", "title"])
 ```
 
 Using pl.col:
 ```python
-df = df.select(pl.col("id", "title", "date"))
+df = df.select(pl.col("id", "title"))
 ```
 
 ### DuckDB
 
-```python
---8<-- "scripts/test_processor_equivalents.py:keep_only_duckdb"
+```sql
+--8<-- "scripts/test_processor_equivalents.py:keep_only_sql"
 ```
 
 ---
@@ -844,13 +867,14 @@ DropNullColumnsProcessor()  # No arguments
 ### Polars
 
 ```python
---8<-- "scripts/test_processor_equivalents.py:drop_null_columns_polars"
+null_cols = [col for col in df.columns if df[col].is_null().all()]
+df = df.drop(null_cols)
 ```
 
 ### DuckDB
 
-```python
---8<-- "scripts/test_processor_equivalents.py:drop_null_columns_duckdb"
+```sql
+--8<-- "scripts/test_processor_equivalents.py:drop_null_columns_sql"
 ```
 
 ---
@@ -867,7 +891,7 @@ Drop specified columns from the dataframe.
 
 ```python
 # Honeysuckle
-DropColumnsProcessor(column_names=["internal_id", "temp_field"])
+DropColumnsProcessor(column_names=["internal_id"])
 ```
 
 ### Example
@@ -879,7 +903,7 @@ DropColumnsProcessor(column_names=["internal_id", "temp_field"])
 ### Polars
 
 ```python
---8<-- "scripts/test_processor_equivalents.py:drop_columns_polars"
+df = df.drop(["internal_id"])
 ```
 
 Drop single column:
@@ -889,8 +913,8 @@ df = df.drop("internal_id")
 
 ### DuckDB
 
-```python
---8<-- "scripts/test_processor_equivalents.py:drop_columns_duckdb"
+```sql
+--8<-- "scripts/test_processor_equivalents.py:drop_columns_sql"
 ```
 
 Or explicitly list columns to keep:
@@ -924,7 +948,7 @@ CopyFieldDataframeProcessor(target_field="original_title", new_field="display_ti
 ### Polars
 
 ```python
---8<-- "scripts/test_processor_equivalents.py:copy_field_polars"
+df = df.with_columns(pl.col("original_title").alias("display_title"))
 ```
 
 Copy multiple columns:
@@ -937,8 +961,8 @@ df = df.with_columns(
 
 ### DuckDB
 
-```python
---8<-- "scripts/test_processor_equivalents.py:copy_field_duckdb"
+```sql
+--8<-- "scripts/test_processor_equivalents.py:copy_field_sql"
 ```
 
 Copy multiple:
@@ -955,8 +979,8 @@ Replace exact values in a column.
 | | |
 |---|---|
 | **Honeysuckle** | [`replace_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/processors/replace_processor.py) |
-| **Polars** | [`str.replace()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.str.replace.html) / [`str.replace_all()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.str.replace_all.html) |
-| **DuckDB** | [`.replace()`](https://duckdb.org/docs/sql/functions/text#replacestring-source-target) (dot notation) |
+| **Polars** | [`when().then().otherwise()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.when.html) for exact value replacement |
+| **DuckDB** | `CASE WHEN` for exact value replacement |
 
 ```python
 # Honeysuckle
@@ -973,12 +997,16 @@ ReplaceProcessor(target_field="category", to_replace="N/A", replacement=None)
 ### Polars
 
 ```python
---8<-- "scripts/test_processor_equivalents.py:replace_polars"
+df = df.with_columns(
+    pl.when(pl.col("status") == "")
+    .then(pl.lit("unknown"))
+    .otherwise(pl.col("status"))
+    .alias("status")
+)
 ```
 
-Additional patterns:
+Best practice for substring/regex replacement:
 ```python
-# Best practice: substring/regex replacement
 df = df.with_columns(
     pl.col("text").str.replace_all(r"\s+", " ")  # Collapse whitespace
 )
@@ -986,13 +1014,12 @@ df = df.with_columns(
 
 ### DuckDB
 
-```python
---8<-- "scripts/test_processor_equivalents.py:replace_duckdb"
+```sql
+--8<-- "scripts/test_processor_equivalents.py:replace_sql"
 ```
 
-Additional patterns:
+Best practice for substring/regex replacement:
 ```sql
--- Best practice: substring/regex replacement
 SELECT regexp_replace(text, '\s+', ' ', 'g') AS text FROM items
 ```
 
@@ -1045,19 +1072,21 @@ MergeProcessor(
 --8<-- "scripts/test_processor_equivalents.py:merge_polars"
 ```
 
+The [`suffix`](https://docs.pola.rs/api/python/stable/reference/dataframe/api/polars.DataFrame.join.html) parameter automatically appends a suffix to duplicate column names from the right DataFrame.
+
 Additional patterns:
 ```python
 # Inner join
 df = sales.join(artists, left_on="artist_id", right_on="id", how="inner")
 
-# Join with suffix for duplicate column names
+# Join with custom suffix for duplicate column names
 df = sales.join(artists, left_on="artist_id", right_on="id", suffix="_artist")
 ```
 
 ### DuckDB
 
-```python
---8<-- "scripts/test_processor_equivalents.py:merge_duckdb"
+```sql
+--8<-- "scripts/test_processor_equivalents.py:merge_sql"
 ```
 
 Additional patterns:
@@ -1098,18 +1127,22 @@ FillMissingTuplesProcessor(columns=["names", "roles"])
 ### Polars
 
 ```python
---8<-- "scripts/test_processor_equivalents.py:fill_missing_tuples_polars"
+df = df.with_columns(
+    pl.when(pl.col("names").is_null())
+    .then(pl.lit([None, None]))
+    .otherwise(pl.col("names"))
+    .alias("names"),
+    pl.when(pl.col("roles").is_null())
+    .then(pl.lit([None, None]))
+    .otherwise(pl.col("roles"))
+    .alias("roles"),
+)
 ```
 
 ### DuckDB
 
-```python
---8<-- "scripts/test_processor_equivalents.py:fill_missing_tuples_duckdb"
-```
-
-Fill entire null list:
 ```sql
-SELECT coalesce(names, [NULL, NULL]) AS names FROM items
+--8<-- "scripts/test_processor_equivalents.py:fill_missing_tuples_sql"
 ```
 
 ---
@@ -1139,7 +1172,9 @@ ConditionalBoolProcessor(expression="price > 1000 and status == 'active'", resul
 ### Polars
 
 ```python
---8<-- "scripts/test_processor_equivalents.py:conditional_bool_polars"
+df = df.with_columns(
+    ((pl.col("price") > 1000) & (pl.col("status") == "active")).alias("is_premium")
+)
 ```
 
 Complex expressions:
@@ -1154,8 +1189,8 @@ df = df.with_columns(
 
 ### DuckDB
 
-```python
---8<-- "scripts/test_processor_equivalents.py:conditional_bool_duckdb"
+```sql
+--8<-- "scripts/test_processor_equivalents.py:conditional_bool_sql"
 ```
 
 Complex expressions:
@@ -1172,7 +1207,7 @@ Capitalize the first character of strings.
 | | |
 |---|---|
 | **Honeysuckle** | [`capitalize_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/processors/capitalize_processor.py) |
-| **Polars** | [`str.to_titlecase()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.str.to_titlecase.html) (or custom) |
+| **Polars** | [`str.head()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.str.head.html) + [`str.to_uppercase()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.str.to_uppercase.html), or [`str.to_titlecase()`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.str.to_titlecase.html) |
 | **DuckDB** | [`initcap()`](https://duckdb.org/docs/sql/functions/text#initcapstring) |
 
 ```python
@@ -1192,6 +1227,8 @@ CapitalizeProcessor(column_name="title")
 --8<-- "scripts/test_processor_equivalents.py:capitalize_polars"
 ```
 
+Note: [`str.head(1)`](https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.str.head.html) is cleaner than `.str.slice(0, 1)` for extracting the first character.
+
 Title case (capitalize each word):
 ```python
 df = df.with_columns(
@@ -1201,9 +1238,14 @@ df = df.with_columns(
 
 ### DuckDB
 
-```python
---8<-- "scripts/test_processor_equivalents.py:capitalize_duckdb"
+```sql
+--8<-- "scripts/test_processor_equivalents.py:capitalize_sql"
 ```
+
+How it works:
+
+- `title[1]` — DuckDB uses 1-based indexing for strings
+- `title[2:]` — Slice from second character to end
 
 Title case (capitalize each word):
 ```sql
@@ -1237,7 +1279,10 @@ AppendStringProcessor(column="filename", value=".jpg")          # Append
 ### Polars
 
 ```python
---8<-- "scripts/test_processor_equivalents.py:append_string_polars"
+df = df.with_columns(
+    (pl.lit("ID-") + pl.col("id")).alias("id"),
+    (pl.col("filename") + pl.lit(".jpg")).alias("filename"),
+)
 ```
 
 Using concat_str:
@@ -1249,8 +1294,8 @@ df = df.with_columns(
 
 ### DuckDB
 
-```python
---8<-- "scripts/test_processor_equivalents.py:append_string_duckdb"
+```sql
+--8<-- "scripts/test_processor_equivalents.py:append_string_sql"
 ```
 
 Using concat:
@@ -1284,7 +1329,7 @@ AddNumberProcessor(column_name="year", new_column="next_year", value=1)
 ### Polars
 
 ```python
---8<-- "scripts/test_processor_equivalents.py:add_number_polars"
+df = df.with_columns((pl.col("year") + 1).alias("next_year"))
 ```
 
 Add to same column:
@@ -1296,8 +1341,8 @@ df = df.with_columns(
 
 ### DuckDB
 
-```python
---8<-- "scripts/test_processor_equivalents.py:add_number_duckdb"
+```sql
+--8<-- "scripts/test_processor_equivalents.py:add_number_sql"
 ```
 
 Add to computed expression:
@@ -1331,7 +1376,7 @@ SubtractNumberProcessor(column_name="year", new_column="prev_year", value=1)
 ### Polars
 
 ```python
---8<-- "scripts/test_processor_equivalents.py:subtract_number_polars"
+df = df.with_columns((pl.col("year") - 1).alias("prev_year"))
 ```
 
 Calculate difference:
@@ -1343,8 +1388,8 @@ df = df.with_columns(
 
 ### DuckDB
 
-```python
---8<-- "scripts/test_processor_equivalents.py:subtract_number_duckdb"
+```sql
+--8<-- "scripts/test_processor_equivalents.py:subtract_number_sql"
 ```
 
 Calculate difference:
@@ -1378,7 +1423,7 @@ SplitStringProcessor(column_name="tags", delimiter=",")
 ### Polars
 
 ```python
---8<-- "scripts/test_processor_equivalents.py:split_string_polars"
+df = df.with_columns(pl.col("tags").str.split(","))
 ```
 
 Split with default space delimiter:
@@ -1390,8 +1435,8 @@ df = df.with_columns(
 
 ### DuckDB
 
-```python
---8<-- "scripts/test_processor_equivalents.py:split_string_duckdb"
+```sql
+--8<-- "scripts/test_processor_equivalents.py:split_string_sql"
 ```
 
 Split with default space:
@@ -1426,13 +1471,16 @@ AsTypeProcessor(column_name="price", new_type="float")
 ### Polars
 
 ```python
---8<-- "scripts/test_processor_equivalents.py:as_type_polars"
+df = df.with_columns(
+    pl.col("year").cast(pl.Int64),
+    pl.col("price").cast(pl.Float64),
+)
 ```
 
 ### DuckDB
 
-```python
---8<-- "scripts/test_processor_equivalents.py:as_type_duckdb"
+```sql
+--8<-- "scripts/test_processor_equivalents.py:as_type_sql"
 ```
 
 Alternative CAST syntax:
@@ -1468,13 +1516,13 @@ DropRowsOnConditionProcessor(target_field="price", conditional_operator="<", con
 ### Polars
 
 ```python
---8<-- "scripts/test_processor_equivalents.py:drop_rows_polars"
+df = df.filter((pl.col("status") != "deleted") & (pl.col("price") >= 0))
 ```
 
 ### DuckDB
 
-```python
---8<-- "scripts/test_processor_equivalents.py:drop_rows_duckdb"
+```sql
+--8<-- "scripts/test_processor_equivalents.py:drop_rows_sql"
 ```
 
 ---
@@ -1514,7 +1562,15 @@ ColumnsToDictsProcessor(
 ### Polars
 
 ```python
---8<-- "scripts/test_processor_equivalents.py:columns_to_dicts_polars"
+df = df.with_columns(
+    pl.concat_list(
+        pl.struct(
+            pl.col("width").alias("w"),
+            pl.col("height").alias("h"),
+            pl.col("depth").alias("d"),
+        )
+    ).alias("dimensions")
+).drop(["width", "height", "depth"])
 ```
 
 For multivalue columns (lists of same length):
@@ -1539,8 +1595,8 @@ df = (
 
 ### DuckDB
 
-```python
---8<-- "scripts/test_processor_equivalents.py:columns_to_dicts_duckdb"
+```sql
+--8<-- "scripts/test_processor_equivalents.py:columns_to_dicts_sql"
 ```
 
 Multivalue: transform parallel lists into list of structs:
@@ -1559,13 +1615,13 @@ FROM items
 | Processor | Polars | DuckDB |
 |-----------|--------|--------|
 | `FillEmptyProcessor` | `.fill_null()` | `coalesce()` / `ifnull()` |
-| `RemoveMultivalueNullsProcessor` | `.list.eval(pl.element().drop_nulls())` | `list_filter(x -> x IS NOT NULL)` |
+| `RemoveMultivalueNullsProcessor` | `.list.eval()` + `.list.len()` | `list_filter()` + `nullif()` |
 | `StripStringProcessor` | `.str.strip_chars()` | `.trim()` |
 | `ExtractFirstProcessor` | `.list.first()` | `col[1]` |
 | `ExtractOnConditionProcessor` | `pl.when().then().otherwise()` | `if()` / `CASE WHEN` |
 | `ContainsBoolProcessor` | `.str.contains()` | `.contains()` |
 | `StringConstantDataframeProcessor` | `pl.lit()` | `'value' AS col` |
-| `AppendOnConditionProcessor` | `pl.when().then()` + `.list.concat()` | `list_concat()` + `CASE` |
+| `AppendOnConditionProcessor` | `concat_list()` + `.list.concat()` | `list_concat()` + `CASE` |
 | `ImplodeProcessor` | `.group_by().agg()` | `list()` + `GROUP BY ALL` |
 | `ConcatProcessor` | `pl.concat_str()` | `concat_ws()` / `||` |
 | `RenameProcessor` | `.rename()` | `AS new_name` |
@@ -1577,11 +1633,11 @@ FROM items
 | `DropNullColumnsProcessor` | Filter columns | Dynamic SQL |
 | `DropColumnsProcessor` | `.drop()` | `EXCLUDE` |
 | `CopyFieldDataframeProcessor` | `.alias()` | `AS new_col` |
-| `ReplaceProcessor` | `.str.replace_all()` | `.replace()` |
+| `ReplaceProcessor` | `when().then().otherwise()` | `CASE WHEN` |
 | `MergeProcessor` | `.join()` | `JOIN` |
 | `FillMissingTuplesProcessor` | `.struct.field().fill_null()` | `coalesce(struct.field)` |
 | `ConditionalBoolProcessor` | Boolean expression | Boolean expression |
-| `CapitalizeProcessor` | Slice + uppercase | `initcap()` |
+| `CapitalizeProcessor` | `.str.head()` + `.str.to_uppercase()` | `upper(title[1]) || lower(title[2:])` |
 | `AppendStringProcessor` | `+` / `pl.concat_str()` | `||` / `concat()` |
 | `AddNumberProcessor` | `+` | `+` |
 | `SubtractNumberProcessor` | `-` | `-` |
