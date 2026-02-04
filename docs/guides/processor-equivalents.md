@@ -1549,6 +1549,9 @@ df = df.filter((pl.col("status") != "deleted") & (pl.col("price") >= 0))
 
 Combine multiple columns into a single column containing a list of dictionaries (nested structs). Useful for creating nested JSON output. Handles both single-value and multivalue columns.
 
+!!! warning "Inefficient Implementation"
+    Honeysuckle uses `itertuples()` and `for...range` row-by-row iteration. The Polars/DuckDB equivalents are vectorized and significantly faster.
+
 | | |
 |---|---|
 | **Honeysuckle** | [`columns_to_dicts_processor.py`](https://github.com/Cogapp/honeysuckle/blob/main/honeysuckle/components/ColumnsToDictsProcessor.py) |
