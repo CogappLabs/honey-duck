@@ -75,6 +75,7 @@ nav:
     - Troubleshooting: user-guide/troubleshooting.md
   - Integrations:
     - Elasticsearch: integrations/elasticsearch.md
+    - Soda Validation: integrations/soda-validation.md
     - Common Outputs: integrations/common-outputs.md
     - API Harvesting: integrations/api-harvesting.md
     - XML Harvesting: integrations/xml-harvesting.md

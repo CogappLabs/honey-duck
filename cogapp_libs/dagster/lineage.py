@@ -41,7 +41,7 @@ def format_value(val: Any) -> str | None:
 
 
 def get_example_row(
-    conn,
+    conn: duckdb.DuckDBPyConnection,
     path: str,
     id_field: str | None = None,
     id_value: int | str | None = None,

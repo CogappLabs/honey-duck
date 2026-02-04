@@ -22,11 +22,12 @@ Open [http://localhost:3000](http://localhost:3000) and click **"Materialize all
 
 ## Features
 
-- **6 parallel implementations** sharing a common harvest layer
+- **7 parallel implementations** sharing a common harvest layer
 - **Lazy evaluation** with Polars for optimal performance
+- **Soda data quality validation** with contract-based schema checks
+- **Column lineage tracking** with example values
 - **Visualization helpers** for Dagster asset metadata (Altair charts, markdown tables)
 - **Reusable processors** for DuckDB, Polars, and Pandas transforms
-- **Comprehensive validation** with clear error messages
 
 ## Architecture
 
@@ -81,6 +82,7 @@ CSV files → dlt harvest → Transform assets → Output assets → JSON
 | (none) | Original with processor classes | Processor pattern |
 | `_polars` | Pure Polars with intermediate steps | Lazy evaluation, visualization |
 | `_duckdb` | Pure DuckDB SQL queries | SQL-based transforms |
+| `_soda` | DuckDB + Soda validation | Column lineage, schema contracts |
 | `_polars_fs` | Polars variant (different group) | Same logic, separate group |
 | `_polars_ops` | Graph-backed assets with ops | Detailed observability |
 | `_polars_multi` | Multi-asset pattern | Tightly coupled steps |

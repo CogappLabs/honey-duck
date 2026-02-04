@@ -17,14 +17,39 @@ uv run dg dev
 # With custom port for frontend compatibility
 uv run dg dev -p 3003
 
-# Run pipeline via CLI
-uv run dg launch --job processors_pipeline
-
-# List all definitions
-uv run dg list defs
-
 # Run tests
 uv run pytest
+
+# Type checking
+uv run ty check src/ cogapp_libs/
+
+# Build docs
+uv run mkdocs serve  # Local preview at http://localhost:8000
+uv run mkdocs build  # Build static site to site/
+```
+
+## dg CLI Commands
+
+```bash
+# List all definitions (assets, jobs, resources, etc.)
+uv run dg list defs
+
+# Run a specific pipeline
+uv run dg launch --job <job_name>
+
+# Available jobs (7 total):
+uv run dg launch --job processors_pipeline    # Original processor classes
+uv run dg launch --job polars_pipeline        # Pure Polars
+uv run dg launch --job duckdb_pipeline        # Pure DuckDB SQL
+uv run dg launch --job duckdb_soda_pipeline   # DuckDB + Soda validation
+uv run dg launch --job polars_fs_pipeline     # Polars variant
+uv run dg launch --job polars_ops_pipeline    # Graph-backed ops
+uv run dg launch --job polars_multi_pipeline  # Multi-asset pattern
+
+# Run all pipelines (for testing)
+for job in processors_pipeline polars_pipeline duckdb_pipeline duckdb_soda_pipeline polars_fs_pipeline polars_ops_pipeline polars_multi_pipeline; do
+  uv run dg launch --job $job
+done
 ```
 
 ## Structure
