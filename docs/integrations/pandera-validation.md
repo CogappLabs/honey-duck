@@ -447,20 +447,20 @@ def check_referential_integrity(
 ) -> tuple[bool, dict]:
     """Check that all values of `key` in source exist in reference.
 
-    Uses an anti-join to find orphaned keys without loading both
-    full datasets into memory (scan_parquet stays lazy until collect).
+    Uses an anti-join on lazy scans. Polars pushes the column
+    projection down so only the key column is read from each file.
 
     Returns:
         Tuple of (passed, metadata_dict)
     """
     orphans = (
         pl.scan_parquet(source_path)
+        .select(key)
         .join(
             pl.scan_parquet(reference_path).select(key),
             on=key,
             how="anti",
         )
-        .select(key)
         .unique()
         .collect()
     )
