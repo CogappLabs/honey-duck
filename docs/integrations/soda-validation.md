@@ -86,7 +86,7 @@ connection:
 """
 
     result = verify_contract_locally(
-        data_source_file_path=ds_config_path,
+        data_source_file_path=ds_config,
         contract_file_path="contracts/sales_transform.yml",
         publish=False,
     )

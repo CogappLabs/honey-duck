@@ -108,6 +108,9 @@ uv run dg launch --job polars_ops_pipeline
 # DuckDB SQL implementation
 uv run dg launch --job duckdb_pipeline
 
+# DuckDB + Soda validation implementation
+uv run dg launch --job duckdb_soda_pipeline
+
 # Polars FilesystemIOManager implementation
 uv run dg launch --job polars_fs_pipeline
 

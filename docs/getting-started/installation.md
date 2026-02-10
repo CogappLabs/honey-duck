@@ -11,11 +11,11 @@ A hands-on guide to understanding and working with Dagster in the honey-duck pro
 
 Dagster is a **data orchestration platform** that helps you build, test, and monitor data pipelines. Think of it as a smart way to organize your data processing code with:
 
--  **Visual lineage**: See how data flows through your pipeline
-- ⚡ **Incremental execution**: Only recompute what changed
--  **Observability**: Track what's happening in real-time
+- **Visual lineage**: See how data flows through your pipeline
+- **Incremental execution**: Only recompute what changed
+- **Observability**: Track what's happening in real-time
 - **Testing**: Test your pipeline logic before deploying
-- 🔄 **Scheduling**: Run pipelines on a schedule or trigger manually
+- **Scheduling**: Run pipelines on a schedule or trigger manually
 
 ## Core Concepts (5-Minute Version)
 
@@ -136,19 +136,7 @@ def expensive_artworks(
 
 ### Step 2: Register the Asset
 
-The asset is **automatically registered** via `load_from_defs_folder()`:
-
-```python
-# No manual registration needed - assets in defs/ are auto-discovered
-
-defs = dg.Definitions(
-    assets=[
-        # ... existing assets
-        expensive_artworks,  # ← Add this
-    ],
-    # ... rest of config
-)
-```
+The asset is **automatically registered** -- Dagster discovers assets in the `defs/` folder. No manual registration needed.
 
 ### Step 3: Materialize It
 
@@ -511,10 +499,9 @@ daily_schedule = ScheduleDefinition(
 ## Resources
 
 - **Dagster Docs**: https://docs.dagster.io
-- **Polars Docs**: https://pola-rs.github.io/polars/
-- **honey-duck Patterns**: `docs/defs/PATTERNS.md`
-- **CLI Reference**: `docs/CLI_REFERENCE.md` (see below)
-- **Troubleshooting**: `docs/TROUBLESHOOTING.md` (see below)
+- **Polars Docs**: https://docs.pola.rs/
+- **CLI Reference**: [CLI Reference](../development/cli.md)
+- **Troubleshooting**: [Troubleshooting](../user-guide/troubleshooting.md)
 
 ## Quick Reference
 
@@ -535,4 +522,4 @@ uv run pytest
 # → Open http://localhost:3000 → Assets → View lineage
 ```
 
-**Welcome to Dagster!** Start small, experiment in the UI, and build up from there. 
+**Welcome to Dagster.** Start small, experiment in the UI, and build up from there.

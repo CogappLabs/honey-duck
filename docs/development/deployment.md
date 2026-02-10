@@ -33,7 +33,7 @@ Complete guide to deploying honey-duck Dagster pipelines in production using Doc
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/cogapp/honey-duck.git
+git clone https://github.com/CogappLabs/honey-duck.git
 cd honey-duck
 
 # 2. Build and start services
@@ -94,7 +94,7 @@ open http://localhost:3000
 - `dagster-home`: Dagster instance storage (compute logs, artifacts)
 - `data-output`: Pipeline output files (JSON, Parquet, DuckDB)
 
-**Data survives container restarts** ✅
+**Data survives container restarts.**
 
 ---
 
@@ -649,14 +649,14 @@ docker-compose exec dagster-webserver rm -rf /app/dagster_home/storage/compute_l
 
 **Need help?**
 - Dagster Slack: https://dagster.io/slack
-- GitHub Issues: https://github.com/cogapp/honey-duck/issues
+- GitHub Issues: https://github.com/CogappLabs/honey-duck/issues
 - Documentation: See [Getting Started](../getting-started/quick-start.md) for full guide list
 
 **Production issues?**
 - Check [Troubleshooting Guide](../user-guide/troubleshooting.md)
 - Review logs: `docker-compose logs -f`
-- Dagster status page: https://status.dagster.io/
+- Dagster community: https://dagster.io/slack
 
 ---
 
-**Deploy with confidence!** 
+**Deploy with confidence.**

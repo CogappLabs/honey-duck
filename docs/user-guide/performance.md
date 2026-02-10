@@ -670,11 +670,11 @@ print(f"Column pruning: {time.time() - start:.2f}s")  # 0.3s (28x faster)
 
 ## Resources
 
-- **Polars Performance Guide**: https://pola-rs.github.io/polars-book/user-guide/lazy/intro/
-- **DuckDB Performance Tips**: https://duckdb.org/docs/guides/performance/how_to_tune_workloads
+- **Polars Performance Guide**: https://docs.pola.rs/user-guide/lazy/using/
+- **DuckDB Performance Tips**: https://duckdb.org/docs/guides/performance/overview
 - **Parquet Format**: https://parquet.apache.org/docs/file-format/
-- **Dagster Asset Monitoring**: https://docs.dagster.io/concepts/assets/asset-checks
+- **Dagster Asset Checks**: https://docs.dagster.io/guides/test/asset-checks
 
 ---
 
-**Profile. Measure. Optimize.** 
+**Profile. Measure. Optimize.**

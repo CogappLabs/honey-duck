@@ -308,7 +308,7 @@ def pages_with_changefreq() -> pl.DataFrame:
         "page_type": ["news", "static", "archive"],
     }).with_columns(
         pl.col("page_type")
-        .map_dict({
+        .replace({
             "news": "daily",
             "static": "monthly",
             "archive": "never",

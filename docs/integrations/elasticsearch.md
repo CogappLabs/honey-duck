@@ -21,16 +21,14 @@ Elasticsearch is ideal for:
 ### 1. Install Elasticsearch Client
 
 ```bash
-# Add to pyproject.toml or requirements.txt
-pip install elasticsearch>=8.0.0
+# Add the elasticsearch package
+uv add elasticsearch
 ```
 
 ### 2. Start Elasticsearch (Docker)
 
 ```bash
 # docker-compose.elasticsearch.yml
-version: '3.8'
-
 services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.12.0

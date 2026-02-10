@@ -18,7 +18,7 @@ def sales_with_discounts(context: dg.AssetExecutionContext) -> pl.DataFrame:
     """Add discount calculations to sales data."""
     tables = read_harvest_tables_lazy(...)
     result = tables["sales_raw"].with_columns(
-        pl.col("sale_price_usd") * 0.1).alias("discount")
+        (pl.col("sale_price_usd") * 0.1).alias("discount")
     ).collect()
     return result
 ```

@@ -172,7 +172,7 @@ from cogapp_libs.dagster import read_harvest_tables_lazy
 
 # This validates table exists and shows available tables in error message
 tables = read_harvest_tables_lazy(
-    HARVEST_PARQUET_DIR,
+    paths.harvest_dir,
     ("sales_raw", []),  # ← Will list available if wrong
     asset_name="my_asset",
 )
@@ -217,7 +217,7 @@ from cogapp_libs.dagster import read_harvest_tables_lazy
 
 # Validates columns exist
 tables = read_harvest_tables_lazy(
-    HARVEST_PARQUET_DIR,
+    paths.harvest_dir,
     ("sales_raw", ["sale_id", "sale_price_usd"]),  # ← Auto-validated
     asset_name="my_asset",
 )
@@ -304,7 +304,7 @@ ls -R data/output/storage/
 
 ## Performance Issues
 
-###  Issue: "Asset taking too long to materialize"
+### Issue: "Asset taking too long to materialize"
 
 **Symptoms**: Asset runs for minutes/hours.
 
@@ -352,7 +352,7 @@ def my_asset(context):
 
 ---
 
-###  Issue: "Out of memory errors"
+### Issue: "Out of memory errors"
 
 **Solutions**:
 
@@ -452,7 +452,7 @@ from honey_duck.defs.definitions import defs  # In asset file
 
 ---
 
-### 🐌 Issue: "UI is slow or unresponsive"
+### Issue: "UI is slow or unresponsive"
 
 **Solutions**:
 
@@ -576,7 +576,7 @@ uv run pytest -xvs
 ### Still Stuck?
 
 1. **Check Dagster Docs**: https://docs.dagster.io
-2. **Check honey-duck docs**: `docs/GETTING_STARTED.md`
+2. **Check honey-duck docs**: [Getting Started](../getting-started/quick-start.md)
 3. **View example implementations**: `src/honey_duck/defs/polars/assets.py`
 4. **Read error messages carefully**: They often include helpful suggestions!
 
@@ -606,4 +606,4 @@ uv run pytest -xvs
 
 ---
 
-**Pro Tip**: Most errors have helpful messages. Read them carefully - they often tell you exactly what's wrong! 
+**Pro Tip**: Most errors have helpful messages. Read them carefully -- they often tell you exactly what's wrong.

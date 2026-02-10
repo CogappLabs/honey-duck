@@ -22,7 +22,7 @@ description: Step-by-step tutorial to create your first Dagster asset with Polar
 
 ```bash
 # Clone the repository
-git clone https://github.com/cogapp/honey-duck.git
+git clone https://github.com/CogappLabs/honey-duck.git
 cd honey-duck
 
 # Install dependencies with uv (fast!)
@@ -94,7 +94,7 @@ Open `src/honey_duck/defs/polars/assets.py` and add this at the end:
 ```python
 @dg.asset(
     kinds={"polars"},
-    deps=HARVEST_DEPS,
+    deps=STANDARD_HARVEST_DEPS,
     group_name="transform_polars",
 )
 def artist_artworks_tutorial(
@@ -178,7 +178,7 @@ Replace the previous asset with this enhanced version:
 ```python
 @dg.asset(
     kinds={"polars"},
-    deps=HARVEST_DEPS,
+    deps=STANDARD_HARVEST_DEPS,
     group_name="transform_polars",
 )
 def artist_artworks_tutorial(
@@ -318,9 +318,9 @@ You've created your first Dagster asset with:
 
 **Explore Features:**
 
-- [Asset Checks](https://docs.dagster.io/concepts/assets/asset-checks) - Data quality validation
-- [Schedules](https://docs.dagster.io/concepts/automation/schedules) - Automated runs
-- [Sensors](https://docs.dagster.io/concepts/partitions-schedules-sensors/sensors) - Event-driven pipelines
+- [Asset Checks](https://docs.dagster.io/guides/test/asset-checks) - Data quality validation
+- [Schedules](https://docs.dagster.io/guides/automate/schedules/) - Automated runs
+- [Sensors](https://docs.dagster.io/guides/automate/sensors/) - Event-driven pipelines
 
 **Advanced Topics:**
 
@@ -337,7 +337,7 @@ You've created your first Dagster asset with:
 **A**: Check these directories:
 - **JSON outputs**: `data/output/json/`
 - **Parquet storage**: `data/output/storage/` (IO manager files)
-- **DuckDB database**: `data/output/dlt/dagster.duckdb` (harvest layer)
+- **DuckDB database**: See `DatabaseResource` in `shared/resources.py` for the configured path
 
 ### Q: How do I debug my asset?
 
@@ -414,7 +414,7 @@ Then run: `uv sync`
 
 **Solution**: Check available columns:
 ```python
-df = pl.scan_parquet(HARVEST_PARQUET_DIR / "sales_raw")
+df = pl.scan_parquet(paths.harvest_dir / "sales_raw")
 print(df.collect_schema())  # Shows all columns
 ```
 
@@ -489,7 +489,7 @@ df.sort(["date", "id"], descending=[True, False])
 
 ---
 
-**You're ready to build data pipelines!** 
+**You're ready to build data pipelines.**
 
 For help:
 - Dagster Slack: https://dagster.io/slack
