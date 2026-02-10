@@ -74,12 +74,14 @@ nav:
     - Best Practices: user-guide/best-practices.md
     - Polars Patterns: user-guide/polars-patterns.md
     - Frontend Dashboard: user-guide/frontend-dashboard.md
+    - Logging & Reporting: user-guide/logging-and-reporting.md
     - Performance Tuning: user-guide/performance.md
     - Troubleshooting: user-guide/troubleshooting.md
   - Guides:
     - Processor Equivalents: guides/processor-equivalents.md
   - Integrations:
     - Elasticsearch: integrations/elasticsearch.md
+    - Pandera Validation: integrations/pandera-validation.md
     - Soda Validation: integrations/soda-validation.md
     - Common Outputs: integrations/common-outputs.md
     - API Harvesting: integrations/api-harvesting.md

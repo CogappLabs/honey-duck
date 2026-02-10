@@ -131,6 +131,63 @@ def my_output(context, data: pl.LazyFrame) -> pl.DataFrame:
     return result
 ```
 
+## Multi-Table Joins
+
+The sales enrichment join (sales + artworks + artists) is the most common pattern in the codebase:
+
+```python
+result = (
+    sales.join(artworks, on="artwork_id", how="left", suffix="_aw")
+    .join(artists, on="artist_id", how="left", suffix="_ar")
+    .select(
+        "sale_id", "sale_date", "sale_price_usd", "buyer_country",
+        "artwork_id", "title", pl.col("year").alias("artwork_year"),
+        pl.col("price_usd").alias("list_price_usd"), "medium",
+        "artist_id", pl.col("name").str.strip_chars().str.to_uppercase().alias("artist_name"),
+        "nationality",
+    )
+)
+```
+
+!!! abstract "Helper opportunity: `join_sales_enrichment`"
+    This 3-table join with identical column selection appears in 5 Polars asset files. A helper would centralise the join logic and column mapping:
+
+    ```python
+    def join_sales_enrichment(
+        sales: pl.LazyFrame, artworks: pl.LazyFrame, artists: pl.LazyFrame,
+    ) -> pl.LazyFrame:
+        """Join sales with artworks and artists, applying standard column renames."""
+        return (
+            sales.join(artworks, on="artwork_id", how="left", suffix="_aw")
+            .join(artists, on="artist_id", how="left", suffix="_ar")
+            .select(
+                "sale_id", "sale_date", "sale_price_usd", "buyer_country",
+                "artwork_id", "title", pl.col("year").alias("artwork_year"),
+                pl.col("price_usd").alias("list_price_usd"), "medium",
+                "artist_id", normalize_artist_name("name"),
+                "nationality",
+            )
+        )
+    ```
+
+    Currently duplicated in: `polars/assets.py`, `polars/assets_fs.py`, `polars/assets_ops.py`, `polars/assets_multi.py`
+
+!!! abstract "Helper opportunity: `extract_value_counts`"
+    Converting Polars value counts to a plain dict for metadata is a 3-line pattern repeated in every output asset:
+
+    ```python
+    def extract_value_counts(df: pl.DataFrame, col: str) -> dict[str, int]:
+        """Convert a column's value counts to a plain dict for metadata."""
+        vc = df[col].value_counts().sort(col)
+        return dict(zip(vc[col].to_list(), vc["count"].to_list()))
+
+    # Usage: context.add_output_metadata({"tier_distribution": extract_value_counts(result, "price_tier")})
+    ```
+
+    Currently duplicated in: `polars/assets.py`, `polars/assets_fs.py`, `polars/assets_ops.py`, `duckdb/assets.py`, `original/assets.py`
+
+---
+
 ## Quick Reference
 
 | Pattern | Do | Don't |

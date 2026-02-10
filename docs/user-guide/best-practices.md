@@ -177,6 +177,8 @@ def sales_transform(context) -> pl.DataFrame:
 
 **Why**: Metadata makes debugging easier and provides observability in the UI.
 
+See [Logging & Reporting](logging-and-reporting.md) for metadata patterns, notification sensors, and the `df_preview_metadata` helper suggestion.
+
 ---
 
 ## Error Handling
@@ -480,6 +482,51 @@ result = df.filter(pl.col("price") >= MIN_SALE_VALUE_USD)
 ```
 
 **Why**: Centralized constants are easier to update and audit.
+
+!!! abstract "Helper opportunity: `compute_price_tier`"
+    The price tier CASE/WHEN logic is duplicated 6 times across Polars and DuckDB assets, each using the same constants. A shared expression helper would be a single source of truth:
+
+    ```python
+    # In shared/expressions.py
+    from .constants import PRICE_TIER_BUDGET_MAX_USD, PRICE_TIER_MID_MAX_USD
+
+    def price_tier_expr() -> pl.Expr:
+        """Polars expression for price tier categorization."""
+        return (
+            pl.when(pl.col("list_price_usd") < PRICE_TIER_BUDGET_MAX_USD)
+            .then(pl.lit("budget"))
+            .when(pl.col("list_price_usd") < PRICE_TIER_MID_MAX_USD)
+            .then(pl.lit("mid"))
+            .otherwise(pl.lit("premium"))
+            .alias("price_tier")
+        )
+
+    PRICE_TIER_SQL = f"""
+        CASE
+            WHEN list_price_usd < {PRICE_TIER_BUDGET_MAX_USD} THEN 'budget'
+            WHEN list_price_usd < {PRICE_TIER_MID_MAX_USD} THEN 'mid'
+            ELSE 'premium'
+        END AS price_tier
+    """
+
+    # Usage (Polars): df.with_columns(price_tier_expr())
+    # Usage (DuckDB): f"SELECT *, {PRICE_TIER_SQL} FROM artworks"
+    ```
+
+    Currently duplicated in: `polars/assets.py`, `polars/assets_fs.py`, `polars/assets_ops.py`, `polars/assets_multi.py`, `duckdb/assets.py`, `duckdb_soda/assets.py`
+
+!!! abstract "Helper opportunity: `normalize_artist_name`"
+    Artist name normalization (strip whitespace + uppercase) appears 6 times across assets. A shared expression keeps the business rule in one place:
+
+    ```python
+    def normalize_artist_name(col: str = "artist_name") -> pl.Expr:
+        """Strip whitespace and uppercase artist names."""
+        return pl.col(col).str.strip_chars().str.to_uppercase()
+
+    # Usage: df.with_columns(normalize_artist_name().alias("artist_name"))
+    ```
+
+    Currently duplicated in: `polars/assets.py`, `polars/assets_fs.py`, `polars/assets_ops.py`, `polars/assets_multi.py`, `duckdb/assets.py`, `original/assets.py`
 
 ---
 
