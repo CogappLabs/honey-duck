@@ -81,7 +81,28 @@ See the [Pandera Field reference](https://pandera.readthedocs.io/en/stable/refer
 | Option | Default | Description |
 |--------|---------|-------------|
 | `coerce` | `False` | Attempt to cast columns to declared types before validation |
-| `strict` | `False` | When `True`, fail if DataFrame has columns not in the schema |
+| `strict` | `False` | Controls handling of columns not defined in the schema (see below) |
+
+**`strict` modes:**
+
+| Value | Behaviour |
+|-------|-----------|
+| `False` (default) | Extra columns are ignored — they pass through untouched |
+| `True` | Raises `SchemaError` if the DataFrame has any columns not in the schema |
+| `"filter"` | Silently drops columns not defined in the schema from the validated output |
+
+Use `strict="filter"` when you want the schema to act as a column whitelist, keeping only the declared columns:
+
+```python
+class CleanOutputSchema(pa.DataFrameModel):
+    sale_id: int
+    sale_price_usd: int = pa.Field(gt=0)
+    artist_name: str
+
+    class Config:
+        coerce = True
+        strict = "filter"  # Only these 3 columns survive validation
+```
 
 ## Basic Validation
 
