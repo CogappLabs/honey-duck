@@ -298,6 +298,122 @@ context.add_output_metadata({
 })
 ```
 
+## Threshold Checks
+
+Soda contracts support pipeline thresholds natively — no Python code needed. Use these to catch broken sources or corrupt data before downstream assets run.
+
+### Minimum Record Count
+
+Block the pipeline if a source delivers fewer rows than expected:
+
+```yaml
+# contracts/sales_transform.yml
+dataset: sales_transform
+
+checks:
+  # Minimum record count — catches empty or truncated harvests
+  - row_count:
+      must_be_greater_than: 800
+```
+
+### Maximum Failure Rate (Per Column)
+
+Block on excessive missing or invalid values. Soda expresses this per column rather than across all checks:
+
+```yaml
+columns:
+  - name: sale_price_usd
+    checks:
+      - invalid_percent:
+          must_be_less_than: 5  # No more than 5% invalid prices
+          valid_min: 1
+      - missing_percent:
+          must_be_less_than: 2  # No more than 2% nulls
+
+  - name: artist_name
+    checks:
+      - missing_count:
+          must_be_less_than: 50  # Absolute count threshold
+```
+
+### Combined Example
+
+A contract with both record count and quality thresholds:
+
+```yaml
+# contracts/famsf_artworks.yml
+dataset: famsf_artworks
+
+checks:
+  - row_count:
+      must_be_greater_than: 7000
+  - duplicate:
+      columns: [artwork_id]
+      must_be: 0
+
+columns:
+  - name: title
+    checks:
+      - missing_percent:
+          must_be_less_than: 1
+  - name: artist_name
+    checks:
+      - missing_percent:
+          must_be_less_than: 5
+  - name: list_price_usd
+    checks:
+      - invalid_percent:
+          must_be_less_than: 5
+          valid_min: 1
+```
+
+!!! info "Pandera equivalent"
+    For in-memory Polars validation with percentage-based thresholds, see [Pandera Validation: Pipeline Thresholds](pandera-validation.md#pipeline-thresholds).
+
+## Referential Integrity
+
+Check that foreign keys in one parquet file reference valid records in another. Soda doesn't have built-in cross-file checks, but DuckDB SQL handles this directly:
+
+```sql
+-- Find artwork_ids in sales that don't exist in artworks
+SELECT DISTINCT s.artwork_id
+FROM 'data/storage/sales_transform.parquet' s
+WHERE s.artwork_id NOT IN (
+    SELECT artwork_id FROM 'data/harvest/raw/artworks_raw/**/*.parquet'
+)
+```
+
+### As a Dagster Asset Check
+
+```python
+import dagster as dg
+
+@dg.asset_check(asset=sales_transform_soda)
+def check_artwork_ids_soda(
+    context, sales_transform_soda: str, database: DatabaseResource,
+) -> dg.AssetCheckResult:
+    """SQL-based referential integrity check via DuckDB."""
+    with database.get_connection() as conn:
+        orphans = conn.sql(f"""
+            SELECT DISTINCT artwork_id
+            FROM '{sales_transform_soda}'
+            WHERE artwork_id NOT IN (
+                SELECT artwork_id FROM 'data/harvest/raw/artworks_raw/**/*.parquet'
+            )
+        """).fetchall()
+
+    return dg.AssetCheckResult(
+        passed=len(orphans) == 0,
+        metadata={
+            "orphan_count": len(orphans),
+            "orphan_sample": [r[0] for r in orphans[:10]] if orphans else None,
+        },
+    )
+```
+
+!!! info "Polars equivalent"
+    For in-memory referential integrity checks using anti-joins, see [Pandera Validation: Cross-File Referential Integrity](pandera-validation.md#cross-file-referential-integrity).
+
 ## Troubleshooting
 
 ### Soda Not Installed
@@ -328,3 +444,5 @@ contract_path = CONTRACTS_DIR / "sales_transform.yml"
 - **Soda Docs**: [docs.soda.io](https://docs.soda.io/)
 - **DuckDB Data Source**: [Soda DuckDB Reference](https://docs.soda.io/reference/data-source-reference-for-soda-core/duckdb/)
 - **Contracts**: [Soda Contracts](https://docs.soda.io/soda/contracts/)
+- **Related**: [Pandera Validation](pandera-validation.md) (in-memory Polars DataFrame validation)
+- **Related**: [Logging & Reporting](../user-guide/logging-and-reporting.md) (alerting on validation failures)

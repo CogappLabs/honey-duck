@@ -7,13 +7,8 @@ description: Schema validation for Polars DataFrames with Pandera, including laz
 
 Validate Polars DataFrames against typed schemas using [Pandera](https://pandera.readthedocs.io/). Schemas define expected columns, types, and constraints as Python classes. Failed validation can block downstream assets or surface warnings.
 
-!!! info "Pandera vs Soda"
-    Both validate data quality, but serve different layers:
-
-    - **Pandera** validates **Polars DataFrames in Python** — used for transform assets where data is already in memory
-    - **[Soda](soda-validation.md)** validates **Parquet files via DuckDB SQL** — used for path-based pipelines where data never enters Python
-
-    See [Logging & Reporting](../user-guide/logging-and-reporting.md) for how to surface validation results as alerts and notifications.
+!!! info "Also available: [Soda Validation](soda-validation.md)"
+    Soda validates Parquet files via DuckDB SQL — use it for path-based pipelines where data never enters Python. This page covers Pandera for in-memory Polars DataFrames.
 
 ## Installation
 
@@ -249,6 +244,205 @@ def sales_transform(context: dg.AssetExecutionContext) -> pl.DataFrame:
     return clean_df
 ```
 
+## Pipeline Thresholds
+
+Thresholds act as circuit breakers — they stop a pipeline early when something is fundamentally wrong with the source data or the transform output. Two common sense checks:
+
+1. **Minimum record count**: Did we receive a reasonable number of records from the source? A sudden drop (e.g. 50 rows instead of 8,000) usually means the source is broken, not that the data changed.
+2. **Maximum validation failure rate**: Are too many rows failing validation? A few bad rows is normal; 40% failing means the schema changed or the source is corrupt.
+
+Both are implemented as [blocking asset checks](https://docs.dagster.io/guides/test/data-contracts) so downstream assets won't materialise when thresholds are breached.
+
+### Configuration
+
+Define thresholds alongside other business constants in `shared/constants.py`:
+
+```python
+# shared/constants.py
+
+# Minimum rows expected from each source. If fewer arrive, block the pipeline.
+# Set per-source because expected volumes differ.
+MIN_RECORD_COUNTS = {
+    "famsf_artworks": 7_000,
+    "aam_artworks": 500,
+    "sjma_artworks": 100,
+    "sales": 800,
+}
+
+# Maximum percentage of rows that can fail validation before blocking.
+# 0.05 = 5% — if more than 5% of rows are invalid, something is wrong.
+MAX_VALIDATION_FAILURE_PCT = 0.05
+```
+
+### Minimum Record Count Check
+
+A blocking check that verifies the source delivered enough rows. This catches empty or truncated harvests before any transforms run:
+
+```python
+import dagster as dg
+import polars as pl
+
+from .constants import MIN_RECORD_COUNTS
+
+
+@dg.asset_check(asset=famsf_artworks, blocking=True)
+def check_famsf_artworks_record_count(
+    famsf_artworks: pl.DataFrame,
+) -> dg.AssetCheckResult:
+    """Block pipeline if source delivered fewer rows than expected."""
+    row_count = len(famsf_artworks)
+    minimum = MIN_RECORD_COUNTS["famsf_artworks"]
+    passed = row_count >= minimum
+
+    return dg.AssetCheckResult(
+        passed=passed,
+        metadata={
+            "row_count": row_count,
+            "minimum": minimum,
+            "shortfall": max(0, minimum - row_count),
+        },
+    )
+```
+
+#### Factory Pattern
+
+Since the check logic is identical across sources, use a factory to avoid repetition:
+
+```python
+def min_record_count_check(
+    asset: dg.AssetsDefinition,
+    source_key: str,
+) -> dg.AssetChecksDefinition:
+    """Create a blocking record count check for any asset."""
+    minimum = MIN_RECORD_COUNTS[source_key]
+
+    @dg.asset_check(asset=asset, blocking=True, name=f"check_{source_key}_record_count")
+    def _check(**kwargs: pl.DataFrame) -> dg.AssetCheckResult:
+        df = next(iter(kwargs.values()))
+        row_count = len(df)
+        return dg.AssetCheckResult(
+            passed=row_count >= minimum,
+            metadata={
+                "row_count": row_count,
+                "minimum": minimum,
+                "shortfall": max(0, minimum - row_count),
+            },
+        )
+
+    return _check
+
+
+# Register checks — 1 line per source instead of 20
+check_famsf_count = min_record_count_check(famsf_artworks, "famsf_artworks")
+check_aam_count = min_record_count_check(aam_artworks, "aam_artworks")
+check_sjma_count = min_record_count_check(sjma_artworks, "sjma_artworks")
+```
+
+### Maximum Validation Failure Rate
+
+A blocking check that runs Pandera validation, counts failures as a percentage of total rows, and blocks if too many fail. This catches schema drift or corrupt batches:
+
+```python
+from .schemas import validate_lazy, SalesTransformSchema
+from .constants import MAX_VALIDATION_FAILURE_PCT
+
+
+@dg.asset_check(asset=sales_transform, blocking=True)
+def check_sales_validation_rate(
+    sales_transform: pl.DataFrame,
+) -> dg.AssetCheckResult:
+    """Block pipeline if validation failure rate exceeds threshold."""
+    result = validate_lazy(sales_transform, SalesTransformSchema)
+
+    total = len(sales_transform)
+    failed = len(result.invalid_indices)
+    failure_pct = failed / total if total > 0 else 0.0
+    passed = failure_pct <= MAX_VALIDATION_FAILURE_PCT
+
+    return dg.AssetCheckResult(
+        passed=passed,
+        metadata={
+            "total_rows": total,
+            "failed_rows": failed,
+            "failure_pct": round(failure_pct * 100, 2),
+            "threshold_pct": round(MAX_VALIDATION_FAILURE_PCT * 100, 2),
+            "error_count": result.error_count,
+            "errors": dg.MetadataValue.json(result.errors[:20]) if result.errors else None,
+        },
+    )
+```
+
+#### Factory Pattern
+
+```python
+def max_failure_rate_check(
+    asset: dg.AssetsDefinition,
+    schema: type[pa.DataFrameModel],
+    max_pct: float = MAX_VALIDATION_FAILURE_PCT,
+) -> dg.AssetChecksDefinition:
+    """Create a blocking validation failure rate check."""
+
+    @dg.asset_check(
+        asset=asset,
+        blocking=True,
+        name=f"check_{asset.key.to_python_identifier()}_failure_rate",
+    )
+    def _check(**kwargs: pl.DataFrame) -> dg.AssetCheckResult:
+        df = next(iter(kwargs.values()))
+        result = validate_lazy(df, schema)
+
+        total = len(df)
+        failed = len(result.invalid_indices)
+        failure_pct = failed / total if total > 0 else 0.0
+
+        return dg.AssetCheckResult(
+            passed=failure_pct <= max_pct,
+            metadata={
+                "total_rows": total,
+                "failed_rows": failed,
+                "failure_pct": round(failure_pct * 100, 2),
+                "threshold_pct": round(max_pct * 100, 2),
+            },
+        )
+
+    return _check
+
+
+check_sales_rate = max_failure_rate_check(sales_transform, SalesTransformSchema)
+check_artworks_rate = max_failure_rate_check(artworks_transform, ArtworksTransformSchema)
+```
+
+### Combining Both Thresholds
+
+In practice, you want both checks on the same asset — minimum count ensures the source isn't broken, failure rate ensures the data isn't corrupt:
+
+```python
+# checks.py — register all threshold checks
+
+# Record count checks (blocking)
+check_famsf_count = min_record_count_check(famsf_artworks, "famsf_artworks")
+check_aam_count = min_record_count_check(aam_artworks, "aam_artworks")
+
+# Validation failure rate checks (blocking)
+check_sales_rate = max_failure_rate_check(sales_transform, SalesTransformSchema)
+check_artworks_rate = max_failure_rate_check(artworks_transform, ArtworksTransformSchema)
+
+# Register in definitions.py
+defs = dg.Definitions(
+    asset_checks=[
+        check_famsf_count,
+        check_aam_count,
+        check_sales_rate,
+        check_artworks_rate,
+    ],
+)
+```
+
+The Dagster UI shows both checks in the asset's Checks tab. If either fails, downstream assets are blocked and the failure reason (shortfall count or failure percentage) is visible in the metadata.
+
+!!! tip "Soda equivalent"
+    Soda contracts support threshold checks natively in YAML — see [Soda Validation: Threshold Checks](soda-validation.md#threshold-checks).
+
 ## Project Schemas
 
 The project defines two schemas in `shared/schemas.py`:
@@ -427,8 +621,8 @@ def validate_in_chunks(
     return all_errors
 ```
 
-!!! tip "Consider Soda for large datasets"
-    If your data is too large for in-memory validation, [Soda](soda-validation.md) may be a better fit. Soda validates parquet files via DuckDB SQL queries and never loads data into Python memory.
+!!! tip "Large datasets"
+    If your data is too large for in-memory validation, consider [Soda](soda-validation.md) instead — it validates parquet files via DuckDB SQL without loading data into Python.
 
 ## Cross-File Referential Integrity
 
@@ -549,42 +743,8 @@ def check_foreign_keys(
     )
 ```
 
-### DuckDB Alternative
-
-For path-based pipelines where data stays in DuckDB, use SQL instead:
-
-```sql
--- Find artwork_ids in sales that don't exist in artworks
-SELECT DISTINCT s.artwork_id
-FROM 'data/storage/sales_transform.parquet' s
-WHERE s.artwork_id NOT IN (
-    SELECT artwork_id FROM 'data/harvest/raw/artworks_raw/**/*.parquet'
-)
-```
-
-```python
-@dg.asset_check(asset=sales_transform_soda)
-def check_artwork_ids_soda(
-    context, sales_transform_soda: str, database: DatabaseResource,
-) -> dg.AssetCheckResult:
-    """SQL-based referential integrity check via DuckDB."""
-    with database.get_connection() as conn:
-        orphans = conn.sql(f"""
-            SELECT DISTINCT artwork_id
-            FROM '{sales_transform_soda}'
-            WHERE artwork_id NOT IN (
-                SELECT artwork_id FROM 'data/harvest/raw/artworks_raw/**/*.parquet'
-            )
-        """).fetchall()
-
-    return dg.AssetCheckResult(
-        passed=len(orphans) == 0,
-        metadata={
-            "orphan_count": len(orphans),
-            "orphan_sample": [r[0] for r in orphans[:10]] if orphans else None,
-        },
-    )
-```
+!!! tip "DuckDB alternative"
+    For path-based pipelines where data stays in DuckDB, referential integrity can be checked via SQL — see [Soda Validation: Referential Integrity](soda-validation.md#referential-integrity).
 
 ## Limitations
 
@@ -598,5 +758,4 @@ def check_artwork_ids_soda(
 - **Polars backend**: [Pandera Polars integration](https://pandera.readthedocs.io/en/latest/polars.html)
 - **Lazy validation**: [Collecting all errors](https://pandera.readthedocs.io/en/stable/lazy_validation.html)
 - **Dagster asset checks**: [Data Contracts guide](https://docs.dagster.io/guides/test/data-contracts) | [API reference](https://docs.dagster.io/api/dagster/asset-checks)
-- **Related**: [Soda Validation](soda-validation.md) (SQL-based validation for DuckDB pipelines)
 - **Related**: [Logging & Reporting](../user-guide/logging-and-reporting.md) (alerting on validation failures)
