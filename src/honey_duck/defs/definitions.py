@@ -41,7 +41,26 @@ Checks
 - Freshness checks alert if outputs haven't been updated in 24 hours
 """
 
+import os
+
 import dagster as dg
+
+# Enable remote debugging when DAGSTER_DEBUG=1
+# Start: DAGSTER_DEBUG=1 uv run dg dev
+# Then attach VS Code debugger ("Dagster: Attach to dg dev")
+if os.environ.get("DAGSTER_DEBUG"):
+    os.environ["PYDEVD_DISABLE_FILE_VALIDATION"] = "1"
+    import debugpy
+
+    try:
+        debugpy.listen(("localhost", 5678))
+        print("debugpy listening on port 5678 — attach your IDE debugger")
+    except RuntimeError:
+        # Subprocess: pause briefly so debugpy can sync breakpoints from VS Code
+        debugpy.trace_this_thread(True)
+        import time
+
+        time.sleep(0.5)
 from dagster_dlt import DagsterDltResource
 from dagster_duckdb import DuckDBResource
 from dagster_polars import PolarsParquetIOManager

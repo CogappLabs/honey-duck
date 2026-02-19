@@ -92,6 +92,7 @@ dev = [
     "ruff",
     "ty==0.0.14",
     "lefthook",
+    "debugpy>=1.8.20",
 ]
 docs = [
     "mkdocs>=1.6.1",

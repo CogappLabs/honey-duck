@@ -96,6 +96,7 @@ nav:
     - IO Managers: api/io-managers.md
   - Development:
     - CLI Reference: development/cli.md
+    - Debugging: development/debugging.md
     - Testing: development/testing.md
     - Pre-commit Hooks: development/hooks.md
     - Deployment: development/deployment.md
