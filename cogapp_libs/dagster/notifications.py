@@ -77,7 +77,7 @@ def _get_jinja_env() -> Environment:
     """Create Jinja2 environment with template directory and brand colours."""
     env = Environment(
         loader=FileSystemLoader(TEMPLATE_DIR),
-        autoescape=select_autoescape(["html", "xml"]),
+        autoescape=select_autoescape(["html", "html.j2", "xml"]),
     )
     env.globals["c"] = BRAND_COLORS
     return env
@@ -118,7 +118,7 @@ def render_success_email(
         Rendered HTML string
     """
     env = _get_jinja_env()
-    template = env.get_template("pipeline_success.html")
+    template = env.get_template("pipeline_success.html.j2")
 
     if isinstance(completed_at, datetime):
         completed_at = completed_at.strftime("%Y-%m-%d %H:%M:%S")
@@ -182,7 +182,7 @@ def render_failure_email(
         Rendered HTML string
     """
     env = _get_jinja_env()
-    template = env.get_template("pipeline_failure.html")
+    template = env.get_template("pipeline_failure.html.j2")
 
     if isinstance(failed_at, datetime):
         failed_at = failed_at.strftime("%Y-%m-%d %H:%M:%S")
@@ -240,7 +240,7 @@ def render_daily_summary(
         Rendered HTML string
     """
     env = _get_jinja_env()
-    template = env.get_template("daily_summary.html")
+    template = env.get_template("daily_summary.html.j2")
 
     if generated_at is None:
         generated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")

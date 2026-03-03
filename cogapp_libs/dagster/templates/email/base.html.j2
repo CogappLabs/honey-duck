@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Pipeline Notification{% endblock %}</title>
+    <style>
+        {% include "_shared.css.j2" %}
+        {% block extra_css %}{% endblock %}
+    </style>
+</head>
+<body>
+    <div class="container">
+        {% block header %}{% endblock %}
+
+        {% block body_content %}{% endblock %}
+
+        <div class="footer">
+            {% block footer_content %}
+            {% if internal %}
+            {% block footer_internal %}{% endblock %}
+            <p>Environment: {{ environment | default('production') }}</p>
+            {% block footer_after_env %}{% endblock %}
+            {% endif %}
+            <p>Powered by <a href="https://cogapp.com">Cogapp</a></p>
+            {% endblock %}
+        </div>
+    </div>
+</body>
+</html>
