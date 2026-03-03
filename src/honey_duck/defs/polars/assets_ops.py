@@ -81,6 +81,7 @@ def join_sales_data(context: dg.OpExecutionContext) -> pl.DataFrame:
             )
             .collect()
         )
+        result = cast(pl.DataFrame, result)
 
     context.log.info(
         f"[join_sales_data] Joined {len(result):,} sales records "
@@ -113,6 +114,7 @@ def add_sales_metrics(context: dg.OpExecutionContext, joined_data: pl.DataFrame)
         .sort(["sale_date", "sale_id"], descending=[True, False])
         .collect()
     )
+    result = cast(pl.DataFrame, result)
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
     total_value = float(result["sale_price_usd"].sum())
@@ -189,6 +191,7 @@ def build_artwork_catalog(context: dg.OpExecutionContext) -> pl.DataFrame:
         )
         .collect()
     )
+    result = cast(pl.DataFrame, result)
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
     context.log.info(
@@ -219,6 +222,7 @@ def aggregate_sales_metrics(context: dg.OpExecutionContext, catalog: pl.DataFram
         )
         .collect()
     )
+    result = cast(pl.DataFrame, result)
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
     total_sales_value = float(result["total_sales_value"].sum())
@@ -260,7 +264,9 @@ def prepare_media_data(context: dg.OpExecutionContext) -> pl.DataFrame:
         )
     )
 
-    result = primary_media.join(all_media, on="artwork_id", how="full").collect()
+    result = cast(
+        pl.DataFrame, primary_media.join(all_media, on="artwork_id", how="full").collect()
+    )
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
     context.log.info(
@@ -304,6 +310,7 @@ def join_and_enrich_artworks(
         .sort(["total_sales_value", "artwork_id"], descending=[True, False])
         .collect()
     )
+    result = cast(pl.DataFrame, result)
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
     artworks_sold = int(result["has_sold"].sum())

@@ -1,0 +1,75 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Dagster: polars_pipeline",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "dagster",
+      "args": ["job", "execute", "-m", "honey_duck.defs.definitions", "-j", "polars_pipeline"],
+      "python": "${workspaceFolder}/.venv/bin/python3",
+      "justMyCode": true
+    },
+    {
+      "name": "Dagster: duckdb_pipeline",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "dagster",
+      "args": ["job", "execute", "-m", "honey_duck.defs.definitions", "-j", "duckdb_pipeline"],
+      "python": "${workspaceFolder}/.venv/bin/python3",
+      "justMyCode": true
+    },
+    {
+      "name": "Dagster: duckdb_soda_pipeline",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "dagster",
+      "args": ["job", "execute", "-m", "honey_duck.defs.definitions", "-j", "duckdb_soda_pipeline"],
+      "python": "${workspaceFolder}/.venv/bin/python3",
+      "justMyCode": true
+    },
+    {
+      "name": "Dagster: processors_pipeline",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "dagster",
+      "args": ["job", "execute", "-m", "honey_duck.defs.definitions", "-j", "processors_pipeline"],
+      "python": "${workspaceFolder}/.venv/bin/python3",
+      "justMyCode": true
+    },
+    {
+      "name": "Dagster: polars_fs_pipeline",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "dagster",
+      "args": ["job", "execute", "-m", "honey_duck.defs.definitions", "-j", "polars_fs_pipeline"],
+      "python": "${workspaceFolder}/.venv/bin/python3",
+      "justMyCode": true
+    },
+    {
+      "name": "Dagster: polars_ops_pipeline",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "dagster",
+      "args": ["job", "execute", "-m", "honey_duck.defs.definitions", "-j", "polars_ops_pipeline"],
+      "python": "${workspaceFolder}/.venv/bin/python3",
+      "justMyCode": true
+    },
+    {
+      "name": "Dagster: polars_multi_pipeline",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "dagster",
+      "args": ["job", "execute", "-m", "honey_duck.defs.definitions", "-j", "polars_multi_pipeline"],
+      "python": "${workspaceFolder}/.venv/bin/python3",
+      "justMyCode": true
+    },
+    {
+      "name": "Dagster: Attach to dg dev",
+      "type": "debugpy",
+      "request": "attach",
+      "connect": { "host": "localhost", "port": 5678 },
+      "justMyCode": true
+    }
+  ]
+}

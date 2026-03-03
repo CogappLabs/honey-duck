@@ -32,7 +32,7 @@ dagster_home/
 
 # IDE
 .idea/
-.vscode/
+.vscode/settings.json
 *.swp
 
 # OS
