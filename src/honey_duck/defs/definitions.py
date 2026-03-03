@@ -63,9 +63,10 @@ if os.environ.get("DAGSTER_DEBUG"):
         time.sleep(0.5)
 from dagster_dlt import DagsterDltResource
 from dagster_duckdb import DuckDBResource
-from dagster_polars import PolarsParquetIOManager
-
-from cogapp_libs.dagster.io_managers import ParquetPathIOManager
+from cogapp_libs.dagster.io_managers import (
+    ParquetPathIOManager,
+    PolarsParquetIOManagerWithRowCount,
+)
 
 # Original implementation
 from .original.assets import artworks_output, artworks_transform, sales_output, sales_transform
@@ -142,11 +143,13 @@ from .shared.jobs import (
 )
 from .shared.resources import (
     DatabaseResource,
+    NotificationResource,
     OUTPUT_DIR,
     OutputPathsResource,
     PathsResource,
     STORAGE_DIR,
 )
+from .shared.sensors import email_on_failure, email_on_success
 
 # Path constant for DuckDB database - shared across resources
 DUCKDB_PATH = str(OUTPUT_DIR / "dagster.duckdb")
@@ -207,6 +210,7 @@ defs = dg.Definitions(
         polars_ops_pipeline_job,
         polars_multi_pipeline_job,
     ],
+    sensors=[email_on_failure, email_on_success],
     asset_checks=[
         # Blocking Pandera schema checks (prevent downstream on failure)
         check_sales_transform_schema,
@@ -223,8 +227,18 @@ defs = dg.Definitions(
         "paths": PathsResource(),
         "output_paths": OutputPathsResource(),
         "database": DatabaseResource(),
+        "notification": NotificationResource(
+            recipients=os.environ.get("NOTIFICATION_RECIPIENTS", ""),
+            smtp_host=os.environ.get("SMTP_HOST", "localhost"),
+            smtp_port=int(os.environ.get("SMTP_PORT", "587")),
+            smtp_user=os.environ.get("SMTP_USER", ""),
+            smtp_password=os.environ.get("SMTP_PASSWORD", ""),
+            smtp_from=os.environ.get("SMTP_FROM", "pipeline@example.com"),
+            dagster_url=os.environ.get("DAGSTER_URL", ""),
+            environment=os.environ.get("DAGSTER_ENVIRONMENT", "production"),
+        ),
         # IO managers
-        "io_manager": PolarsParquetIOManager(
+        "io_manager": PolarsParquetIOManagerWithRowCount(
             base_dir=str(STORAGE_DIR),
         ),
         "parquet_path_io_manager": ParquetPathIOManager(

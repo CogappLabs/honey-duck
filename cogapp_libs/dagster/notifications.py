@@ -1,415 +1,483 @@
-"""Notification asset patterns for Dagster pipelines.
+"""Email notification helpers using Jinja2 templates.
 
-Provides placeholder implementations for Slack and email notifications.
-These are templates showing how to structure notification assets that depend
-on pipeline completion.
+Provides functions to render HTML email notifications for pipeline events:
+- Pipeline success
+- Pipeline failure
+- Daily summary
 
-Example usage:
-    ```python
-    from cogapp_libs.dagster.notifications import create_slack_notification_asset
+Templates are stored in cogapp_libs/dagster/templates/email/ and use Jinja2 syntax.
 
-    # Create a notification asset that depends on pipeline completion
-    notify_on_success = create_slack_notification_asset(
-        name="notify_pipeline_success",
-        deps=["sales_output", "artworks_output"],
-        webhook_url_env_var="SLACK_WEBHOOK_URL",
-        message_template="Pipeline completed: {asset_count} assets materialized",
+Usage:
+    from cogapp_libs.dagster.notifications import render_success_email, send_notification
+
+    html = render_success_email(
+        pipeline_name="polars_pipeline",
+        completed_at="2024-01-15 10:30:00",
+        duration="2m 15s",
+        assets_materialized=5,
+        assets=[
+            {"name": "sales_transform_polars", "records": 1234},
+            {"name": "artworks_transform_polars", "records": 567},
+        ],
     )
-    ```
+
+    send_notification(
+        to=["team@example.com"],
+        subject="Pipeline Success: polars_pipeline",
+        html=html,
+    )
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import smtplib
+from datetime import datetime
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from pathlib import Path
+from typing import Any
 
-import dagster as dg
+from dagster import RunsFilter
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-if TYPE_CHECKING:
-    from collections.abc import Sequence
+# Template directory
+TEMPLATE_DIR = Path(__file__).parent / "templates" / "email"
+
+# Cogapp brand colours (from cogapp.com _tokens.scss)
+# Injected as Jinja2 globals so templates stay free of hardcoded hex values.
+BRAND_COLORS = {
+    "slate": "#282828",  # primary dark grey — text, headings, buttons
+    "cream": "#ebebe1",  # light neutral — page bg, card bg, borders
+    "grey": "#717171",  # mid-tone — secondary text, labels, footer
+    "white": "#ffffff",
+    "black": "#000000",
+    "focus_blue": "#227bff",  # interactive / links
+    # Semantic status colours (kept for success/failure distinction)
+    "success": "#22c55e",
+    "success_dark": "#16a34a",
+    "success_bg": "#f0fdf4",
+    "success_border": "#bbf7d0",
+    "success_pill_bg": "#dcfce7",
+    "success_pill_text": "#166534",
+    "failure": "#ef4444",
+    "failure_dark": "#dc2626",
+    "failure_bg": "#fef2f2",
+    "failure_border": "#fecaca",
+    "failure_pill_bg": "#fee2e2",
+    "failure_pill_text": "#991b1b",
+    "failure_deep": "#7f1d1d",
+    "warning_asset_bg": "#fff7ed",
+    "warning_asset_border": "#fed7aa",
+    "warning_asset_text": "#c2410c",
+    "stacktrace_text": "#f3f4f6",
+}
 
 
-def create_slack_notification_asset(
-    name: str,
-    deps: Sequence[str],
-    webhook_url_env_var: str = "SLACK_WEBHOOK_URL",
-    message_template: str = "Pipeline completed successfully",
-    channel: str | None = None,
-    group_name: str = "notifications",
-) -> dg.AssetsDefinition:
-    """Create a Slack notification asset that triggers after dependencies complete.
-
-    This is a placeholder implementation showing the pattern. In production, you would:
-    1. Use @dg.resource to create a SlackResource with the webhook URL
-    2. Use requests or slack_sdk to send actual messages
-    3. Add retry logic and error handling
-
-    Args:
-        name: Asset name (e.g., "notify_pipeline_success")
-        deps: Asset keys that must complete before notification
-        webhook_url_env_var: Environment variable name for Slack webhook URL
-        message_template: Message to send (can include {asset_count} placeholder)
-        channel: Optional Slack channel to post to
-        group_name: Dagster asset group name
-
-    Returns:
-        Asset definition for the notification
-
-    Example:
-        ```python
-        notify = create_slack_notification_asset(
-            name="notify_sales_complete",
-            deps=["sales_output", "artworks_output"],
-            message_template="Sales pipeline completed: {asset_count} assets",
-            channel="#data-pipeline-alerts",
-        )
-        ```
-    """
-
-    @dg.asset(
-        name=name,
-        deps=deps,
-        group_name=group_name,
-        kinds={"slack", "notification"},
+def _get_jinja_env() -> Environment:
+    """Create Jinja2 environment with template directory and brand colours."""
+    env = Environment(
+        loader=FileSystemLoader(TEMPLATE_DIR),
+        autoescape=select_autoescape(["html", "xml"]),
     )
-    def slack_notification(context) -> dict:
-        """Send Slack notification after dependencies complete.
-
-        PLACEHOLDER IMPLEMENTATION - Replace with actual Slack API calls.
-
-        Args:
-            context: AssetExecutionContext provided by Dagster
-        """
-        import os
-
-        webhook_url = os.getenv(webhook_url_env_var)
-
-        if not webhook_url:
-            context.log.warning(
-                f"Slack webhook URL not configured (env var: {webhook_url_env_var}). "
-                "Skipping notification."
-            )
-            return {
-                "status": "skipped",
-                "reason": "webhook_url_not_configured",
-            }
-
-        # Format message
-        message = message_template.format(asset_count=len(deps))
-        if channel:
-            message = f"{channel}: {message}"
-
-        # PLACEHOLDER: In production, use requests or slack_sdk here
-        # Example:
-        # import requests
-        # response = requests.post(
-        #     webhook_url,
-        #     json={"text": message},
-        #     timeout=10,
-        # )
-        # response.raise_for_status()
-
-        context.log.info(f"[PLACEHOLDER] Would send Slack notification: {message}")
-        context.log.info(f"[PLACEHOLDER] Webhook URL env var: {webhook_url_env_var}")
-        context.log.info(f"[PLACEHOLDER] Dependencies completed: {', '.join(deps)}")
-
-        context.add_output_metadata(
-            {
-                "message": message,
-                "channel": channel or "default",
-                "dependencies": ", ".join(deps),
-                "webhook_configured": bool(webhook_url),
-            }
-        )
-
-        return {
-            "status": "sent",
-            "message": message,
-            "channel": channel,
-            "dependencies": list(deps),
-        }
-
-    return slack_notification
+    env.globals["c"] = BRAND_COLORS
+    return env
 
 
-def create_email_notification_asset(
-    name: str,
-    deps: Sequence[str],
-    recipient_emails: list[str] | str,
-    subject_template: str = "Pipeline Completion Notification",
-    pipeline_name: str | None = None,
+def render_success_email(
+    pipeline_name: str,
+    completed_at: str | datetime,
+    duration: str,
+    assets_materialized: int,
+    assets: list[dict[str, Any]] | None = None,
+    total_records: int | str | None = None,
+    checks_passed: int | None = None,
+    checks_total: int | None = None,
     dagster_url: str | None = None,
-    support_email: str | None = None,
-    custom_message: str | None = None,
-    smtp_config_env_prefix: str = "SMTP",
-    group_name: str = "notifications",
-    use_templates: bool = True,
-) -> dg.AssetsDefinition:
-    """Create an email notification asset with Jinja2 templating and Cogapp branding.
-
-    Sends HTML and plain text email using Jinja2 templates with professional Cogapp styling.
-    Templates are located in cogapp_libs/dagster/templates/email/.
+    run_id: str | None = None,
+    environment: str = "production",
+    internal: bool = True,
+) -> str:
+    """Render pipeline success email template.
 
     Args:
-        name: Asset name (e.g., "email_pipeline_report")
-        deps: Asset keys that must complete before notification
-        recipient_emails: Email address(es) to send to (string or list)
-        subject_template: Email subject line
-        pipeline_name: Pipeline display name (defaults to name)
-        dagster_url: URL to Dagster UI (e.g., "http://localhost:3000")
-        support_email: Support contact email for footer
-        custom_message: Custom message body (optional, uses default if not provided)
-        smtp_config_env_prefix: Prefix for SMTP env vars (HOST, PORT, USER, PASSWORD)
-        group_name: Dagster asset group name
-        use_templates: Whether to use Jinja2 HTML templates (default: True)
+        pipeline_name: Name of the pipeline
+        completed_at: Completion timestamp
+        duration: Human-readable duration (e.g., "2m 15s")
+        assets_materialized: Number of assets materialized
+        assets: List of asset dicts with 'name' and optional 'records'
+        total_records: Total records processed across all assets
+        checks_passed: Number of asset checks that passed
+        checks_total: Total number of checks run
+        dagster_url: URL to Dagster UI for this run
+        run_id: Dagster run ID
+        environment: Environment name (production, staging, etc.)
+        internal: If True, include Dagster links, run IDs, environment.
+            Set False for client-facing emails.
 
     Returns:
-        Asset definition for the notification
-
-    Environment Variables:
-        {prefix}_HOST: SMTP server hostname
-        {prefix}_PORT: SMTP server port
-        {prefix}_USER: SMTP username
-        {prefix}_PASSWORD: SMTP password
-
-    Example:
-        ```python
-        notify = create_email_notification_asset(
-            name="email_pipeline_report",
-            deps=["sales_output", "artworks_output"],
-            recipient_emails=["team@cogapp.com", "manager@cogapp.com"],
-            subject_template="Daily Pipeline Report",
-            pipeline_name="Honey Duck Sales Analysis",
-            dagster_url="http://localhost:3000",
-            support_email="data-team@cogapp.com",
-        )
-        ```
+        Rendered HTML string
     """
+    env = _get_jinja_env()
+    template = env.get_template("pipeline_success.html")
 
-    @dg.asset(
-        name=name,
-        deps=deps,
-        group_name=group_name,
-        kinds={"email", "notification"},
+    if isinstance(completed_at, datetime):
+        completed_at = completed_at.strftime("%Y-%m-%d %H:%M:%S")
+
+    return template.render(
+        pipeline_name=pipeline_name,
+        completed_at=completed_at,
+        duration=duration,
+        assets_materialized=assets_materialized,
+        assets=assets or [],
+        total_records=total_records,
+        checks_passed=checks_passed,
+        checks_total=checks_total,
+        dagster_url=dagster_url,
+        run_id=run_id,
+        environment=environment,
+        internal=internal,
     )
-    def email_notification(context) -> dict:
-        """Send email notification with Jinja2 templates and Cogapp branding.
-
-        PLACEHOLDER IMPLEMENTATION - Replace with actual SMTP sending.
-
-        Args:
-            context: AssetExecutionContext provided by Dagster
-        """
-        import os
-        from datetime import datetime
-        from pathlib import Path
-
-        # Parse recipients
-        recipients = recipient_emails if isinstance(recipient_emails, list) else [recipient_emails]
-
-        # Check SMTP configuration
-        smtp_host = os.getenv(f"{smtp_config_env_prefix}_HOST")
-        smtp_port = os.getenv(f"{smtp_config_env_prefix}_PORT")
-        smtp_user = os.getenv(f"{smtp_config_env_prefix}_USER")
-        smtp_password = os.getenv(f"{smtp_config_env_prefix}_PASSWORD")
-
-        if not all([smtp_host, smtp_port, smtp_user, smtp_password]):
-            context.log.warning(
-                f"SMTP not fully configured (env vars: {smtp_config_env_prefix}_*). "
-                "Skipping email notification."
-            )
-            return {
-                "status": "skipped",
-                "reason": "smtp_not_configured",
-            }
-
-        # Prepare template context
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
-        display_name = pipeline_name or name
-        html_body: str | None = None  # Will be set by template rendering or left as None
-
-        template_context = {
-            "pipeline_name": display_name,
-            "subject": subject_template,
-            "status": "success",
-            "status_message": "✓ Pipeline Completed Successfully",
-            "greeting": "Hi",
-            "message": custom_message
-            or f"Your {display_name} pipeline has completed successfully.",
-            "metrics": [
-                {"label": "Assets Materialized", "value": len(deps)},
-                {"label": "Status", "value": "Success"},
-            ],
-            "assets": list(deps),
-            "dagster_url": dagster_url,
-            "support_email": support_email,
-            "timestamp": timestamp,
-        }
-
-        if use_templates:
-            try:
-                from jinja2 import Environment, FileSystemLoader, select_autoescape
-
-                # Locate template directory
-                template_dir = Path(__file__).parent / "templates" / "email"
-
-                if not template_dir.exists():
-                    context.log.warning(
-                        f"Template directory not found: {template_dir}. Falling back to plain text."
-                    )
-                    use_templates_local = False
-                else:
-                    # Set up Jinja2 environment
-                    env = Environment(
-                        loader=FileSystemLoader(template_dir),
-                        autoescape=select_autoescape(["html", "xml"]),
-                    )
-
-                    # Render HTML and plain text templates
-                    html_template = env.get_template("pipeline_completion.html")
-                    text_template = env.get_template("pipeline_completion.txt")
-
-                    html_body = html_template.render(**template_context)
-                    _text_body = text_template.render(**template_context)  # noqa: F841
-
-                    use_templates_local = True
-
-            except ImportError:
-                context.log.warning(
-                    "Jinja2 not installed. Install with: pip install jinja2. "
-                    "Falling back to plain text."
-                )
-                use_templates_local = False
-        else:
-            use_templates_local = False
-
-        # Fallback to simple text if templates disabled or unavailable
-        if not use_templates_local:
-            _text_body = f"""  # noqa: F841 - prepared for email sending
-{display_name}
-{"=" * len(display_name)}
-
-Pipeline completed successfully.
-
-Assets materialized: {len(deps)}
-Completed at {timestamp}
-
-Materialized Assets:
-{chr(10).join(f"  ✓ {asset}" for asset in deps)}
-
----
-Powered by Cogapp (https://cogapp.com)
-            """.strip()
-            html_body = None
-
-        # PLACEHOLDER: In production, use smtplib to send HTML + plain text email
-        # Example:
-        # import smtplib
-        # from email.mime.multipart import MIMEMultipart
-        # from email.mime.text import MIMEText
-        #
-        # msg = MIMEMultipart("alternative")
-        # msg["Subject"] = subject_template
-        # msg["From"] = smtp_user
-        # msg["To"] = ", ".join(recipients)
-        #
-        # # Attach plain text and HTML versions
-        # msg.attach(MIMEText(text_body, "plain"))
-        # if html_body:
-        #     msg.attach(MIMEText(html_body, "html"))
-        #
-        # with smtplib.SMTP(smtp_host, int(smtp_port)) as server:
-        #     server.starttls()
-        #     server.login(smtp_user, smtp_password)
-        #     server.send_message(msg)
-
-        context.log.info("[PLACEHOLDER] Would send email notification")
-        context.log.info(f"[PLACEHOLDER] To: {', '.join(recipients)}")
-        context.log.info(f"[PLACEHOLDER] Subject: {subject_template}")
-        context.log.info(f"[PLACEHOLDER] Format: {'HTML + Text' if html_body else 'Text only'}")
-        context.log.info(f"[PLACEHOLDER] Dependencies completed: {', '.join(deps)}")
-
-        context.add_output_metadata(
-            {
-                "subject": subject_template,
-                "recipients": ", ".join(recipients),
-                "dependencies": ", ".join(deps),
-                "smtp_configured": bool(smtp_host and smtp_user),
-                "format": "html+text" if html_body else "text",
-                "template_engine": "jinja2" if use_templates_local else "none",
-            }
-        )
-
-        return {
-            "status": "sent",
-            "subject": subject_template,
-            "recipients": recipients,
-            "dependencies": list(deps),
-            "timestamp": timestamp,
-            "format": "html+text" if html_body else "text",
-        }
-
-    return email_notification
 
 
-def create_pipeline_status_notification(
-    name: str,
-    deps: Sequence[str],
-    notification_type: str = "slack",
-    **kwargs,
-) -> dg.AssetsDefinition:
-    """Create a notification asset with automatic status detection.
-
-    This is a convenience wrapper that creates either Slack or email notifications
-    with smart defaults based on pipeline completion.
+def render_failure_email(
+    pipeline_name: str,
+    failed_at: str | datetime,
+    error_message: str,
+    failed_asset: str | None = None,
+    failed_step: str | None = None,
+    stacktrace: str | None = None,
+    assets_succeeded: int = 0,
+    assets_failed: int = 1,
+    duration: str | None = None,
+    dagster_url: str | None = None,
+    logs_url: str | None = None,
+    run_id: str | None = None,
+    environment: str = "production",
+    retry_count: int | None = None,
+    tags: dict[str, str] | None = None,
+    internal: bool = True,
+) -> str:
+    """Render pipeline failure email template.
 
     Args:
-        name: Asset name
-        deps: Asset keys to monitor
-        notification_type: "slack" or "email"
-        **kwargs: Additional arguments passed to specific notification creator
+        pipeline_name: Name of the pipeline
+        failed_at: Failure timestamp
+        error_message: Error message
+        failed_asset: Name of the asset that failed
+        failed_step: Step within the asset that failed
+        stacktrace: Full stack trace
+        assets_succeeded: Number of assets that succeeded before failure
+        assets_failed: Number of assets that failed
+        duration: Time until failure
+        dagster_url: URL to Dagster UI for this run
+        logs_url: URL to logs
+        run_id: Dagster run ID
+        environment: Environment name
+        retry_count: Number of retry attempts
+        tags: Dagster run tags (e.g. schedule name, partition key)
+        internal: If True, include Dagster links, run IDs, stacktrace, tags.
+            Set False for client-facing emails.
 
     Returns:
-        Asset definition for the notification
-
-    Example:
-        ```python
-        notify = create_pipeline_status_notification(
-            name="daily_pipeline_alert",
-            deps=["sales_output", "artworks_output"],
-            notification_type="slack",
-            webhook_url_env_var="SLACK_WEBHOOK_URL",
-        )
-        ```
+        Rendered HTML string
     """
-    if notification_type == "slack":
-        return create_slack_notification_asset(
-            name=name,
-            deps=deps,
-            message_template=kwargs.get(
-                "message_template",
-                f"✅ Pipeline '{name}' completed successfully with {{asset_count}} assets",
-            ),
-            **{k: v for k, v in kwargs.items() if k != "message_template"},
+    env = _get_jinja_env()
+    template = env.get_template("pipeline_failure.html")
+
+    if isinstance(failed_at, datetime):
+        failed_at = failed_at.strftime("%Y-%m-%d %H:%M:%S")
+
+    return template.render(
+        pipeline_name=pipeline_name,
+        failed_at=failed_at,
+        error_message=error_message,
+        failed_asset=failed_asset,
+        failed_step=failed_step,
+        stacktrace=stacktrace,
+        assets_succeeded=assets_succeeded,
+        assets_failed=assets_failed,
+        duration=duration,
+        dagster_url=dagster_url,
+        logs_url=logs_url,
+        run_id=run_id,
+        environment=environment,
+        retry_count=retry_count,
+        tags=tags,
+        internal=internal,
+    )
+
+
+def render_daily_summary(
+    date: str,
+    total_runs: int,
+    successful_runs: int,
+    failed_runs: int,
+    runs: list[dict[str, Any]] | None = None,
+    metrics: dict[str, Any] | None = None,
+    skipped_runs: int = 0,
+    dagster_url: str | None = None,
+    environment: str = "production",
+    generated_at: str | datetime | None = None,
+    internal: bool = True,
+) -> str:
+    """Render daily summary email template.
+
+    Args:
+        date: Date of the summary (e.g., "2024-01-15")
+        total_runs: Total number of pipeline runs
+        successful_runs: Number of successful runs
+        failed_runs: Number of failed runs
+        runs: List of run dicts with 'name', 'success', 'duration', 'records'
+        metrics: Dict with 'total_records', 'avg_duration', 'success_rate'
+        skipped_runs: Number of skipped runs
+        dagster_url: URL to Dagster UI
+        environment: Environment name
+        generated_at: When the summary was generated
+        internal: If True, include Dagster links and environment.
+            Set False for client-facing emails.
+
+    Returns:
+        Rendered HTML string
+    """
+    env = _get_jinja_env()
+    template = env.get_template("daily_summary.html")
+
+    if generated_at is None:
+        generated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    elif isinstance(generated_at, datetime):
+        generated_at = generated_at.strftime("%Y-%m-%d %H:%M:%S")
+
+    return template.render(
+        date=date,
+        total_runs=total_runs,
+        successful_runs=successful_runs,
+        failed_runs=failed_runs,
+        runs=runs or [],
+        metrics=metrics,
+        skipped_runs=skipped_runs,
+        dagster_url=dagster_url,
+        environment=environment,
+        generated_at=generated_at,
+        internal=internal,
+    )
+
+
+def send_notification(
+    to: list[str],
+    subject: str,
+    html: str,
+    from_addr: str = "pipeline@example.com",
+    smtp_host: str = "localhost",
+    smtp_port: int = 587,
+    smtp_user: str | None = None,
+    smtp_password: str | None = None,
+    use_tls: bool = True,
+) -> None:
+    """Send HTML email notification.
+
+    Args:
+        to: List of recipient email addresses
+        subject: Email subject
+        html: HTML body content
+        from_addr: Sender email address
+        smtp_host: SMTP server hostname
+        smtp_port: SMTP server port
+        smtp_user: SMTP username (optional)
+        smtp_password: SMTP password (optional)
+        use_tls: Whether to use TLS
+    """
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = from_addr
+    msg["To"] = ", ".join(to)
+
+    # Attach HTML content
+    msg.attach(MIMEText(html, "html"))
+
+    # Send email
+    with smtplib.SMTP(smtp_host, smtp_port) as server:
+        if use_tls:
+            server.starttls()
+        if smtp_user and smtp_password:
+            server.login(smtp_user, smtp_password)
+        server.sendmail(from_addr, to, msg.as_string())
+
+
+# -----------------------------------------------------------------------------
+# Dagster Sensor Integration
+# -----------------------------------------------------------------------------
+
+# Dagster internal tag prefixes — not useful in email notifications
+_HIDDEN_TAG_PREFIXES = (".", "dagster/")
+
+
+def _extract_run_tags(run: Any) -> dict[str, str] | None:
+    """Extract user-visible tags from a Dagster run, dropping internal ones."""
+    if not run.tags:
+        return None
+    visible = {k: v for k, v in run.tags.items() if not k.startswith(_HIDDEN_TAG_PREFIXES)}
+    return visible or None
+
+
+def create_success_sensor_handler(
+    recipients: list[str],
+    smtp_config: dict[str, Any] | None = None,
+    dagster_url_base: str | None = None,
+    environment: str = "production",
+    internal: bool = True,
+) -> Any:
+    """Create a handler function for Dagster run success sensors.
+
+    Extracts asset materialization count, duration, and record counts
+    from the completed run to populate the success email template.
+
+    Usage:
+        from dagster import run_status_sensor, DagsterRunStatus
+
+        @run_status_sensor(run_status=DagsterRunStatus.SUCCESS)
+        def email_on_success(context):
+            handler = create_success_sensor_handler(
+                recipients=["team@example.com"],
+                dagster_url_base="https://dagster.example.com",
+            )
+            handler(context)
+    """
+
+    def handler(context: Any) -> None:
+        """Handle run success event."""
+        run = context.dagster_run
+
+        dagster_url = None
+        if dagster_url_base:
+            dagster_url = f"{dagster_url_base}/runs/{run.run_id}"
+
+        # Extract materialization info from the run log
+        records = context.instance.get_records_for_run(run_id=run.run_id).records
+        assets: list[dict[str, Any]] = []
+        total_records = 0
+        for record in records:
+            event = record.event_log_entry.dagster_event
+            if event and event.is_step_materialization:
+                mat = event.step_materialization_data.materialization
+                name = mat.asset_key.to_user_string()
+                row_count = None
+                if mat.metadata:
+                    for key in ("record_count", "row_count", "dagster/row_count"):
+                        if key in mat.metadata:
+                            row_count = mat.metadata[key].value
+                            break
+                assets.append({"name": name, "records": row_count})
+                if row_count and isinstance(row_count, (int, float)):
+                    total_records += int(row_count)
+
+        # Extract asset check results from the run log
+        checks_passed = 0
+        checks_total = 0
+        for record in records:
+            event = record.event_log_entry.dagster_event
+            if event and event.event_type_value == "ASSET_CHECK_EVALUATION":
+                checks_total += 1
+                check_eval = event.asset_check_evaluation_data
+                if check_eval and check_eval.passed:
+                    checks_passed += 1
+
+        # Compute duration from run record timestamps
+        # (start_time/end_time live on RunRecord, not DagsterRun)
+        duration = "N/A"
+        run_records = context.instance.get_run_records(
+            filters=RunsFilter(run_ids=[run.run_id]),
+            limit=1,
         )
-    elif notification_type == "email":
-        return create_email_notification_asset(
-            name=name,
-            deps=deps,
-            recipient_emails=kwargs.get("recipient_emails", []),
-            subject_template=kwargs.get(
-                "subject_template",
-                f"Pipeline '{name}' Completion Report",
-            ),
-            **{
-                k: v for k, v in kwargs.items() if k not in ["recipient_emails", "subject_template"]
-            },
+        if run_records:
+            record = run_records[0]
+            if record.start_time and record.end_time:
+                elapsed = int(record.end_time - record.start_time)
+                minutes, seconds = divmod(elapsed, 60)
+                duration = f"{minutes}m {seconds}s" if minutes else f"{seconds}s"
+
+        html = render_success_email(
+            pipeline_name=run.job_name,
+            completed_at=datetime.now(),
+            duration=duration,
+            assets_materialized=len(assets),
+            assets=assets or None,
+            total_records=total_records or None,
+            checks_passed=checks_passed if checks_total else None,
+            checks_total=checks_total if checks_total else None,
+            run_id=run.run_id,
+            dagster_url=dagster_url,
+            environment=environment,
+            internal=internal,
         )
-    else:
-        raise ValueError(f"Unknown notification_type: {notification_type}. Use 'slack' or 'email'.")
+
+        smtp_config_final = smtp_config or {}
+        send_notification(
+            to=recipients,
+            subject=f"[SUCCESS] Pipeline: {run.job_name}",
+            html=html,
+            **smtp_config_final,
+        )
+
+    return handler
+
+
+def create_failure_sensor_handler(
+    recipients: list[str],
+    smtp_config: dict[str, Any] | None = None,
+    dagster_url_base: str | None = None,
+    environment: str = "production",
+    internal: bool = True,
+) -> Any:
+    """Create a handler function for Dagster run failure sensors.
+
+    Usage:
+        from dagster import run_failure_sensor
+
+        @run_failure_sensor
+        def email_on_failure(context):
+            handler = create_failure_sensor_handler(
+                recipients=["team@example.com"],
+                dagster_url_base="https://dagster.example.com",
+            )
+            handler(context)
+    """
+
+    def handler(context: Any) -> None:
+        """Handle run failure event."""
+        run = context.dagster_run
+        error = context.failure_event.message if context.failure_event else "Unknown error"
+
+        dagster_url = None
+        if dagster_url_base:
+            dagster_url = f"{dagster_url_base}/runs/{run.run_id}"
+
+        html = render_failure_email(
+            pipeline_name=run.job_name,
+            failed_at=datetime.now(),
+            error_message=error,
+            run_id=run.run_id,
+            dagster_url=dagster_url,
+            environment=environment,
+            tags=_extract_run_tags(run),
+            internal=internal,
+        )
+
+        smtp_config_final = smtp_config or {}
+        send_notification(
+            to=recipients,
+            subject=f"[FAILED] Pipeline: {run.job_name}",
+            html=html,
+            **smtp_config_final,
+        )
+
+    return handler
 
 
 __all__ = [
-    "create_slack_notification_asset",
-    "create_email_notification_asset",
-    "create_pipeline_status_notification",
+    "create_failure_sensor_handler",
+    "create_success_sensor_handler",
+    "render_daily_summary",
+    "render_failure_email",
+    "render_success_email",
+    "send_notification",
 ]

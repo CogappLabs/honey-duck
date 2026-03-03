@@ -69,9 +69,12 @@ except ImportError:
     _HAS_COMPONENTS = False
     ElasticsearchIOManagerComponent = None  # type: ignore[assignment, misc]
 from cogapp_libs.dagster.notifications import (
-    create_email_notification_asset,
-    create_pipeline_status_notification,
-    create_slack_notification_asset,
+    create_failure_sensor_handler,
+    create_success_sensor_handler,
+    render_daily_summary,
+    render_failure_email,
+    render_success_email,
+    send_notification,
 )
 from cogapp_libs.dagster.sitemap import (
     create_image_sitemap_asset,
@@ -166,9 +169,12 @@ __all__ = [
     "get_example_row",
     "add_lineage_examples_to_dlt_results",
     # Notifications
-    "create_slack_notification_asset",
-    "create_email_notification_asset",
-    "create_pipeline_status_notification",
+    "create_failure_sensor_handler",
+    "create_success_sensor_handler",
+    "render_daily_summary",
+    "render_failure_email",
+    "render_success_email",
+    "send_notification",
     # Sitemaps
     "create_sitemap_asset",
     "create_image_sitemap_asset",

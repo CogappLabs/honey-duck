@@ -19,8 +19,10 @@ from typing import TYPE_CHECKING, Any
 
 import dagster as dg
 import duckdb
+import pyarrow.parquet as pq
 from dagster import InputContext, OutputContext
 from dagster._core.storage.upath_io_manager import UPathIOManager
+from dagster_polars import PolarsParquetIOManager
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -762,6 +764,27 @@ class OpenSearchIOManager(dg.IOManager):
         context.log.info(f"Loaded {len(df):,} records from '{index_name}'")
 
         return df
+
+
+class PolarsParquetIOManagerWithRowCount(PolarsParquetIOManager):
+    """PolarsParquetIOManager that emits dagster/row_count for LazyFrames.
+
+    The upstream PolarsParquetIOManager only emits row_count for DataFrames
+    (since len() isn't available on LazyFrames). This subclass reads the
+    row count from parquet file metadata after writing — just a header read,
+    no data loaded into memory.
+    """
+
+    def get_metadata(self, context: OutputContext, obj: Any) -> dict[str, dg.MetadataValue]:
+        metadata = super().get_metadata(context, obj)
+        if "dagster/row_count" not in metadata and obj is not None:
+            path = self._get_path(context)
+            try:
+                pf = pq.ParquetFile(str(path))
+                metadata["dagster/row_count"] = dg.MetadataValue.int(pf.metadata.num_rows)
+            except Exception:
+                pass
+        return metadata
 
 
 class ParquetPathIOManager(dg.IOManager):

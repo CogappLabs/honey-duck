@@ -120,11 +120,18 @@ ELASTICSEARCH_API_KEY=your_api_key
 ANTHROPIC_API_KEY=sk-ant-...
 VOYAGE_API_KEY=pa-...
 
-# Optional: Notifications
-SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
+# Email notifications (blank NOTIFICATION_RECIPIENTS = disabled)
+NOTIFICATION_RECIPIENTS=team@company.com
 SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
 SMTP_USER=pipeline@company.com
 SMTP_PASSWORD=...
+SMTP_FROM=pipeline@company.com
+DAGSTER_URL=https://dagster.company.com
+DAGSTER_ENVIRONMENT=production
+
+# Optional: Slack
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
 ```
 
 **Load environment variables**:

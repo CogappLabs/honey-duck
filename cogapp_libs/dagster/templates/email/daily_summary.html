@@ -8,14 +8,14 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
             line-height: 1.6;
-            color: #333;
+            color: {{ c.slate }};
             max-width: 700px;
             margin: 0 auto;
             padding: 20px;
-            background-color: #f5f5f5;
+            background-color: {{ c.cream }};
         }
         .container {
-            background-color: #ffffff;
+            background-color: {{ c.white }};
             border-radius: 8px;
             padding: 24px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -23,16 +23,16 @@
         .header {
             text-align: center;
             padding-bottom: 20px;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid {{ c.cream }};
             margin-bottom: 24px;
         }
         h1 {
             margin: 0;
             font-size: 24px;
-            color: #111;
+            color: {{ c.slate }};
         }
         .date {
-            color: #666;
+            color: {{ c.grey }};
             font-size: 14px;
             margin-top: 4px;
         }
@@ -48,32 +48,32 @@
             border-radius: 8px;
         }
         .summary-card.total {
-            background-color: #f0f9ff;
-            border: 1px solid #bae6fd;
+            background-color: {{ c.cream }};
+            border: 1px solid {{ c.cream }};
         }
         .summary-card.success {
-            background-color: #f0fdf4;
-            border: 1px solid #bbf7d0;
+            background-color: {{ c.success_bg }};
+            border: 1px solid {{ c.success_border }};
         }
         .summary-card.failed {
-            background-color: #fef2f2;
-            border: 1px solid #fecaca;
+            background-color: {{ c.failure_bg }};
+            border: 1px solid {{ c.failure_border }};
         }
         .summary-card.skipped {
-            background-color: #fefce8;
-            border: 1px solid #fef08a;
+            background-color: {{ c.cream }};
+            border: 1px solid {{ c.cream }};
         }
         .summary-value {
             font-size: 32px;
             font-weight: 700;
         }
-        .summary-card.total .summary-value { color: #0284c7; }
-        .summary-card.success .summary-value { color: #16a34a; }
-        .summary-card.failed .summary-value { color: #dc2626; }
-        .summary-card.skipped .summary-value { color: #ca8a04; }
+        .summary-card.total .summary-value { color: {{ c.slate }}; }
+        .summary-card.success .summary-value { color: {{ c.success_dark }}; }
+        .summary-card.failed .summary-value { color: {{ c.failure_dark }}; }
+        .summary-card.skipped .summary-value { color: {{ c.grey }}; }
         .summary-label {
             font-size: 12px;
-            color: #666;
+            color: {{ c.grey }};
             margin-top: 4px;
         }
         .runs-section {
@@ -82,7 +82,7 @@
         .runs-section h2 {
             font-size: 16px;
             margin-bottom: 16px;
-            color: #333;
+            color: {{ c.slate }};
         }
         .run-table {
             width: 100%;
@@ -92,14 +92,14 @@
         .run-table th {
             text-align: left;
             padding: 10px 8px;
-            background-color: #f9fafb;
-            border-bottom: 2px solid #e5e7eb;
+            background-color: {{ c.cream }};
+            border-bottom: 2px solid {{ c.cream }};
             font-weight: 600;
-            color: #374151;
+            color: {{ c.slate }};
         }
         .run-table td {
             padding: 10px 8px;
-            border-bottom: 1px solid #e5e7eb;
+            border-bottom: 1px solid {{ c.cream }};
         }
         .status-pill {
             display: inline-block;
@@ -109,18 +109,18 @@
             font-weight: 500;
         }
         .status-success {
-            background-color: #dcfce7;
-            color: #166534;
+            background-color: {{ c.success_pill_bg }};
+            color: {{ c.success_pill_text }};
         }
         .status-failed {
-            background-color: #fee2e2;
-            color: #991b1b;
+            background-color: {{ c.failure_pill_bg }};
+            color: {{ c.failure_pill_text }};
         }
         .pipeline-name {
             font-family: monospace;
         }
         .metrics-section {
-            background-color: #f9fafb;
+            background-color: {{ c.cream }};
             border-radius: 8px;
             padding: 20px;
             margin: 24px 0;
@@ -128,7 +128,7 @@
         .metrics-section h2 {
             font-size: 16px;
             margin: 0 0 16px 0;
-            color: #333;
+            color: {{ c.slate }};
         }
         .metrics-grid {
             display: grid;
@@ -141,28 +141,39 @@
         .metric-value {
             font-size: 20px;
             font-weight: 600;
-            color: #111;
+            color: {{ c.slate }};
         }
         .metric-label {
             font-size: 12px;
-            color: #666;
+            color: {{ c.grey }};
         }
         .footer {
             text-align: center;
             margin-top: 24px;
             padding-top: 16px;
-            border-top: 1px solid #eee;
+            border-top: 1px solid {{ c.cream }};
             font-size: 12px;
-            color: #888;
+            color: {{ c.grey }};
         }
+        .footer a { color: {{ c.grey }}; }
         .btn {
             display: inline-block;
-            background-color: #3b82f6;
-            color: white;
+            background-color: {{ c.slate }};
+            color: {{ c.white }};
             padding: 10px 24px;
             border-radius: 6px;
             text-decoration: none;
             font-weight: 500;
+        }
+        @media only screen and (max-width: 480px) {
+            body { padding: 12px; }
+            .container { padding: 16px; }
+            .summary-grid { grid-template-columns: repeat(2, 1fr); }
+            .summary-value { font-size: 24px; }
+            .metrics-grid { grid-template-columns: 1fr; gap: 10px; }
+            .run-table { font-size: 12px; }
+            .run-table th, .run-table td { padding: 8px 4px; }
+            h1 { font-size: 20px; }
         }
     </style>
 </head>
@@ -242,15 +253,18 @@
         </div>
         {% endif %}
 
-        {% if dagster_url %}
+        {% if internal and dagster_url %}
         <div style="text-align: center; margin-top: 24px;">
             <a href="{{ dagster_url }}" class="btn">View All Runs in Dagster</a>
         </div>
         {% endif %}
 
         <div class="footer">
+            {% if internal %}
             <p>Environment: {{ environment | default('production') }}</p>
+            {% endif %}
             <p>Generated at {{ generated_at }}</p>
+            <p>Powered by <a href="https://cogapp.com">Cogapp</a></p>
         </div>
     </div>
 </body>

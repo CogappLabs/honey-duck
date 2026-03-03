@@ -165,25 +165,30 @@ context.add_output_metadata({
 
 The recommended way to react to failures in Dagster OSS. Fires whenever any job run fails. See [Run Status Sensors](https://docs.dagster.io/guides/automate/sensors/run-status-sensors).
 
+This project has a working failure sensor in `src/honey_duck/defs/shared/sensors.py`:
+
 ```python
 @dg.run_failure_sensor(monitor_all_code_locations=True)
-def on_run_failure(context: dg.RunFailureSensorContext):
-    """Alert on any job failure across all code locations."""
-    run = context.dagster_run
-    error = context.failure_event.message
+def email_on_failure(
+    context: dg.RunFailureSensorContext,
+    notification: NotificationResource,
+) -> None:
+    """Send email notification when any pipeline fails."""
+    if not notification.enabled:
+        return
 
-    context.log.info(
-        f"Run {run.run_id} for job '{run.job_name}' failed: {error}"
+    handler = create_failure_sensor_handler(
+        recipients=notification.recipients_list,
+        smtp_config=notification.smtp_config,
+        dagster_url_base=notification.dagster_url or None,
+        environment=notification.environment,
     )
-
-    # Send notification (implement send_alert with your preferred method)
-    send_alert(
-        subject=f"[Dagster] {run.job_name} failed",
-        body=f"Run {run.run_id} failed:\n{error}",
-    )
+    handler(context)
 ```
 
-Scope to specific jobs:
+The `NotificationResource` (defined in `shared/resources.py`) reads SMTP config from env vars and has an `enabled` property that returns `False` when `NOTIFICATION_RECIPIENTS` is blank — so the sensor no-ops in local dev unless you configure it.
+
+To scope to specific jobs instead of all code locations:
 
 ```python
 from honey_duck.defs.shared.jobs import polars_pipeline, duckdb_pipeline
@@ -247,62 +252,37 @@ See [Pandera Validation](../integrations/pandera-validation.md) for schema defin
 
 ### Run Status Sensor
 
-For emailing a full report when a run succeeds, use `@run_status_sensor` to collect all materialization metadata:
+For emailing a report when a run succeeds, use `@run_status_sensor`. This project has a working success sensor in `src/honey_duck/defs/shared/sensors.py`:
 
 ```python
 @dg.run_status_sensor(
-    run_status=dg.DagsterRunStatus.SUCCESS,
-    monitored_jobs=[polars_pipeline, duckdb_pipeline],
+    run_status=DagsterRunStatus.SUCCESS,
+    monitor_all_code_locations=True,
 )
-def on_run_success(context: dg.RunStatusSensorContext):
-    """Email a report with all asset metadata on success."""
-    run = context.dagster_run
-    instance = context.instance
+def email_on_success(
+    context: dg.RunStatusSensorContext,
+    notification: NotificationResource,
+) -> None:
+    """Send email notification when any pipeline succeeds."""
+    if not notification.enabled:
+        return
 
-    # Get materialization events from the completed run
-    records = instance.get_records_for_run(run_id=run.run_id).records
-
-    report_lines = []
-    for record in records:
-        event = record.event_log_entry
-        if event.dagster_event and event.dagster_event.is_step_materialization:
-            mat = event.dagster_event.step_materialization_data.materialization
-            asset_key = mat.asset_key.to_user_string()
-            metadata = {m.label: m.value for m in mat.metadata}
-            report_lines.append(f"  {asset_key}: {metadata}")
-
-    send_report(
-        subject=f"[Dagster] {run.job_name} completed",
-        body=f"Run {run.run_id} materialized {len(report_lines)} assets:\n"
-             + "\n".join(report_lines),
+    handler = create_success_sensor_handler(
+        recipients=notification.recipients_list,
+        smtp_config=notification.smtp_config,
+        dagster_url_base=notification.dagster_url or None,
+        environment=notification.environment,
     )
+    handler(context)
 ```
 
-!!! abstract "Helper opportunity: `collect_run_metadata`"
-    The event-loop-and-filter pattern for extracting materializations from a run is verbose and reused across sensors. A helper could return a clean list of `{asset_key, metadata}` dicts:
+The `create_success_sensor_handler` in `cogapp_libs/dagster/notifications.py` extracts from the run log:
 
-    ```python
-    def collect_run_metadata(
-        instance: dg.DagsterInstance, run_id: str,
-    ) -> list[dict]:
-        """Extract asset materializations and their metadata from a completed run."""
-        records = instance.get_records_for_run(run_id=run_id).records
-        results = []
-        for record in records:
-            event = record.event_log_entry
-            if event.dagster_event and event.dagster_event.is_step_materialization:
-                mat = event.dagster_event.step_materialization_data.materialization
-                results.append({
-                    "asset_key": mat.asset_key.to_user_string(),
-                    "metadata": {m.label: m.value for m in mat.metadata},
-                })
-        return results
+- **Asset materializations** with record counts (from `record_count`/`row_count` metadata)
+- **Asset check results** (passed/total from `ASSET_CHECK_EVALUATION` events)
+- **Run duration** (from `RunRecord` timestamps)
 
-    # Usage in sensor:
-    assets = collect_run_metadata(context.instance, run.run_id)
-    ```
-
-    The same pattern applies to collecting asset check results (see Pattern 3 below).
+It renders an HTML email using `cogapp_libs/dagster/templates/email/pipeline_success.html` and sends it via SMTP.
 
 ### Available Run Statuses
 
@@ -345,81 +325,43 @@ def notify_sales_complete(context) -> None:
 
 ### Email Notifications
 
+This project uses `NotificationResource` (in `shared/resources.py`) to centralise SMTP configuration and `cogapp_libs/dagster/notifications.py` for HTML email rendering. The sensors above handle success/failure emails automatically.
+
+The resource reads all config from environment variables:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `NOTIFICATION_RECIPIENTS` | Comma-separated email addresses (blank = disabled) | `""` |
+| `SMTP_HOST` | SMTP server hostname | `localhost` |
+| `SMTP_PORT` | SMTP server port | `587` |
+| `SMTP_USER` | SMTP username | `""` |
+| `SMTP_PASSWORD` | SMTP password | `""` |
+| `SMTP_FROM` | Sender address (must be allowed by your SMTP server) | `pipeline@example.com` |
+| `DAGSTER_URL` | Base URL for Dagster UI links in emails | `""` |
+| `DAGSTER_ENVIRONMENT` | Environment label shown in emails | `production` |
+
+When `NOTIFICATION_RECIPIENTS` is blank, both sensors skip sending — safe for local dev.
+
+The resource is wired in `definitions.py`:
+
 ```python
-import os
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-
-@dg.asset(
-    deps=["sales_output", "artworks_output"],
-    kinds={"email", "notification"},
-    group_name="notifications",
-)
-def email_pipeline_report(context) -> None:
-    """Send email report after pipeline completes."""
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = "Daily Pipeline Report"
-    msg["From"] = os.environ["SMTP_USER"]
-    msg["To"] = "team@example.com"
-    msg.attach(MIMEText("Pipeline completed successfully.", "plain"))
-
-    with smtplib.SMTP(os.environ["SMTP_HOST"], int(os.environ["SMTP_PORT"])) as server:
-        server.starttls()
-        server.login(os.environ["SMTP_USER"], os.environ["SMTP_PASSWORD"])
-        server.send_message(msg)
-
-    context.log.info("Email report sent")
+"notification": NotificationResource(
+    recipients=os.environ.get("NOTIFICATION_RECIPIENTS", ""),
+    smtp_host=os.environ.get("SMTP_HOST", "localhost"),
+    smtp_port=int(os.environ.get("SMTP_PORT", "587")),
+    smtp_user=os.environ.get("SMTP_USER", ""),
+    smtp_password=os.environ.get("SMTP_PASSWORD", ""),
+    smtp_from=os.environ.get("SMTP_FROM", "pipeline@example.com"),
+    dagster_url=os.environ.get("DAGSTER_URL", ""),
+    environment=os.environ.get("DAGSTER_ENVIRONMENT", "production"),
+),
 ```
 
-!!! abstract "Helper opportunity: `SmtpResource`"
-    The SMTP connection boilerplate (env vars, starttls, login) is repeated for every email-sending asset or sensor. A Dagster `ConfigurableResource` would centralise this:
+Email templates are in `cogapp_libs/dagster/templates/email/`:
 
-    ```python
-    class SmtpResource(dg.ConfigurableResource):
-        host: str
-        port: int = 587
-        user: str
-        password: str
-
-        def send(self, to: str | list[str], subject: str, body: str, html: str | None = None):
-            recipients = [to] if isinstance(to, str) else to
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = subject
-            msg["From"] = self.user
-            msg["To"] = ", ".join(recipients)
-            msg.attach(MIMEText(body, "plain"))
-            if html:
-                msg.attach(MIMEText(html, "html"))
-            with smtplib.SMTP(self.host, self.port) as server:
-                server.starttls()
-                server.login(self.user, self.password)
-                server.send_message(msg)
-
-    # In definitions.py:
-    defs = dg.Definitions(
-        resources={"smtp": SmtpResource(
-            host=dg.EnvVar("SMTP_HOST"),
-            port=587,
-            user=dg.EnvVar("SMTP_USER"),
-            password=dg.EnvVar("SMTP_PASSWORD"),
-        )},
-    )
-
-    # In any asset:
-    @dg.asset(deps=["sales_output"])
-    def email_report(context, smtp: SmtpResource):
-        smtp.send(to="team@example.com", subject="Report", body="Done")
-    ```
-
-Configure SMTP via environment variables:
-
-| Variable | Description |
-|----------|-------------|
-| `SMTP_HOST` | SMTP server hostname |
-| `SMTP_PORT` | SMTP server port |
-| `SMTP_USER` | SMTP username |
-| `SMTP_PASSWORD` | SMTP password |
+- `pipeline_success.html` — asset counts, duration, record counts, check results, Dagster link
+- `pipeline_failure.html` — error message, failed asset, stacktrace, Dagster link
+- `daily_summary.html` — aggregate run stats (not yet wired to a sensor)
 
 ### Notification Assets vs Sensors
 
@@ -667,21 +609,24 @@ For most teams: start with **non-blocking checks** (Pattern 2) for visibility, t
 Asset check fails (blocking)      -->  Prevents downstream materialization
 Asset check fails (non-blocking)  -->  Visible in UI, picked up by sensor
 Data quality warnings              -->  validate_lazy() metadata + sensor email
-Run fails                          -->  @run_failure_sensor  -->  Slack/email alert
-Run succeeds                       -->  @run_status_sensor   -->  Email metadata report
+Run fails                          -->  email_on_failure     -->  HTML email alert
+Run succeeds                       -->  email_on_success     -->  HTML email report
 Job completes                      -->  Notification asset   -->  Slack channel post
 ```
 
 ### Registering Sensors
 
-Add sensors to your Definitions:
+Sensors are registered in `definitions.py`:
 
 ```python
-# In definitions.py
+from .shared.sensors import email_on_failure, email_on_success
+
 defs = dg.Definitions(
     assets=[...],
-    sensors=[on_run_failure, on_run_success],
-    # ...
+    sensors=[email_on_failure, email_on_success],
+    resources={
+        "notification": NotificationResource(...),
+    },
 )
 ```
 
@@ -692,7 +637,7 @@ Sensors evaluate on a polling interval (default 30 seconds). Set a custom interv
     monitor_all_code_locations=True,
     minimum_interval_seconds=60,
 )
-def on_run_failure(context):
+def email_on_failure(context):
     ...
 ```
 

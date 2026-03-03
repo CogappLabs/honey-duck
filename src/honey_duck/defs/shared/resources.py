@@ -13,6 +13,7 @@ These resources are injected into assets at runtime, enabling:
 """
 
 from pathlib import Path
+from typing import Any
 
 import dagster as dg
 
@@ -83,6 +84,45 @@ class OutputPathsResource(dg.ConfigurableResource):
 
     # DuckDB + Soda intermediate transforms (parquet)
     transforms_soda_dir: str = str(STORAGE_DIR / "transforms_soda")
+
+
+class NotificationResource(dg.ConfigurableResource):
+    """Email notification configuration.
+
+    Reads SMTP and recipient config from env vars. Notifications are disabled
+    when recipients is blank (the default), so sensors no-op in local dev.
+    """
+
+    recipients: str = ""
+    smtp_host: str = "localhost"
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = "pipeline@example.com"
+    smtp_use_tls: bool = True
+    dagster_url: str = ""
+    environment: str = "production"
+
+    @property
+    def enabled(self) -> bool:
+        return bool(self.recipients.strip())
+
+    @property
+    def recipients_list(self) -> list[str]:
+        return [r.strip() for r in self.recipients.split(",") if r.strip()]
+
+    @property
+    def smtp_config(self) -> dict[str, Any]:
+        config: dict[str, Any] = {
+            "from_addr": self.smtp_from,
+            "smtp_host": self.smtp_host,
+            "smtp_port": self.smtp_port,
+            "use_tls": self.smtp_use_tls,
+        }
+        if self.smtp_user and self.smtp_password:
+            config["smtp_user"] = self.smtp_user
+            config["smtp_password"] = self.smtp_password
+        return config
 
 
 class DatabaseResource(dg.ConfigurableResource):
