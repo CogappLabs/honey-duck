@@ -1,45 +1,439 @@
-/* Shared email styles — included via Jinja2 include inside <style>.
-   Child templates override specific properties via CSS cascade. */
+{# ------------------------------------------------------------------ #}
+{# Design tokens                                                       #}
+{# ------------------------------------------------------------------ #}
+
+{# Cogapp brand colours (from cogapp.com _tokens.scss) #}
+{% set c = {
+    "slate":              "#282828",
+    "cream":              "#ebebe1",
+    "grey":               "#717171",
+    "white":              "#ffffff",
+    "black":              "#000000",
+    "focus_blue":         "#227bff",
+    "success":            "#22c55e",
+    "success_dark":       "#16a34a",
+    "success_bg":         "#f0fdf4",
+    "success_border":     "#bbf7d0",
+    "success_pill_bg":    "#dcfce7",
+    "success_pill_text":  "#166534",
+    "failure":            "#ef4444",
+    "failure_dark":       "#dc2626",
+    "failure_bg":         "#fef2f2",
+    "failure_border":     "#fecaca",
+    "failure_pill_bg":    "#fee2e2",
+    "failure_pill_text":  "#991b1b",
+    "failure_deep":       "#7f1d1d",
+    "warning_bg":         "#fff7ed",
+    "warning_border":     "#fed7aa",
+    "warning_text":       "#c2410c",
+    "stacktrace_text":    "#f3f4f6",
+} %}
+
+{# Layout #}
+{% set body_max_width     = "600px" %}
+{% set breakpoint_mobile  = "480px" %}
+{% set container_padding  = "24px" %}
+{% set container_radius   = "8px" %}
+{% set shadow             = "0 2px 4px rgba(0,0,0,0.1)" %}
+
+{# Typography #}
+{% set font_stack = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif" %}
+{% set font_mono  = "monospace" %}
+{% set fs_xs      = "11px" %}
+{% set fs_sm      = "12px" %}
+{% set fs_base    = "13px" %}
+{% set fs_md      = "14px" %}
+{% set fs_lg      = "16px" %}
+{% set fs_xl      = "20px" %}
+{% set fs_h1      = "24px" %}
+{% set fs_stat    = "28px" %}
+{% set fs_stat_lg = "32px" %}
+
+{# Spacing (4px base scale) #}
+{% set sp_1  = "2px" %}
+{% set sp_2  = "4px" %}
+{% set sp_3  = "8px" %}
+{% set sp_4  = "12px" %}
+{% set sp_5  = "16px" %}
+{% set sp_6  = "20px" %}
+{% set sp_7  = "24px" %}
+
+{# Radii #}
+{% set radius_sm    = "4px" %}
+{% set radius_md    = "6px" %}
+{% set radius_lg    = "8px" %}
+{% set radius_pill  = "12px" %}
+{% set radius_badge = "16px" %}
+
+{# Misc #}
+{% set stacktrace_max_height        = "300px" %}
+{% set stacktrace_max_height_mobile = "200px" %}
+{% set border_header                = "3px" %}
+
+{# ------------------------------------------------------------------ #}
+{# Base                                                                #}
+{# ------------------------------------------------------------------ #}
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    font-family: {{ font_stack }};
     line-height: 1.6;
     color: {{ c.slate }};
-    max-width: 600px;
+    max-width: {{ body_max_width }};
     margin: 0 auto;
-    padding: 20px;
+    padding: {{ sp_6 }};
     background-color: {{ c.cream }};
 }
 .container {
     background-color: {{ c.white }};
-    border-radius: 8px;
-    padding: 24px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-radius: {{ container_radius }};
+    padding: {{ container_padding }};
+    box-shadow: {{ shadow }};
 }
 h1 {
-    margin: 12px 0 0 0;
-    font-size: 24px;
+    margin: {{ sp_4 }} 0 0 0;
+    font-size: {{ fs_h1 }};
     color: {{ c.slate }};
 }
-.footer {
-    margin-top: 24px;
-    padding-top: 16px;
-    border-top: 1px solid {{ c.cream }};
-    font-size: 12px;
-    color: {{ c.grey }};
+
+{# ------------------------------------------------------------------ #}
+{# Header (shared across all templates)                                #}
+{# ------------------------------------------------------------------ #}
+
+.header {
+    padding-bottom: {{ sp_5 }};
+    margin-bottom: {{ sp_6 }};
+    border-bottom: {{ border_header }} solid {{ c.cream }};
 }
-.footer a { color: {{ c.grey }}; }
+.header-success { border-color: {{ c.success }}; }
+.header-failure { border-color: {{ c.failure }}; }
+.header-center  { text-align: center; }
+.header-center h1 { margin: 0; }
+.header .date {
+    color: {{ c.grey }};
+    font-size: {{ fs_md }};
+    margin-top: {{ sp_2 }};
+}
+
+{# ------------------------------------------------------------------ #}
+{# Badge                                                               #}
+{# ------------------------------------------------------------------ #}
+
+.badge {
+    display: inline-block;
+    padding: {{ sp_2 }} {{ sp_4 }};
+    border-radius: {{ radius_badge }};
+    font-size: {{ fs_md }};
+    font-weight: 500;
+    color: {{ c.white }};
+}
+.badge-success { background-color: {{ c.success }}; }
+.badge-failure { background-color: {{ c.failure }}; }
+
+{# ------------------------------------------------------------------ #}
+{# Buttons                                                             #}
+{# ------------------------------------------------------------------ #}
+
 .btn {
     display: inline-block;
     background-color: {{ c.slate }};
-    color: {{ c.white }};
-    padding: 10px 20px;
-    border-radius: 6px;
+    color: {{ c.white }} !important;
+    padding: 10px {{ sp_6 }};
+    border-radius: {{ radius_md }};
     text-decoration: none;
     font-weight: 500;
+    margin-top: {{ sp_5 }};
 }
-@media only screen and (max-width: 480px) {
-    body { padding: 12px; }
-    .container { padding: 16px; }
-    h1 { font-size: 20px; }
+.btn + .btn { margin-left: {{ sp_3 }}; }
+
+{# ------------------------------------------------------------------ #}
+{# Stats (shared grid + row layouts)                                   #}
+{# ------------------------------------------------------------------ #}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: {{ sp_5 }};
+    margin: {{ sp_6 }} 0;
+}
+.stat-card {
+    background-color: {{ c.cream }};
+    border-radius: {{ radius_md }};
+    padding: {{ sp_5 }};
+    text-align: center;
+}
+.stat-value {
+    font-size: {{ fs_stat }};
+    font-weight: 600;
+    color: {{ c.slate }};
+}
+.stat-label {
+    font-size: {{ fs_base }};
+    color: {{ c.grey }};
+    margin-top: {{ sp_2 }};
+}
+.stats-row {
+    display: flex;
+    gap: {{ sp_7 }};
+    margin: {{ sp_6 }} 0;
+}
+.stat { text-align: center; }
+.stat-value-success { color: {{ c.success }}; }
+.stat-value-failure { color: {{ c.failure }}; }
+
+{# ------------------------------------------------------------------ #}
+{# Asset table                                                         #}
+{# ------------------------------------------------------------------ #}
+
+.assets-section {
+    margin: {{ sp_7 }} 0;
+}
+.section-heading {
+    font-size: {{ fs_lg }};
+    margin-bottom: {{ sp_4 }};
+    color: {{ c.slate }};
+}
+.asset-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.asset-table td {
+    padding: {{ sp_3 }} 0;
+    border-bottom: 1px solid {{ c.cream }};
+    font-size: {{ fs_base }};
+}
+.mono { font-family: {{ font_mono }}; }
+.text-muted {
+    color: {{ c.grey }};
+}
+.text-right {
+    text-align: right;
+    white-space: nowrap;
+}
+.text-center { text-align: center; }
+
+{# ------------------------------------------------------------------ #}
+{# Error / warning blocks                                              #}
+{# ------------------------------------------------------------------ #}
+
+.error-section {
+    background-color: {{ c.failure_bg }};
+    border: 1px solid {{ c.failure_border }};
+    border-radius: {{ radius_md }};
+    padding: {{ sp_5 }};
+    margin: {{ sp_6 }} 0;
+}
+.error-section h2 {
+    color: {{ c.failure_dark }};
+    font-size: {{ fs_md }};
+    margin: 0 0 {{ sp_3 }} 0;
+}
+.error-message {
+    font-family: {{ font_mono }};
+    font-size: {{ fs_base }};
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: {{ c.failure_deep }};
+    margin: 0;
+}
+.warning-block {
+    background-color: {{ c.warning_bg }};
+    border: 1px solid {{ c.warning_border }};
+    border-radius: {{ radius_md }};
+    padding: {{ sp_4 }} {{ sp_5 }};
+    margin: {{ sp_5 }} 0;
+}
+.warning-block .mono {
+    font-weight: 600;
+    color: {{ c.warning_text }};
+}
+.warning-block .text-muted {
+    margin-top: {{ sp_2 }};
+}
+
+{# ------------------------------------------------------------------ #}
+{# Tags                                                                #}
+{# ------------------------------------------------------------------ #}
+
+.tags {
+    margin: {{ sp_5 }} 0;
+    font-size: {{ fs_sm }};
+    color: {{ c.grey }};
+}
+.tag {
+    display: inline-block;
+    background-color: {{ c.cream }};
+    padding: {{ sp_1 }} {{ sp_3 }};
+    border-radius: {{ radius_sm }};
+    margin: {{ sp_1 }} {{ sp_2 }} {{ sp_1 }} 0;
+    font-family: {{ font_mono }};
+    font-size: {{ fs_xs }};
+}
+
+{# ------------------------------------------------------------------ #}
+{# Stacktrace                                                         #}
+{# ------------------------------------------------------------------ #}
+
+.stacktrace {
+    background-color: {{ c.slate }};
+    color: {{ c.stacktrace_text }};
+    padding: {{ sp_5 }};
+    border-radius: {{ radius_md }};
+    font-family: {{ font_mono }};
+    font-size: {{ fs_sm }};
+    overflow-x: auto;
+    white-space: pre;
+    margin-top: {{ sp_4 }};
+    max-height: {{ stacktrace_max_height }};
+    overflow-y: auto;
+}
+details summary {
+    cursor: pointer;
+    font-weight: 500;
+    margin-bottom: {{ sp_3 }};
+}
+
+{# ------------------------------------------------------------------ #}
+{# Summary cards                                                       #}
+{# ------------------------------------------------------------------ #}
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: {{ sp_4 }};
+    margin: {{ sp_7 }} 0;
+}
+.summary-card {
+    text-align: center;
+    padding: {{ sp_5 }} {{ sp_3 }};
+    border-radius: {{ radius_lg }};
+}
+.summary-card-total {
+    background-color: {{ c.cream }};
+    border: 1px solid {{ c.cream }};
+}
+.summary-card-success {
+    background-color: {{ c.success_bg }};
+    border: 1px solid {{ c.success_border }};
+}
+.summary-card-failed {
+    background-color: {{ c.failure_bg }};
+    border: 1px solid {{ c.failure_border }};
+}
+.summary-card-skipped {
+    background-color: {{ c.cream }};
+    border: 1px solid {{ c.cream }};
+}
+.summary-value {
+    font-size: {{ fs_stat_lg }};
+    font-weight: 700;
+}
+.summary-card-total .summary-value { color: {{ c.slate }}; }
+.summary-card-success .summary-value { color: {{ c.success_dark }}; }
+.summary-card-failed .summary-value { color: {{ c.failure_dark }}; }
+.summary-card-skipped .summary-value { color: {{ c.grey }}; }
+.summary-label {
+    font-size: {{ fs_sm }};
+    color: {{ c.grey }};
+    margin-top: {{ sp_2 }};
+}
+
+{# ------------------------------------------------------------------ #}
+{# Run table                                                           #}
+{# ------------------------------------------------------------------ #}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: {{ fs_base }};
+    margin: {{ sp_7 }} 0;
+}
+.data-table th {
+    text-align: left;
+    padding: 10px {{ sp_3 }};
+    background-color: {{ c.cream }};
+    border-bottom: 2px solid {{ c.cream }};
+    font-weight: 600;
+    color: {{ c.slate }};
+}
+.data-table td {
+    padding: 10px {{ sp_3 }};
+    border-bottom: 1px solid {{ c.cream }};
+}
+.status-pill {
+    display: inline-block;
+    padding: {{ sp_1 }} {{ sp_3 }};
+    border-radius: {{ radius_pill }};
+    font-size: {{ fs_xs }};
+    font-weight: 500;
+}
+.status-success {
+    background-color: {{ c.success_pill_bg }};
+    color: {{ c.success_pill_text }};
+}
+.status-failed {
+    background-color: {{ c.failure_pill_bg }};
+    color: {{ c.failure_pill_text }};
+}
+
+{# ------------------------------------------------------------------ #}
+{# Metrics                                                             #}
+{# ------------------------------------------------------------------ #}
+
+.metrics-section {
+    background-color: {{ c.cream }};
+    border-radius: {{ radius_lg }};
+    padding: {{ sp_6 }};
+    margin: {{ sp_7 }} 0;
+}
+.metrics-section h2 {
+    font-size: {{ fs_lg }};
+    margin: 0 0 {{ sp_5 }} 0;
+    color: {{ c.slate }};
+}
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: {{ sp_5 }};
+}
+.metric { text-align: center; }
+.metric-value {
+    font-size: {{ fs_xl }};
+    font-weight: 600;
+    color: {{ c.slate }};
+}
+.metric-label {
+    font-size: {{ fs_sm }};
+    color: {{ c.grey }};
+}
+
+{# ------------------------------------------------------------------ #}
+{# Footer                                                             #}
+{# ------------------------------------------------------------------ #}
+
+.footer {
+    margin-top: {{ sp_7 }};
+    padding-top: {{ sp_5 }};
+    border-top: 1px solid {{ c.cream }};
+    font-size: {{ fs_sm }};
+    color: {{ c.grey }};
+}
+.footer a { color: {{ c.grey }}; }
+
+{# ------------------------------------------------------------------ #}
+{# Responsive                                                          #}
+{# ------------------------------------------------------------------ #}
+
+@media only screen and (max-width: {{ breakpoint_mobile }}) {
+    body { padding: {{ sp_4 }}; }
+    .container { padding: {{ sp_5 }}; }
+    h1 { font-size: {{ fs_xl }}; }
+    .stats-grid { grid-template-columns: 1fr; gap: 10px; }
+    .stat-value { font-size: 22px; }
+    .stats-row { flex-direction: column; gap: {{ sp_4 }}; }
+    .stacktrace { font-size: {{ fs_xs }}; max-height: {{ stacktrace_max_height_mobile }}; }
+    .summary-grid { grid-template-columns: repeat(2, 1fr); }
+    .summary-value { font-size: {{ fs_h1 }}; }
+    .metrics-grid { grid-template-columns: 1fr; gap: 10px; }
+    .data-table { font-size: {{ fs_sm }}; }
+    .data-table th, .data-table td { padding: {{ sp_3 }} {{ sp_2 }}; }
 }

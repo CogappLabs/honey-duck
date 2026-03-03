@@ -2,115 +2,9 @@
 
 {% block title %}Pipeline Failed: {{ pipeline_name }}{% endblock %}
 
-{% block extra_css %}
-        .header {
-            border-bottom: 3px solid {{ c.failure }};
-            padding-bottom: 16px;
-            margin-bottom: 20px;
-        }
-        .failure-badge {
-            background-color: {{ c.failure }};
-            color: {{ c.white }};
-            padding: 4px 12px;
-            border-radius: 16px;
-            font-size: 14px;
-            font-weight: 500;
-            display: inline-block;
-        }
-        .btn {
-            background-color: {{ c.failure }};
-            margin-top: 16px;
-        }
-        .btn-secondary {
-            background-color: {{ c.grey }};
-            margin-left: 8px;
-        }
-        .error-section {
-            background-color: {{ c.failure_bg }};
-            border: 1px solid {{ c.failure_border }};
-            border-radius: 6px;
-            padding: 16px;
-            margin: 20px 0;
-        }
-        .error-section h2 {
-            color: {{ c.failure_dark }};
-            font-size: 14px;
-            margin: 0 0 8px 0;
-        }
-        .error-message {
-            font-family: monospace;
-            font-size: 13px;
-            white-space: pre-wrap;
-            word-break: break-word;
-            color: {{ c.failure_deep }};
-            margin: 0;
-        }
-        .failed-asset {
-            background-color: {{ c.warning_asset_bg }};
-            border: 1px solid {{ c.warning_asset_border }};
-            border-radius: 6px;
-            padding: 12px 16px;
-            margin: 16px 0;
-        }
-        .failed-asset-name {
-            font-family: monospace;
-            font-weight: 600;
-            color: {{ c.warning_asset_text }};
-        }
-        .stats-row {
-            display: flex;
-            gap: 24px;
-            margin: 20px 0;
-        }
-        .stat {
-            text-align: center;
-        }
-        .stat-value {
-            font-size: 24px;
-            font-weight: 600;
-        }
-        .stat-value.success { color: {{ c.success }}; }
-        .stat-value.failure { color: {{ c.failure }}; }
-        .stat-label {
-            font-size: 12px;
-            color: {{ c.grey }};
-        }
-        .tags {
-            margin: 16px 0;
-            font-size: 12px;
-            color: {{ c.grey }};
-        }
-        .tag {
-            display: inline-block;
-            background-color: {{ c.cream }};
-            padding: 2px 8px;
-            border-radius: 4px;
-            margin: 2px 4px 2px 0;
-            font-family: monospace;
-            font-size: 11px;
-        }
-        .stacktrace {
-            background-color: {{ c.slate }};
-            color: {{ c.stacktrace_text }};
-            padding: 16px;
-            border-radius: 6px;
-            font-family: monospace;
-            font-size: 12px;
-            overflow-x: auto;
-            white-space: pre;
-            margin-top: 12px;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-        @media only screen and (max-width: 480px) {
-            .stats-row { flex-direction: column; gap: 12px; }
-            .stacktrace { font-size: 11px; max-height: 200px; }
-        }
-{% endblock %}
-
 {% block header %}
-        <div class="header">
-            <span class="failure-badge">FAILED</span>
+        <div class="header header-failure">
+            <span class="badge badge-failure">FAILED</span>
             <h1>{{ pipeline_name }}</h1>
         </div>
 {% endblock %}
@@ -120,11 +14,11 @@
 
         <div class="stats-row">
             <div class="stat">
-                <div class="stat-value success">{{ assets_succeeded | default(0) }}</div>
+                <div class="stat-value stat-value-success">{{ assets_succeeded | default(0) }}</div>
                 <div class="stat-label">Succeeded</div>
             </div>
             <div class="stat">
-                <div class="stat-value failure">{{ assets_failed | default(1) }}</div>
+                <div class="stat-value stat-value-failure">{{ assets_failed | default(1) }}</div>
                 <div class="stat-label">Failed</div>
             </div>
             <div class="stat">
@@ -134,10 +28,10 @@
         </div>
 
         {% if failed_asset %}
-        <div class="failed-asset">
-            <div class="failed-asset-name">{{ failed_asset }}</div>
+        <div class="warning-block">
+            <div class="mono">{{ failed_asset }}</div>
             {% if failed_step %}
-            <div style="font-size: 12px; color: {{ c.grey }}; margin-top: 4px;">Step: {{ failed_step }}</div>
+            <div class="text-muted">Step: {{ failed_step }}</div>
             {% endif %}
         </div>
         {% endif %}
@@ -149,7 +43,7 @@
 
         {% if internal and stacktrace %}
         <details>
-            <summary style="cursor: pointer; font-weight: 500; margin-bottom: 8px;">Stack Trace</summary>
+            <summary>Stack Trace</summary>
             <pre class="stacktrace">{{ stacktrace }}</pre>
         </details>
         {% endif %}
@@ -164,12 +58,12 @@
         {% endif %}
 
         {% if internal %}
-        <div style="margin-top: 20px;">
+        <div>
             {% if dagster_url %}
-            <a href="{{ dagster_url }}" class="btn" style="color: {{ c.white }} !important;">View in Dagster</a>
+            <a href="{{ dagster_url }}" class="btn">View in Dagster</a>
             {% endif %}
             {% if logs_url %}
-            <a href="{{ logs_url }}" class="btn btn-secondary" style="color: {{ c.white }} !important;">View Logs</a>
+            <a href="{{ logs_url }}" class="btn">View Logs</a>
             {% endif %}
         </div>
         {% endif %}

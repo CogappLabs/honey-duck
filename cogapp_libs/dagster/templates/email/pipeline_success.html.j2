@@ -2,84 +2,9 @@
 
 {% block title %}Pipeline Success: {{ pipeline_name }}{% endblock %}
 
-{% block extra_css %}
-        .header {
-            border-bottom: 3px solid {{ c.success }};
-            padding-bottom: 16px;
-            margin-bottom: 20px;
-        }
-        .success-badge {
-            background-color: {{ c.success }};
-            color: {{ c.white }};
-            padding: 4px 12px;
-            border-radius: 16px;
-            font-size: 14px;
-            font-weight: 500;
-            display: inline-block;
-        }
-        .btn { margin-top: 16px; }
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 16px;
-            margin: 20px 0;
-        }
-        .stat-card {
-            background-color: {{ c.cream }};
-            border-radius: 6px;
-            padding: 16px;
-            text-align: center;
-        }
-        .stat-value {
-            font-size: 28px;
-            font-weight: 600;
-            color: {{ c.slate }};
-        }
-        .stat-label {
-            font-size: 13px;
-            color: {{ c.grey }};
-            margin-top: 4px;
-        }
-        .assets-section {
-            margin: 24px 0;
-        }
-        .assets-section h2 {
-            font-size: 16px;
-            margin-bottom: 12px;
-            color: {{ c.slate }};
-        }
-        .asset-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-        .asset-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        .asset-table td {
-            padding: 8px 0;
-            border-bottom: 1px solid {{ c.cream }};
-            font-size: 13px;
-        }
-        .asset-name {
-            font-family: monospace;
-        }
-        .asset-records {
-            color: {{ c.grey }};
-            text-align: right;
-            white-space: nowrap;
-        }
-        @media only screen and (max-width: 480px) {
-            .stats-grid { grid-template-columns: 1fr; gap: 10px; }
-            .stat-value { font-size: 22px; }
-            .asset-item { flex-direction: column; gap: 2px; }
-        }
-{% endblock %}
-
 {% block header %}
-        <div class="header">
-            <span class="success-badge">SUCCESS</span>
+        <div class="header header-success">
+            <span class="badge badge-success">SUCCESS</span>
             <h1>{{ pipeline_name }}</h1>
         </div>
 {% endblock %}
@@ -114,12 +39,12 @@
 
         {% if assets %}
         <div class="assets-section">
-            <h2>Materialized Assets</h2>
+            <h2 class="section-heading">Materialized Assets</h2>
             <table class="asset-table">
                 {% for asset in assets %}
                 <tr>
-                    <td class="asset-name">{{ asset.name }}</td>
-                    <td class="asset-records">{% if asset.records is not none %}{{ asset.records }} records{% else %}--{% endif %}</td>
+                    <td class="mono">{{ asset.name }}</td>
+                    <td class="text-muted text-right">{% if asset.records is not none %}{{ asset.records }} records{% else %}--{% endif %}</td>
                 </tr>
                 {% endfor %}
             </table>
@@ -127,7 +52,7 @@
         {% endif %}
 
         {% if internal and dagster_url %}
-        <a href="{{ dagster_url }}" class="btn" style="color: {{ c.white }} !important;">View in Dagster</a>
+        <a href="{{ dagster_url }}" class="btn">View in Dagster</a>
         {% endif %}
 {% endblock %}
 

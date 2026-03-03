@@ -43,44 +43,17 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 # Template directory
 TEMPLATE_DIR = Path(__file__).parent / "templates" / "email"
 
-# Cogapp brand colours (from cogapp.com _tokens.scss)
-# Injected as Jinja2 globals so templates stay free of hardcoded hex values.
-BRAND_COLORS = {
-    "slate": "#282828",  # primary dark grey — text, headings, buttons
-    "cream": "#ebebe1",  # light neutral — page bg, card bg, borders
-    "grey": "#717171",  # mid-tone — secondary text, labels, footer
-    "white": "#ffffff",
-    "black": "#000000",
-    "focus_blue": "#227bff",  # interactive / links
-    # Semantic status colours (kept for success/failure distinction)
-    "success": "#22c55e",
-    "success_dark": "#16a34a",
-    "success_bg": "#f0fdf4",
-    "success_border": "#bbf7d0",
-    "success_pill_bg": "#dcfce7",
-    "success_pill_text": "#166534",
-    "failure": "#ef4444",
-    "failure_dark": "#dc2626",
-    "failure_bg": "#fef2f2",
-    "failure_border": "#fecaca",
-    "failure_pill_bg": "#fee2e2",
-    "failure_pill_text": "#991b1b",
-    "failure_deep": "#7f1d1d",
-    "warning_asset_bg": "#fff7ed",
-    "warning_asset_border": "#fed7aa",
-    "warning_asset_text": "#c2410c",
-    "stacktrace_text": "#f3f4f6",
-}
-
 
 def _get_jinja_env() -> Environment:
-    """Create Jinja2 environment with template directory and brand colours."""
-    env = Environment(
+    """Create Jinja2 environment with template directory.
+
+    Brand colours are defined in base.html.j2 via {% set c = {...} %}
+    so all child templates can reference them as {{ c.slate }} etc.
+    """
+    return Environment(
         loader=FileSystemLoader(TEMPLATE_DIR),
         autoescape=select_autoescape(["html", "html.j2", "xml"]),
     )
-    env.globals["c"] = BRAND_COLORS
-    return env
 
 
 def render_success_email(
